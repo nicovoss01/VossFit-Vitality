@@ -1015,10 +1015,65 @@
     if(!fbUser){ cloudProfileIndex = null; if(cb) cb(); return; }
     fetchCloudProfiles().then(function(map){
       cloudProfileIndex = map;
+      if(!state.knownCloudIds) state.knownCloudIds = {};
+      Object.keys(map).forEach(function(id){ state.knownCloudIds[id] = true; });
       if(cb) cb();
     }).catch(function(){
       if(!cloudProfileIndex) cloudProfileIndex = {};
       if(cb) cb();
+    });
+  }
+
+  // Vor jedem Hochladen erst den aktuellen Cloud-Stand holen: Ein Profil, das
+  // dieses Gerät früher schon mal in der Cloud gesehen hat (knownCloudIds),
+  // dort jetzt aber fehlt, wurde auf einem ANDEREN Gerät gelöscht — das wird
+  // dann auch hier lokal entfernt statt blind wieder hochgeladen zu werden.
+  // Ohne das würde eine Löschung auf Gerät A beim nächsten Sync von Gerät B
+  // (das das Profil noch lokal hat) einfach wieder rückgängig gemacht.
+  function reconcileAndPush(onDone){
+    var ids = Object.keys(state.profiles || {});
+    refreshCloudProfileIndex(function(){
+      var toPush = [];
+      var removedElsewhere = false;
+      ids.forEach(function(id){
+        var wasKnown = !!(state.knownCloudIds && state.knownCloudIds[id]);
+        var stillThere = cloudProfileIndex && cloudProfileIndex[id];
+        if(wasKnown && !stillThere){
+          delete state.profiles[id];
+          if(state.knownCloudIds) delete state.knownCloudIds[id];
+          if(state.activeProfileId === id) state.activeProfileId = null;
+          removedElsewhere = true;
+        } else {
+          toPush.push(id);
+        }
+      });
+      function finish(){
+        save({skipCloud:true});
+        renderSettings();
+        renderHome();
+        setSyncStatus(removedElsewhere ? "Auf einem anderen Gerät gelöscht — übernommen ✓" : "Synchronisiert ✓");
+        if(onDone) onDone(true, removedElsewhere);
+      }
+      if(!toPush.length){ finish(); return; }
+      Promise.all(toPush.map(function(id){
+        return fbDbReady.then(function(db){
+          if(!db || !fsApi) throw new Error("Cloud-Datenbank nicht verfügbar" + (fsLoadError ? (": " + fsLoadError) : ""));
+          return fsApi.setDoc(fsApi.doc(db, "users", fbUser.uid, "profiles", id), {
+            profile: JSON.stringify(state.profiles[id]),
+            updatedAt: fsApi.serverTimestamp()
+          });
+        });
+      })).then(function(){
+        toPush.forEach(function(id){
+          state.knownCloudIds[id] = true;
+          if(cloudProfileIndex) cloudProfileIndex[id] = state.profiles[id];
+        });
+        pruneLocalToActiveOnly();
+        finish();
+      }).catch(function(err){
+        setSyncStatus(syncFailureText(err), syncFailureKind());
+        if(onDone) onDone(false, err && err.message);
+      });
     });
   }
 
@@ -1028,26 +1083,9 @@
     if(!fbUser) return;
     clearTimeout(cloudSaveTimer);
     cloudSaveTimer = setTimeout(function(){
-      var ids = Object.keys(state.profiles || {});
-      if(!ids.length) return;
+      if(!Object.keys(state.profiles || {}).length) return;
       setSyncStatus("Synchronisiere…", "pending");
-      Promise.all(ids.map(function(id){
-        return fbDbReady.then(function(db){
-          if(!db || !fsApi) throw new Error("Cloud-Datenbank nicht verfügbar" + (fsLoadError ? (": " + fsLoadError) : ""));
-          return fsApi.setDoc(fsApi.doc(db, "users", fbUser.uid, "profiles", id), {
-            profile: JSON.stringify(state.profiles[id]),
-            updatedAt: fsApi.serverTimestamp()
-          });
-        });
-      })).then(function(){
-        setSyncStatus("Synchronisiert ✓");
-        if(cloudProfileIndex){ ids.forEach(function(id){ cloudProfileIndex[id] = state.profiles[id]; }); }
-        pruneLocalToActiveOnly();
-        save({skipCloud:true});
-        renderSettings();
-      }).catch(function(err){
-        setSyncStatus(syncFailureText(err), syncFailureKind());
-      });
+      reconcileAndPush();
     }, 1500);
   }
 
@@ -1105,28 +1143,8 @@
   function manualSyncNow(onDone){
     if(!fbUser){ if(onDone) onDone(false, "Nicht angemeldet."); return; }
     clearTimeout(cloudSaveTimer);
-    var ids = Object.keys(state.profiles || {});
     setSyncStatus("Synchronisiere…", "pending");
-    Promise.all(ids.map(function(id){
-      return fbDbReady.then(function(db){
-        if(!db || !fsApi) throw new Error("Cloud-Datenbank nicht verfügbar" + (fsLoadError ? (": " + fsLoadError) : ""));
-        return fsApi.setDoc(fsApi.doc(db, "users", fbUser.uid, "profiles", id), {
-          profile: JSON.stringify(state.profiles[id]),
-          updatedAt: fsApi.serverTimestamp()
-        });
-      });
-    })).then(function(){
-      return new Promise(function(resolve){ refreshCloudProfileIndex(resolve); });
-    }).then(function(){
-      setSyncStatus("Synchronisiert ✓");
-      pruneLocalToActiveOnly();
-      save({skipCloud:true});
-      renderSettings();
-      if(onDone) onDone(true);
-    }).catch(function(err){
-      setSyncStatus(syncFailureText(err), syncFailureKind());
-      if(onDone) onDone(false, err && err.message);
-    });
+    reconcileAndPush(onDone);
   }
 
   // ---------- Einzelne Profile: manuell in die Cloud sichern / daraus löschen ----------
@@ -1141,6 +1159,8 @@
     }).then(function(){
       setSyncStatus("Profil in Cloud gesichert ✓");
       if(cloudProfileIndex) cloudProfileIndex[profileId] = state.profiles[profileId];
+      if(!state.knownCloudIds) state.knownCloudIds = {};
+      state.knownCloudIds[profileId] = true;
       if(onDone) onDone(true);
     }).catch(function(err){
       setSyncStatus(syncFailureText(err), syncFailureKind());
@@ -1156,6 +1176,7 @@
     }).then(function(){
       setSyncStatus("Cloud-Kopie gelöscht ✓");
       if(cloudProfileIndex) delete cloudProfileIndex[profileId];
+      if(state.knownCloudIds) delete state.knownCloudIds[profileId];
       if(onDone) onDone(true);
     }).catch(function(err){
       setSyncStatus(syncFailureText(err), syncFailureKind());
@@ -1369,7 +1390,8 @@
       calYear: new Date().getFullYear(), calMonth: new Date().getMonth(),
       chats: {},
       activeChatId: null,
-      openaiApiKey: ""
+      openaiApiKey: "",
+      knownCloudIds: {}
     };
   }
 
@@ -4094,6 +4116,7 @@
     }
     if(state.activeChatId === undefined) state.activeChatId = null;
     if(state.openaiApiKey === undefined) state.openaiApiKey = "";
+    if(!state.knownCloudIds) state.knownCloudIds = {};
     if(state.onboarded){
       initApp();
     } else {
