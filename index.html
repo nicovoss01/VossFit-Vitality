@@ -1996,6 +1996,56 @@
     return guessMealNameByTime();
   }
 
+  // Kleine, feste Rezeptsammlung, damit der Offline-Assistent auf Wunsch einen
+  // ganzen Tagesplan zusammenstellen kann — Werte sind typische Richtwerte pro
+  // Portion, keine exakten Laborwerte.
+  var RECIPE_DB = [
+    { meal: "Frühstück", name: "Haferflocken mit Banane & Milch", kcal: 420, kh: 65, fett: 9, protein: 16, zutaten: "60g Haferflocken, 1 Banane, 250ml Milch, 1 TL Honig" },
+    { meal: "Frühstück", name: "Rührei mit Vollkornbrot", kcal: 380, kh: 28, fett: 18, protein: 24, zutaten: "3 Eier, 2 Scheiben Vollkornbrot, etwas Butter" },
+    { meal: "Frühstück", name: "Magerquark mit Obst und Nüssen", kcal: 350, kh: 30, fett: 12, protein: 28, zutaten: "250g Magerquark, 1 Apfel, 20g Mandeln, 1 TL Honig" },
+    { meal: "Frühstück", name: "Proteinshake mit Haferflocken", kcal: 400, kh: 45, fett: 8, protein: 35, zutaten: "1 Scoop Proteinpulver, 40g Haferflocken, 250ml Milch" },
+    { meal: "Mittagessen", name: "Hähnchenbrust mit Reis und Gemüse", kcal: 650, kh: 70, fett: 14, protein: 48, zutaten: "200g Hähnchenbrust, 150g Reis (roh), Gemüse nach Wahl, 1 TL Öl" },
+    { meal: "Mittagessen", name: "Nudeln mit Linsen-Bolognese", kcal: 600, kh: 85, fett: 12, protein: 28, zutaten: "120g Nudeln (roh), 200g Linsen (gekocht), Tomatensauce, Gewürze" },
+    { meal: "Mittagessen", name: "Lachs mit Kartoffeln", kcal: 620, kh: 55, fett: 24, protein: 38, zutaten: "180g Lachs, 300g Kartoffeln, Gemüse, 1 TL Öl" },
+    { meal: "Mittagessen", name: "Rindfleisch-Pfanne mit Reis", kcal: 680, kh: 65, fett: 22, protein: 50, zutaten: "200g Rindfleisch, 150g Reis (roh), Gemüse, 1 TL Öl" },
+    { meal: "Abendessen", name: "Hähnchen-Salat mit Ei", kcal: 480, kh: 20, fett: 22, protein: 42, zutaten: "180g Hähnchenbrust, 2 Eier, Salat, Öl-Dressing" },
+    { meal: "Abendessen", name: "Kartoffel-Quark-Bowl", kcal: 450, kh: 60, fett: 8, protein: 28, zutaten: "250g Kartoffeln, 200g Magerquark, Kräuter" },
+    { meal: "Abendessen", name: "Thunfisch mit Vollkornbrot", kcal: 420, kh: 35, fett: 14, protein: 38, zutaten: "1 Dose Thunfisch (in Wasser), 2 Scheiben Vollkornbrot, Gemüse" },
+    { meal: "Abendessen", name: "Hähnchen mit Gemüse und Reis", kcal: 550, kh: 60, fett: 16, protein: 35, zutaten: "150g Hähnchenbrust, Gemüse, 120g Reis (roh), 1 TL Öl" },
+    { meal: "Snack", name: "Naturjoghurt mit Nüssen", kcal: 220, kh: 12, fett: 14, protein: 10, zutaten: "200g Naturjoghurt, 20g Mandeln" },
+    { meal: "Snack", name: "Apfel mit Erdnussbutter", kcal: 250, kh: 28, fett: 14, protein: 6, zutaten: "1 Apfel, 20g Erdnussbutter" },
+    { meal: "Snack", name: "Proteinshake", kcal: 150, kh: 5, fett: 3, protein: 25, zutaten: "1 Scoop Proteinpulver, Wasser oder Milch" },
+    { meal: "Snack", name: "Banane mit Mandeln", kcal: 230, kh: 27, fett: 10, protein: 6, zutaten: "1 Banane, 15g Mandeln" }
+  ];
+
+  function findRecipeMatch(lower){
+    var best = null;
+    RECIPE_DB.forEach(function(r){
+      var rn = r.name.toLowerCase();
+      if(lower.indexOf(rn) > -1 && (!best || rn.length > best.name.length)){
+        best = r;
+      }
+    });
+    return best;
+  }
+
+  function pickClosestRecipe(mealType, targetKcal){
+    var candidates = RECIPE_DB.filter(function(r){ return r.meal === mealType; });
+    var best = candidates[0], bestDiff = Infinity;
+    candidates.forEach(function(r){
+      var diff = Math.abs(r.kcal - targetKcal);
+      if(diff < bestDiff){ bestDiff = diff; best = r; }
+    });
+    return best;
+  }
+
+  function generateDayPlan(targetKcal){
+    var shares = { "Frühstück": 0.25, "Mittagessen": 0.35, "Abendessen": 0.30, "Snack": 0.10 };
+    return ["Frühstück", "Mittagessen", "Abendessen", "Snack"].map(function(meal){
+      return { meal: meal, recipe: pickClosestRecipe(meal, targetKcal * shares[meal]) };
+    });
+  }
+
   function runOfflineAssistant(text, pendingBubble, finishOk){
     pendingBubble.className = "chat-bubble pending";
     pendingBubble.textContent = "…";
@@ -2005,6 +2055,39 @@
         var lower = text.toLowerCase();
         var addVerbs = ["füg", "hinzufüg", "eintragen", "trag ein", "gegessen", "add", "war heute"];
         var hasAddIntent = addVerbs.some(function(v){ return lower.indexOf(v) > -1; });
+
+        var planKeywords = ["ernährungsplan", "essensplan", "tagesplan", "was soll ich essen", "was soll ich heute essen", "was kann ich essen", "was koche ich", "plan für heute", "vorschlag für heute", "vorschläge fürs essen"];
+        var wantsPlan = planKeywords.some(function(v){ return lower.indexOf(v) > -1; });
+        var pForPlan = activeProfile();
+        if(wantsPlan && pForPlan){
+          var mPlan = calcEngine(pForPlan);
+          var plan = generateDayPlan(mPlan.TB);
+          var lines = ["Vorschlag für heute (Tagesziel ca. " + Math.round(mPlan.TB) + " kcal):"];
+          var totalKcal = 0, totalKh = 0, totalFett = 0, totalProtein = 0;
+          plan.forEach(function(p2){
+            var r = p2.recipe;
+            if(!r) return;
+            totalKcal += r.kcal; totalKh += r.kh; totalFett += r.fett; totalProtein += r.protein;
+            lines.push(p2.meal + ": " + r.name + " (~" + r.kcal + " kcal) — " + r.zutaten);
+          });
+          lines.push("Gesamt: ca. " + totalKcal + " kcal (" + totalKh + "g KH, " + totalFett + "g Fett, " + totalProtein + "g Protein).");
+          lines.push("Sag z.B. \"" + (plan[0].recipe ? plan[0].recipe.name : "Rührei mit Vollkornbrot") + " zum Frühstück hinzufügen\", damit ich ein Gericht direkt einträge.");
+          finishOk(lines.join("\n"));
+          return;
+        }
+
+        var recipeMatch = findRecipeMatch(lower);
+        if(recipeMatch && hasAddIntent){
+          var mealNameR = detectMealName(lower) || recipeMatch.meal;
+          var resultR = addFoodToDayEntry({ mealName: mealNameR, foodName: recipeMatch.name, kh: recipeMatch.kh, fett: recipeMatch.fett, protein: recipeMatch.protein });
+          finishOk((resultR && resultR.message) || "Hinzugefügt.");
+          return;
+        }
+        if(recipeMatch && !hasAddIntent){
+          finishOk(recipeMatch.name + ": ca. " + recipeMatch.kcal + " kcal (" + recipeMatch.kh + "g KH, " + recipeMatch.fett + "g Fett, " + recipeMatch.protein + "g Protein). Zutaten: " + recipeMatch.zutaten + ". Sag \"" + recipeMatch.name + " zum " + recipeMatch.meal + " hinzufügen\", damit ich es einträge.");
+          return;
+        }
+
         var match = findFoodMatch(lower);
 
         if(match && hasAddIntent){
@@ -2062,7 +2145,7 @@
           return;
         }
 
-        finishOk("Ich bin gerade offline unterwegs und antworte dir mit meinem einfachen Assistenten (keine Internet-KI verfügbar). Ich kann dir z.B. helfen mit: \"100g Reis zum Mittagessen hinzufügen\", \"Wie viele Kalorien habe ich noch übrig?\" oder \"Wie bestätige ich eine Mahlzeit?\". Wie kann ich helfen?");
+        finishOk("Ich bin gerade offline unterwegs und antworte dir mit meinem einfachen Assistenten (keine Internet-KI verfügbar). Ich kann dir z.B. helfen mit: \"Ernährungsplan für heute\" (kompletter Tagesvorschlag mit Rezepten), \"100g Reis zum Mittagessen hinzufügen\", \"Wie viele Kalorien habe ich noch übrig?\" oder \"Wie bestätige ich eine Mahlzeit?\". Wie kann ich helfen?");
       }catch(e){
         finishOk("Ich bin gerade offline unterwegs und konnte deine Anfrage nicht ganz einordnen. Frag mich gern z.B. nach deinen Tageswerten oder sag mir direkt, welches Lebensmittel du hinzufügen möchtest.");
       }
