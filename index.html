@@ -318,6 +318,7 @@
   .chat-inputrow textarea{ flex: 1; background: #000; border: 1px solid var(--turquoise); border-radius: 14px; padding: 11px 13px; color: var(--text); font-family: var(--body); font-size: 14px; resize: none; max-height: 110px; }
   .chat-sendbtn{ width: 44px; height: 44px; border-radius: 50%; background: var(--turquoise); color: #000; display: grid; place-items: center; font-size: 18px; cursor: pointer; flex-shrink: 0; }
   .chat-sendbtn.disabled{ opacity: .4; pointer-events: none; }
+  .chat-listbtn{ width: 44px; height: 44px; border-radius: 50%; background: #000; border: 1px solid var(--turquoise); color: var(--turquoise); display: grid; place-items: center; font-size: 17px; cursor: pointer; flex-shrink: 0; }
 
   /* ---------- Shared form bits ---------- */
   .field{ display: flex; flex-direction: column; gap: 6px; }
@@ -1050,6 +1051,7 @@
           <div class="chat-messages" id="chatMessages"></div>
           <p class="chat-hint">VoßBot redet locker mit dir, ersetzt aber keinen Arzt &amp; keine medizinische Beratung.</p>
           <div class="chat-inputrow" id="chatInputRow">
+            <div class="chat-listbtn" id="chatAllChatsBtn" title="Alle Chats">☰</div>
             <textarea id="chatInput" rows="1" placeholder="Schreib VoßBot einfach, was los ist…"></textarea>
             <div class="chat-sendbtn" id="chatSendBtn">➤</div>
           </div>
@@ -2408,6 +2410,36 @@
     return { text: openers[oi], chips: chipSets[ci] };
   }
 
+  // Ein aus dem Hauptchat heraus gestarteter Chat bleibt zunächst optisch
+  // Teil des Hauptchats (Tableiste sichtbar, kein Zurück-Pfeil) — erst wenn
+  // der Nutzer ihn wirklich verlässt (Tab wechseln, "Alle Chats" öffnen,
+  // nächsten neuen Chat starten), wandert er endgültig in die Chatliste.
+  // Bis dahin trägt er `pendingPromote` und wird dort ausgeblendet.
+  function promotePendingMainSpawn(){
+    var c = state.chats[state.activeChatId];
+    if(c && c.pendingPromote){
+      c.pendingPromote = false;
+      save();
+    }
+  }
+
+  // Startet einen neuen Chat mit zufälliger Begrüßung direkt im
+  // VoßBot-Reiter — bleibt (wie beim manuellen Absenden) zunächst optisch
+  // im Hauptchat, statt in eine Drilldown-Ansicht mit Zurück-Pfeil zu
+  // wechseln. Wird sowohl vom neuen Button links im Eingabefeld als auch
+  // vom Senden-Button bei leerem Eingabefeld benutzt.
+  function spawnHiddenChatFromMain(){
+    promotePendingMainSpawn();
+    var id = createNewChat();
+    state.chats[id].pendingPromote = true;
+    var welcome = randomChatWelcome();
+    state.chats[id].messages.push({ role: "assistant", text: welcome.text, suggestChips: welcome.chips });
+    state.activeChatId = id;
+    renderChatMessages();
+    positionChatInputRow();
+    save();
+  }
+
   function renderOpenaiKeyStatus(){
     var input = document.getElementById("openaiKeyInput");
     var status = document.getElementById("openaiKeyStatus");
@@ -2426,7 +2458,8 @@
     renderOpenaiKeyStatus();
     var wrap = document.getElementById("chatListWrap");
     wrap.innerHTML = "";
-    var ids = Object.keys(state.chats).sort(function(a,b){ return state.chats[b].updatedAt - state.chats[a].updatedAt; });
+    var ids = Object.keys(state.chats).filter(function(id){ return !state.chats[id].pendingPromote; })
+      .sort(function(a,b){ return state.chats[b].updatedAt - state.chats[a].updatedAt; });
     if(ids.length === 0){
       var empty = document.createElement("div");
       empty.className = "chat-empty";
@@ -2505,6 +2538,7 @@
   // "+ Neuer Chat") — erreichbar über das ⋮-Menü im Hauptchat, nicht mehr
   // die Standardansicht des VoßBot-Reiters.
   function openChatListScreen(){
+    promotePendingMainSpawn();
     state.view = "chatlist";
     hidePanels();
     document.getElementById("tab-chatlist").hidden = false;
@@ -3627,7 +3661,13 @@
     if(chatBusy) return;
     var input = document.getElementById("chatInput");
     var text = input.value.trim();
-    if(!text) return;
+    if(!text){
+      // Leeres Eingabefeld absenden = neuer Chat mit zufälliger Begrüßung,
+      // genau wie beim Button links im Eingabefeld.
+      var cchat = currentChat();
+      if(cchat && cchat.isMain && !chatOnboarding) spawnHiddenChatFromMain();
+      return;
+    }
     input.value = "";
     input.style.height = "auto";
 
@@ -3636,15 +3676,19 @@
 
     // Der Hauptchat bleibt frei von normalem Geplauder — eine frei
     // getippte Nachricht dort (außerhalb von Onboarding/Login-Fragen)
-    // landet automatisch in einem neuen, separaten Chat, der auch in
-    // der Chatliste auftaucht, damit der Hauptchat aufgeräumt bleibt.
+    // startet automatisch einen neuen, separaten Chat. Der bleibt aber
+    // zunächst optisch im Hauptchat (Tableiste sichtbar, kein Zurück-Pfeil)
+    // und taucht erst in der Chatliste auf, sobald dieser Chat wirklich
+    // verlassen wird — so bleibt der Hauptchat als fester Einstiegspunkt
+    // erhalten, ohne dass man beim Tippen sofort wegnavigiert wird.
     if(chat.isMain && !chatOnboarding){
       var hasPendingAuth = chat.messages.some(function(pm){ return pm.authChoice && !pm.resolved; });
       var hasUnansweredChoice = chat.messages.some(function(pm){ return pm.choiceType && !pm.answered; });
       if(!hasPendingAuth && !hasUnansweredChoice){
         var freshId = createNewChat();
+        state.chats[freshId].pendingPromote = true;
+        state.activeChatId = freshId;
         chat = state.chats[freshId];
-        openChatConversation(freshId);
       }
     }
 
@@ -5095,6 +5139,11 @@
 
   function showTab(tab){
     if(navLocked()) tab = "chat"; // gesperrt: nur der VoßBot-Chat ist erreichbar
+    // Tab-Wechsel = der Nutzer verlässt einen ggf. gerade aus dem Hauptchat
+    // heraus gestarteten Chat wirklich — jetzt endgültig in die Chatliste
+    // aufnehmen (auch wenn direkt wieder auf "chat" gewechselt wird, da der
+    // VoßBot-Reiter unten immer zum Hauptchat zurücksetzt).
+    promotePendingMainSpawn();
     state.activeTab = tab;
     state.view = "home";
     setTopbar("home");
@@ -5287,6 +5336,7 @@
     document.getElementById("dayExpand").addEventListener("click", openMonthCal);
 
     document.getElementById("newChatBtn").addEventListener("click", function(){
+      promotePendingMainSpawn();
       var id = createNewChat();
       var welcome = randomChatWelcome();
       state.chats[id].messages.push({ role: "assistant", text: welcome.text, suggestChips: welcome.chips });
@@ -5294,6 +5344,18 @@
       openChatConversation(id);
     });
     document.getElementById("chatSendBtn").addEventListener("click", sendChatMessage);
+    // Button links vom Eingabefeld (gegenüber vom Senden-Button): bei
+    // leerem Feld wie der Senden-Button ein neuer Chat mit Begrüßung,
+    // sonst wie gewohnt die Liste aller Chats öffnen.
+    document.getElementById("chatAllChatsBtn").addEventListener("click", function(){
+      var text = document.getElementById("chatInput").value.trim();
+      var cchat = currentChat();
+      if(!text && cchat && cchat.isMain && !chatOnboarding){
+        spawnHiddenChatFromMain();
+        return;
+      }
+      openChatListScreen();
+    });
     var gsi = document.getElementById("googleSignInBtn"); if(gsi) gsi.addEventListener("click", signInGoogle);
     var gso = document.getElementById("googleSignOutBtn"); if(gso) gso.addEventListener("click", signOutGoogle);
     var syncNowBtn = document.getElementById("syncNowBtn");
