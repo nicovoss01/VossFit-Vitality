@@ -240,29 +240,36 @@
   .cac-choices-gender{ flex-direction: row; gap: 8px; }
   .cac-choice-btn{ flex: 1; background: #000; border: 1.5px solid var(--turquoise); color: var(--turquoise); border-radius: 999px; padding: 11px 14px; font-family: var(--body); font-weight: 600; font-size: 14px; cursor: pointer; box-shadow: var(--glow-border); }
   .cac-choices-kfa{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
-  .chat-overview-card{ display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; flex-shrink: 0; }
-  .cov-top{ display: flex; gap: 10px; }
-  .cov-tile{ flex: 1; min-width: 0; border-radius: 18px; border: 1.5px solid var(--turquoise); background: linear-gradient(165deg, rgba(18,203,238,.16), rgba(2,6,12,.94) 65%); box-shadow: var(--glow-sm), inset 0 1px 0 rgba(255,255,255,.05); padding: 16px; cursor: pointer; text-align: left; font-family: var(--body); color: var(--text); position: relative; overflow: hidden; }
-  .cov-tile::before{ content: ""; position: absolute; top: -55%; left: -45%; width: 95%; height: 80%; background: linear-gradient(135deg, rgba(255,255,255,.22), rgba(255,255,255,0) 65%); border-radius: 50%; transform: rotate(-18deg); pointer-events: none; }
-  .cov-tile .cov-icon{ width: 38px; height: 38px; border-radius: 11px; background: linear-gradient(165deg, rgba(18,203,238,.22), rgba(2,6,12,.95) 65%); border: 1px solid var(--turquoise); display: grid; place-items: center; color: var(--turquoise); font-size: 19px; margin-bottom: 10px; position: relative; z-index: 1; }
-  .cov-tile .cov-icon svg{ width: 1em; height: 1em; display: block; filter: drop-shadow(0 0 3px rgba(18,203,238,.65)); }
-  .cov-tile .cov-label{ font-weight: 700; font-size: 15px; position: relative; z-index: 1; }
-  .cov-tile .cov-stat{ font-size: 12.5px; color: var(--text-faint); margin-top: 3px; position: relative; z-index: 1; }
-  .cov-mixed{ width: 100%; min-height: 112px; border-radius: 20px; border: 1.5px solid var(--turquoise); background: linear-gradient(165deg, rgba(18,203,238,.12), rgba(2,6,12,.95) 65%); box-shadow: var(--glow-sm), inset 0 1px 0 rgba(255,255,255,.05); padding: 18px; cursor: pointer; text-align: left; font-family: var(--body); color: var(--text); display: flex; flex-direction: column; gap: 7px; position: relative; overflow: hidden; }
-  .cov-mixed::before{ content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .6; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 160' preserveAspectRatio='none'><path d='M0 90 C 80 40, 140 140, 220 80 S 340 30, 400 70' fill='none' stroke='rgba(18,203,238,.3)' stroke-width='1.4'/></svg>"); background-repeat: no-repeat; background-position: right -10px top 30%; background-size: 320px 130px; }
-  .cov-mixed-title{ font-weight: 700; font-size: 15px; color: var(--turquoise); position: relative; z-index: 1; }
-  .cov-mixed-text{ font-size: 14px; line-height: 1.45; color: var(--text); position: relative; z-index: 1; }
-  .cov-mixed-cta{ font-size: 12.5px; color: var(--turquoise); font-weight: 600; margin-top: auto; position: relative; z-index: 1; }
+  /* Tagesübersicht — gestapelte Vollbreite-Karten (Ernährung / Fitness / Heute),
+     jede einzelne Mahlzeit/Übung als eigener anklickbarer Chip. */
+  .chat-overview-card{ display: flex; flex-direction: column; gap: 12px; margin-bottom: 14px; flex-shrink: 0; }
+  .cov-card{ width: 100%; box-sizing: border-box; border-radius: 20px; border: 1.5px solid var(--turquoise); background: linear-gradient(165deg, rgba(18,203,238,.16), rgba(2,6,12,.94) 65%); box-shadow: var(--glow-sm), inset 0 1px 0 rgba(255,255,255,.05); padding: 18px; display: flex; flex-direction: column; gap: 12px; }
+  .cov-card-head{ display: flex; align-items: center; gap: 12px; cursor: pointer; background: none; border: none; padding: 0; text-align: left; font-family: var(--body); color: var(--text); width: 100%; }
+  .cov-card-icon{ width: 40px; height: 40px; border-radius: 12px; background: linear-gradient(165deg, rgba(18,203,238,.22), rgba(2,6,12,.95) 65%); border: 1px solid var(--turquoise); display: grid; place-items: center; color: var(--turquoise); flex-shrink: 0; }
+  .cov-card-icon svg{ width: 20px; height: 20px; display: block; filter: drop-shadow(0 0 3px rgba(18,203,238,.65)); }
+  .cov-card-title{ flex: 1; min-width: 0; }
+  .cov-card-title .t{ font-weight: 700; font-size: 15.5px; }
+  .cov-card-title .s{ font-size: 12px; color: var(--text-faint); margin-top: 2px; }
+  .cov-card-stat{ font-family: var(--mono); font-size: 17px; font-weight: 700; text-align: right; flex-shrink: 0; }
+  .cov-card-stat small{ color: var(--text-faint); font-size: 11px; font-weight: 500; }
+  .cov-barwrap{ width: 100%; height: 7px; border-radius: 99px; background: rgba(18,203,238,.15); overflow: hidden; }
+  .cov-bar{ height: 100%; background: var(--turquoise); box-shadow: 0 0 8px rgba(18,203,238,.8); }
+  .cov-chiprow{ display: flex; gap: 7px; overflow-x: auto; padding-bottom: 2px; -webkit-overflow-scrolling: touch; }
+  .cov-chip{ border: 1px solid rgba(18,203,238,.4); border-radius: 999px; padding: 8px 12px; font-size: 12.5px; color: var(--text); background: rgba(0,0,0,.35); display: flex; align-items: center; gap: 5px; white-space: nowrap; flex-shrink: 0; cursor: pointer; font-family: var(--body); }
+  .cov-chip.done{ background: var(--turquoise); color: #031013; border-color: var(--turquoise); font-weight: 600; }
+  .cov-chip.add{ border-style: dashed; color: var(--turquoise); }
+  .cov-mixed-text{ font-size: 14px; line-height: 1.45; color: var(--text); }
+  .cov-mixed-cta{ font-size: 12.5px; color: var(--turquoise); font-weight: 600; background: none; border: none; padding: 0; cursor: pointer; font-family: var(--body); text-align: left; }
 
   /* Größere Variante auf dem VoßBot-Startbildschirm (Chatliste) */
-  .cov-lg{ margin-bottom: 18px; }
-  .cov-lg .cov-top{ gap: 12px; }
-  .cov-lg .cov-tile{ padding: 20px 18px; border-radius: 20px; }
-  .cov-lg .cov-tile .cov-icon{ width: 46px; height: 46px; font-size: 23px; margin-bottom: 12px; }
-  .cov-lg .cov-tile .cov-label{ font-size: 16.5px; }
-  .cov-lg .cov-tile .cov-stat{ font-size: 13.5px; }
-  .cov-lg .cov-mixed{ min-height: 130px; padding: 22px; border-radius: 22px; }
-  .cov-lg .cov-mixed-title{ font-size: 16.5px; }
+  .cov-lg{ margin-bottom: 18px; gap: 14px; }
+  .cov-lg .cov-card{ padding: 22px; border-radius: 22px; }
+  .cov-lg .cov-card-icon{ width: 46px; height: 46px; }
+  .cov-lg .cov-card-icon svg{ width: 23px; height: 23px; }
+  .cov-lg .cov-card-title .t{ font-size: 17px; }
+  .cov-lg .cov-card-title .s{ font-size: 13px; }
+  .cov-lg .cov-card-stat{ font-size: 19px; }
+  .cov-lg .cov-chip{ font-size: 13.5px; padding: 9px 13px; }
   .cov-lg .cov-mixed-text{ font-size: 15px; }
   .cov-lg .cov-mixed-cta{ font-size: 13.5px; }
   .chat-empty{ color: var(--text-dim); font-size: 13px; text-align: center; padding: 30px 10px; }
@@ -985,25 +992,7 @@
       <!-- ---------- VOSSBOT: CHATLISTE (Startbildschirm) ---------- -->
       <div id="tab-chatlist" hidden>
         <section>
-          <div class="chat-overview-card cov-lg" id="chatOverviewCardHome" hidden>
-            <div class="cov-top">
-              <button type="button" class="cov-tile cov-cook" id="covCookTileHome">
-                <span class="cov-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 2v7a2 2 0 0 0 4 0V2M9 9v13"/><path d="M17 2c-1.6 0-3 1.7-3 4.5S15.4 11 17 11v11"/></svg></span>
-                <div class="cov-label">Ernährung</div>
-                <div class="cov-stat" id="covCookStatHome">—</div>
-              </button>
-              <button type="button" class="cov-tile cov-gym" id="covGymTileHome">
-                <span class="cov-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 7v10M17.5 7v10M4 9.5v5M20 9.5v5M8 12h8"/></svg></span>
-                <div class="cov-label">Fitness</div>
-                <div class="cov-stat" id="covGymStatHome">—</div>
-              </button>
-            </div>
-            <button type="button" class="cov-mixed" id="covMixedTileHome">
-              <div class="cov-mixed-title">Heute</div>
-              <div class="cov-mixed-text" id="covMixedTextHome">—</div>
-              <div class="cov-mixed-cta">VoßBot fragen ›</div>
-            </button>
-          </div>
+          <div class="chat-overview-card cov-lg" id="chatOverviewCardHome" hidden></div>
           <div class="meal-toolbar">
             <div class="eyebrow" style="margin:0">Deine Chats mit VoßBot</div>
           </div>
@@ -1015,25 +1004,7 @@
       <!-- ---------- VOSSBOT: CHAT ---------- -->
       <div id="tab-chat" hidden>
         <div class="chat-wrap">
-          <div class="chat-overview-card" id="chatOverviewCard" hidden>
-            <div class="cov-top">
-              <button type="button" class="cov-tile cov-cook" id="covCookTile">
-                <span class="cov-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 2v7a2 2 0 0 0 4 0V2M9 9v13"/><path d="M17 2c-1.6 0-3 1.7-3 4.5S15.4 11 17 11v11"/></svg></span>
-                <div class="cov-label">Ernährung</div>
-                <div class="cov-stat" id="covCookStat">—</div>
-              </button>
-              <button type="button" class="cov-tile cov-gym" id="covGymTile">
-                <span class="cov-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 7v10M17.5 7v10M4 9.5v5M20 9.5v5M8 12h8"/></svg></span>
-                <div class="cov-label">Fitness</div>
-                <div class="cov-stat" id="covGymStat">—</div>
-              </button>
-            </div>
-            <button type="button" class="cov-mixed" id="covMixedTile">
-              <div class="cov-mixed-title">Heute</div>
-              <div class="cov-mixed-text" id="covMixedText">—</div>
-              <div class="cov-mixed-cta">VoßBot fragen ›</div>
-            </button>
-          </div>
+          <div class="chat-overview-card" id="chatOverviewCard" hidden></div>
           <div class="chat-messages" id="chatMessages"></div>
           <p class="chat-hint">VoßBot redet locker mit dir, ersetzt aber keinen Arzt &amp; keine medizinische Beratung.</p>
           <div class="chat-inputrow">
@@ -2444,26 +2415,155 @@
     var sums = confirmedSums(day);
     var kcalIst = Math.round(foodKcal(sums.kh, sums.fett, sums.protein));
     var kcalZiel = Math.round(m.kcal);
-    return { kcalIst: kcalIst, kcalZiel: kcalZiel, kcalRest: Math.max(0, kcalZiel - kcalIst) };
+    return { kcalIst: kcalIst, kcalZiel: kcalZiel, kcalRest: Math.max(0, kcalZiel - kcalIst), entries: day.entries };
   }
 
   function computeGymSummary(profile){
     var day = getTrainingDay(profile, state.selectedDate);
     var count = day.exercises.length;
     var done = day.exercises.filter(function(e){ return e.success; }).length;
-    return { count: count, done: done };
+    return { count: count, done: done, exercises: day.exercises };
   }
 
-  // Füllt eine Instanz der Tagesübersicht-Karte (es gibt sie zweimal: einmal
-  // im offenen Chat, einmal größer direkt auf dem VoßBot-Startbildschirm/
-  // der Chatliste) anhand ihrer ID-Suffixe ("" bzw. "Home").
-  function fillChatOverviewCard(suffix, cook, gym, mixedText){
+  // Öffnet die Tagesübersicht-Kachel direkt in den passenden Editor bzw.
+  // legt einen neuen Eintrag an — jede Mahlzeit/Übung des aktuellen Datums
+  // ist so einzeln antippbar, nicht nur die Kachel als Ganzes.
+  function openMealFromOverview(idx){
+    if(state.editing || state.trainingEditing) return;
+    openMealEditor(idx);
+  }
+  function addMealFromOverview(){
+    var profile = activeProfile();
+    var day = getDay(profile, state.selectedDate);
+    if(day.entries.length >= 10) return;
+    day.entries.push({ id: newId("e"), name: "", time: "", confirmed: false, foods: [] });
+    save();
+    openMealEditor(day.entries.length - 1);
+  }
+  function openExerciseFromOverview(idx){
+    if(state.editing || state.trainingEditing) return;
+    openTrainingEditor(idx);
+  }
+  function addExerciseFromOverview(){
+    var profile = activeProfile();
+    var day = getTrainingDay(profile, state.selectedDate);
+    day.exercises.push({ id: newId("x"), name: "", sets: 3, reps: 8, weight: 0, success: false });
+    save();
+    openTrainingEditor(day.exercises.length - 1);
+  }
+
+  function buildCovChipRow(items, kind){
+    var row = document.createElement("div");
+    row.className = "cov-chiprow";
+    items.forEach(function(item, idx){
+      var chip = document.createElement("div");
+      var done = kind === "meal" ? item.confirmed : item.success;
+      chip.className = "cov-chip" + (done ? " done" : "");
+      var label = item.name || (kind === "meal" ? "Mahlzeit " + (idx + 1) : "Übung " + (idx + 1));
+      chip.textContent = (done ? "✓ " : "") + label;
+      chip.addEventListener("click", function(){
+        if(kind === "meal") openMealFromOverview(idx); else openExerciseFromOverview(idx);
+      });
+      row.appendChild(chip);
+    });
+    var addChip = document.createElement("div");
+    addChip.className = "cov-chip add";
+    addChip.textContent = kind === "meal" ? "+ Mahlzeit" : "+ Übung";
+    addChip.addEventListener("click", function(){
+      if(kind === "meal") addMealFromOverview(); else addExerciseFromOverview();
+    });
+    row.appendChild(addChip);
+    return row;
+  }
+
+  // Baut eine Instanz der Tagesübersicht-Karte komplett neu auf (es gibt sie
+  // zweimal: einmal im offenen Chat, einmal größer auf dem VoßBot-Startbildschirm/
+  // der Chatliste) — drei gestapelte Vollbreite-Karten mit je einer Chip-Reihe
+  // der echten Tagesdaten.
+  function buildOverviewCardDOM(suffix, cook, gym, mixedText){
     var card = document.getElementById("chatOverviewCard" + suffix);
     if(!card) return;
+    card.innerHTML = "";
     card.hidden = false;
-    document.getElementById("covCookStat" + suffix).textContent = cook.kcalIst + " / " + cook.kcalZiel + " kcal";
-    document.getElementById("covGymStat" + suffix).textContent = gym.count ? (gym.done + "/" + gym.count + " Übungen") : "Noch nichts geloggt";
-    document.getElementById("covMixedText" + suffix).textContent = mixedText;
+
+    // Ernährung
+    var cookCard = document.createElement("div");
+    cookCard.className = "cov-card";
+    var cookHead = document.createElement("button");
+    cookHead.type = "button";
+    cookHead.className = "cov-card-head";
+    cookHead.innerHTML = '<span class="cov-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 2v7a2 2 0 0 0 4 0V2M9 9v13"/><path d="M17 2c-1.6 0-3 1.7-3 4.5S15.4 11 17 11v11"/></svg></span>' +
+      '<div class="cov-card-title"><div class="t">Ernährung</div><div class="s">' + (cook.kcalRest > 0 ? "noch " + cook.kcalRest + " kcal offen" : "Tagesziel erreicht") + '</div></div>' +
+      '<div class="cov-card-stat">' + cook.kcalIst + '<small> / ' + cook.kcalZiel + '</small></div>';
+    cookHead.addEventListener("click", function(){ askViaChatOverview("Wie sieht mein Tagesbedarf aus?"); });
+    var cookBar = document.createElement("div");
+    cookBar.className = "cov-barwrap";
+    cookBar.innerHTML = '<div class="cov-bar" style="width:' + Math.min(100, cook.kcalZiel ? (cook.kcalIst / cook.kcalZiel * 100) : 0) + '%"></div>';
+    cookCard.appendChild(cookHead);
+    cookCard.appendChild(cookBar);
+    cookCard.appendChild(buildCovChipRow(cook.entries, "meal"));
+
+    // Fitness
+    var gymCard = document.createElement("div");
+    gymCard.className = "cov-card";
+    var gymHead = document.createElement("button");
+    gymHead.type = "button";
+    gymHead.className = "cov-card-head";
+    gymHead.innerHTML = '<span class="cov-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 7v10M17.5 7v10M4 9.5v5M20 9.5v5M8 12h8"/></svg></span>' +
+      '<div class="cov-card-title"><div class="t">Fitness</div><div class="s">' + (gym.count ? "noch " + (gym.count - gym.done) + " offen" : "noch nichts geloggt") + '</div></div>' +
+      '<div class="cov-card-stat">' + gym.done + '<small> / ' + gym.count + '</small></div>';
+    gymHead.addEventListener("click", function(){ askViaChatOverview("Was steht heute im Training an?"); });
+    var gymBar = document.createElement("div");
+    gymBar.className = "cov-barwrap";
+    gymBar.innerHTML = '<div class="cov-bar" style="width:' + (gym.count ? Math.min(100, gym.done / gym.count * 100) : 0) + '%"></div>';
+    gymCard.appendChild(gymHead);
+    gymCard.appendChild(gymBar);
+    gymCard.appendChild(buildCovChipRow(gym.exercises, "exercise"));
+
+    // Heute (gemischt)
+    var mixedCard = document.createElement("div");
+    mixedCard.className = "cov-card";
+    var mixedTitle = document.createElement("div");
+    mixedTitle.style.cssText = "font-weight:700;font-size:15.5px;color:var(--turquoise);";
+    mixedTitle.textContent = "Heute";
+    var mixedText2 = document.createElement("div");
+    mixedText2.className = "cov-mixed-text";
+    mixedText2.textContent = mixedText;
+    mixedCard.appendChild(mixedTitle);
+    mixedCard.appendChild(mixedText2);
+    var suggestions = [
+      "Was fehlt mir noch heute?",
+      "Trainingsplan für heute zeigen",
+      "Kalorien neu berechnen"
+    ];
+    var mixedRow = document.createElement("div");
+    mixedRow.className = "cov-chiprow";
+    suggestions.forEach(function(q){
+      var chip = document.createElement("div");
+      chip.className = "cov-chip";
+      chip.textContent = q;
+      chip.addEventListener("click", function(){ askViaChatOverview(q); });
+      mixedRow.appendChild(chip);
+    });
+    mixedCard.appendChild(mixedRow);
+    var mixedCta = document.createElement("button");
+    mixedCta.type = "button";
+    mixedCta.className = "cov-mixed-cta";
+    mixedCta.textContent = "VoßBot frei fragen ›";
+    mixedCta.addEventListener("click", function(){
+      if(!currentChat()){
+        var ids = Object.keys(state.chats).sort(function(a,b){ return state.chats[b].updatedAt - state.chats[a].updatedAt; });
+        openChatConversation(ids.length ? ids[0] : createNewChat());
+      } else if(state.view !== "chatconv"){
+        openChatConversation(currentChat().id);
+      }
+      document.getElementById("chatInput").focus();
+    });
+    mixedCard.appendChild(mixedCta);
+
+    card.appendChild(cookCard);
+    card.appendChild(gymCard);
+    card.appendChild(mixedCard);
   }
 
   function renderChatOverviewCard(){
@@ -2482,14 +2582,15 @@
     else if(cook.kcalRest > 0) mixedText = "Noch " + cook.kcalRest + " kcal offen, " + gym.done + "/" + gym.count + " Übungen heute erledigt.";
     else if(gym.count === 0) mixedText = "Kalorienziel für heute erreicht — schon trainiert?";
     else mixedText = "Kalorienziel erreicht, " + gym.done + "/" + gym.count + " Übungen heute erledigt. Stark! 💪";
-    fillChatOverviewCard("", cook, gym, mixedText);
-    fillChatOverviewCard("Home", cook, gym, mixedText);
+    buildOverviewCardDOM("", cook, gym, mixedText);
+    buildOverviewCardDOM("Home", cook, gym, mixedText);
   }
 
+  // Ein neuer Chat wird erst geöffnet/angelegt, wenn hier wirklich eine
+  // konkrete Frage ausgewählt wurde (Chip-Klick) oder der Nutzer selbst
+  // etwas eintippt — nicht schon durch bloßes Antippen der Übersichtskarte.
   function askViaChatOverview(text){
     if(chatBusy || chatOnboarding) return;
-    // Von der Chatliste (Startbildschirm) aus gibt es evtl. noch keinen
-    // offenen Chat — dann den zuletzt aktiven öffnen bzw. neu anlegen.
     if(!currentChat()){
       var ids = Object.keys(state.chats).sort(function(a,b){ return state.chats[b].updatedAt - state.chats[a].updatedAt; });
       openChatConversation(ids.length ? ids[0] : createNewChat());
@@ -4570,13 +4671,6 @@
     document.getElementById("apiKeyModal").addEventListener("click", function(e){
       if(e.target.id === "apiKeyModal") document.getElementById("apiKeyModal").hidden = true;
     });
-    [["covCookTile","Wie sieht mein Tagesbedarf aus?"],["covGymTile","Was steht heute im Training an?"],["covMixedTile","Wie läuft mein Tag bisher?"],
-     ["covCookTileHome","Wie sieht mein Tagesbedarf aus?"],["covGymTileHome","Was steht heute im Training an?"],["covMixedTileHome","Wie läuft mein Tag bisher?"]
-    ].forEach(function(pair){
-      var el = document.getElementById(pair[0]);
-      if(el) el.addEventListener("click", function(){ askViaChatOverview(pair[1]); });
-    });
-
     document.getElementById("chatInput").addEventListener("keydown", function(e){
       if(e.key === "Enter" && !e.shiftKey){ e.preventDefault(); sendChatMessage(); }
     });
