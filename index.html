@@ -746,9 +746,12 @@
     }
   }
 
-  function setSyncStatus(text){
-    var el = document.getElementById("authSyncStatus");
-    if(el) el.textContent = text;
+  function setSyncStatus(text, isError){
+    [document.getElementById("authSyncStatus"), document.getElementById("wizAuthStatus")].forEach(function(el){
+      if(!el) return;
+      el.textContent = text;
+      el.style.color = isError ? "var(--warn)" : "";
+    });
   }
 
   function setDiagStatus(text, isError){
@@ -775,13 +778,15 @@
           try{ localStorage.setItem(LS_KEY, JSON.stringify(cloudState)); }catch(e){}
           location.reload();
           return;
-        }catch(e){ setSyncStatus("Cloud-Daten konnten nicht gelesen werden."); }
+        }catch(e){ setSyncStatus("Cloud-Daten konnten nicht gelesen werden.", true); finishOnboardingIfWaiting(); }
       } else {
         setSyncStatus("Noch keine Cloud-Daten — wird beim nächsten Speichern angelegt.");
         saveCloudState();
+        finishOnboardingIfWaiting();
       }
     }).catch(function(err){
-      setSyncStatus("Cloud-Sync fehlgeschlagen: " + (err && err.message ? err.message : "Unbekannt"));
+      setSyncStatus("Cloud-Sync fehlgeschlagen: " + (err && err.message ? err.message : "Unbekannt"), true);
+      finishOnboardingIfWaiting();
     });
   }
 
@@ -793,7 +798,7 @@
         state: JSON.stringify(state),
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       }).then(function(){ setSyncStatus("Synchronisiert ✓"); })
-      .catch(function(err){ setSyncStatus("Cloud-Sync fehlgeschlagen: " + (err && err.message ? err.message : "Unbekannt")); });
+      .catch(function(err){ setSyncStatus("Cloud-Sync fehlgeschlagen: " + (err && err.message ? err.message : "Unbekannt"), true); });
     }, 1500);
   }
 
@@ -846,12 +851,7 @@
         loadCloudState(user.uid);
       } else if(user){
         setSyncStatus("Angemeldet — Änderungen werden synchronisiert.");
-      }
-      if(user){
-        var wiz = document.getElementById("wizard");
-        if(wiz && !wiz.hidden && wizIndex === 0){
-          setTimeout(function(){ wizIndex = 1; showWizardStep(wizIndex); }, 600);
-        }
+        finishOnboardingIfWaiting();
       }
     });
   }
@@ -2139,7 +2139,7 @@
         document.getElementById("wizard").hidden = true;
         document.getElementById("mainApp").hidden = false;
         showTab("einstellungen");
-      });
+      }, "newProfile");
     });
 
     document.getElementById("importProfileBtn").addEventListener("click", function(){ document.getElementById("importFileInput").click(); });
@@ -2279,16 +2279,25 @@
   var wizDraft = null;
   var wizOnFinish = null;
   var wizardWired = false;
+  var wizMode = "newProfile"; // "onboarding" (erste Anmeldung: nur Login-Schritt) oder "newProfile" (Körperdaten-Assistent)
 
-  function startWizard(draft, onFinish){
+  function finishOnboardingIfWaiting(){
+    var wiz = document.getElementById("wizard");
+    if(wiz && !wiz.hidden && wizMode === "onboarding" && wizIndex === 0 && wizOnFinish){
+      wizOnFinish(wizDraft);
+    }
+  }
+
+  function startWizard(draft, onFinish, mode){
     wizDraft = draft;
     wizOnFinish = onFinish;
-    wizIndex = 0;
+    wizMode = mode || "newProfile";
+    wizIndex = (wizMode === "newProfile") ? 1 : 0;
     document.getElementById("mainApp").hidden = true;
     document.getElementById("wizard").hidden = false;
     wireWizardOnce();
     populateWizardControls();
-    showWizardStep(0);
+    showWizardStep(wizIndex);
   }
 
   function wireWizardOnce(){
@@ -2312,8 +2321,12 @@
     var wgsi = document.getElementById("wizGoogleSignInBtn");
     if(wgsi) wgsi.addEventListener("click", signInGoogle);
 
-    document.getElementById("wizBack").addEventListener("click", function(){ if(wizIndex>0){ wizIndex--; showWizardStep(wizIndex); } });
+    document.getElementById("wizBack").addEventListener("click", function(){
+      if(wizMode === "newProfile" && wizIndex <= 1) return;
+      if(wizIndex>0){ wizIndex--; showWizardStep(wizIndex); }
+    });
     document.getElementById("wizNext").addEventListener("click", function(){
+      if(wizMode === "onboarding" && wizIndex === 0){ wizOnFinish(wizDraft); return; }
       if(wizIndex < WIZ_STEPS-1){ wizIndex++; showWizardStep(wizIndex); }
       else { wizOnFinish(wizDraft); }
     });
@@ -2363,7 +2376,7 @@
     document.getElementById("wizKicker").textContent = WIZ_TITLES[i].k;
     document.getElementById("wizTitle").innerHTML = WIZ_TITLES[i].t;
     document.getElementById("wizLead").innerHTML = WIZ_TITLES[i].l;
-    document.getElementById("wizBack").hidden = i===0;
+    document.getElementById("wizBack").hidden = (i===0) || (wizMode === "newProfile" && i===1);
     document.getElementById("wizNext").textContent = i===WIZ_STEPS-1 ? "Tagesbedarf berechnen & loslegen" : "Weiter";
     var dots = document.getElementById("wizDots");
     dots.innerHTML = "";
@@ -2394,7 +2407,7 @@
         state.onboarded = true;
         save();
         initApp();
-      });
+      }, "onboarding");
     }
   }
 
