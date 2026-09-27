@@ -2004,7 +2004,7 @@
     return function(msgText){
       if(chat && !chat.offlineNoticeShown){
         chat.offlineNoticeShown = true;
-        finishOk("Yo 👋 kein Empfang gerade, läuft also offline — kann aber trotzdem einiges: Status, Plan, Essen eintragen/ändern, Bestätigen, Profil, Sync. Schreib einfach normal, ich versteh das schon.\n\n" + msgText);
+        finishOk("Kein Internet gerade — bin also die Offline-Version von mir: der originale VoßBot, nur ohne Google-KI im Hintergrund. Kann trotzdem einiges: Status, Plan, Essen eintragen/ändern, Bestätigen, Profil, Sync. Schreib einfach normal, ich versteh das schon.\n\n" + msgText);
       } else {
         finishOk(msgText);
       }
@@ -2535,7 +2535,7 @@
       lines.push("Und weil gerade online: bei allem anderen, was dir noch durch den Kopf geht, kannst du mich auch einfach frei drauflos fragen.");
     } else {
       lines.push("");
-      lines.push("Für freie Antworten auf alles Mögliche brauch ich gerade noch eine Online-Anbindung — trag oben rechts (⋮) deinen eigenen OpenAI-Key ein, dann bin ich am Start.");
+      lines.push("Bin gerade nicht online, kann also nicht auf Google zugreifen.");
     }
     return lines.join("\n");
   }
