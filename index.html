@@ -729,7 +729,7 @@
         appId: "1:939253982636:web:e22370002c8eb9b2934609"
       });
       fbAuth = firebase.auth();
-      fbDb = firebase.firestore();
+      fbDb = fbApp.firestore("vossfitvitality");
     }
   }catch(e){ console.warn("Firebase init fehlgeschlagen:", e); }
 
