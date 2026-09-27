@@ -308,7 +308,8 @@
   .icon-square.danger{ border-color: #ff5c5c; color: #ff5c5c; box-shadow: none; }
 
   .eyebrow-icon-row{ display: flex; align-items: center; gap: 8px; color: var(--turquoise); font-size: 14.5px; font-weight: 700; margin-bottom: 12px; }
-  .eyebrow-icon-row .ic{ font-size: 16px; }
+  .eyebrow-icon-row .ic{ font-size: 18px; display: grid; place-items: center; }
+  .eyebrow-icon-row .ic svg{ width: 1em; height: 1em; display: block; }
   .section-head-row{ display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
   .add-circle{ width: 30px; height: 30px; border-radius: 50%; border: 1.5px solid var(--turquoise); color: var(--turquoise); display: grid; place-items: center; cursor: pointer; font-size: 17px; flex-shrink: 0; }
 
@@ -349,11 +350,13 @@
   .appdata-row{ display: flex; align-items: center; gap: 12px; padding: 11px 2px; border-bottom: 1px solid var(--border); cursor: pointer; background: none; border-left: none; border-right: none; border-top: none; width: 100%; text-align: left; font-family: var(--body); color: var(--text); }
   .appdata-row:last-child{ border-bottom: none; padding-bottom: 2px; }
   .appdata-row:first-child{ padding-top: 2px; }
-  .appdata-row .aic{ width: 38px; height: 38px; border-radius: 10px; background: #0a0a0a; border: 1px solid var(--border); display: grid; place-items: center; font-size: 16px; flex-shrink: 0; }
+  .appdata-row .aic{ width: 44px; height: 44px; display: grid; place-items: center; font-size: 28px; color: var(--turquoise); flex-shrink: 0; }
+  .appdata-row .aic svg{ width: 1em; height: 1em; display: block; }
   .appdata-row .at{ flex: 1; min-width: 0; }
   .appdata-row .at .t{ font-weight: 600; font-size: 14px; }
   .appdata-row .at .d{ font-size: 11.5px; color: var(--text-faint); margin-top: 1px; }
-  .appdata-row .chev{ color: var(--text-faint); font-size: 16px; flex-shrink: 0; }
+  .appdata-row .chev{ color: var(--text-faint); font-size: 18px; flex-shrink: 0; display: grid; place-items: center; }
+  .appdata-row .chev svg{ width: 1em; height: 1em; display: block; }
 
   .export-fallback{ background: #0a0a0a; border: 1px solid var(--border); border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
   .export-fallback textarea{ width: 100%; height: 90px; background: #000; border: 1px solid var(--border); border-radius: 8px; color: var(--text-dim); font-family: var(--mono); font-size: 10.5px; padding: 8px; resize: none; }
@@ -694,22 +697,22 @@
             <div id="exportFallback"></div>
           </section>
           <section>
-            <div class="eyebrow-icon-row"><span class="ic"></span>App & Daten</div>
+            <div class="eyebrow-icon-row"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82A1.65 1.65 0 0 0 3 13.09H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>App & Daten</div>
             <div class="appdata-section">
               <button type="button" class="appdata-row" id="appdataDesign">
-                <span class="aic"></span>
+                <span class="aic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c1.1 0 2-.9 2-2 0-.5-.2-1-.5-1.4-.3-.4-.5-.9-.5-1.4 0-1.1.9-2 2-2h2.4c2.3 0 4.1-1.9 4.1-4.2C21.5 6 17.2 2 12 2z"/><circle cx="6.7" cy="11.3" r="1.3" fill="currentColor" stroke="none"/><circle cx="9.3" cy="7.3" r="1.3" fill="currentColor" stroke="none"/><circle cx="14.5" cy="7.3" r="1.3" fill="currentColor" stroke="none"/><circle cx="17.3" cy="11.3" r="1.3" fill="currentColor" stroke="none"/></svg></span>
                 <span class="at"><div class="t">Design</div><div class="d">Farben, Dark Mode, Darstellung</div></span>
-                <span class="chev">›</span>
+                <span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>
               </button>
               <button type="button" class="appdata-row" id="appdataUnits">
-                <span class="aic"></span>
+                <span class="aic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.4 2.4 0 0 1 0-3.4l2.6-2.6a2.4 2.4 0 0 1 3.4 0Z"/><path d="m14.5 12.5 2-2"/><path d="m11.5 9.5 2-2"/><path d="m8.5 6.5 2-2"/><path d="m17.5 15.5 2-2"/></svg></span>
                 <span class="at"><div class="t">Einheiten</div><div class="d">kg/lbs, cm/ft, kcal/kJ</div></span>
-                <span class="chev">›</span>
+                <span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>
               </button>
               <button type="button" class="appdata-row" id="appdataData">
-                <span class="aic"></span>
+                <span class="aic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></svg></span>
                 <span class="at"><div class="t">Datenverwaltung</div><div class="d">Import, Export, Zurücksetzen</div></span>
-                <span class="chev">›</span>
+                <span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>
               </button>
             </div>
           </section>
