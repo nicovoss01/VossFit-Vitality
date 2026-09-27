@@ -2648,6 +2648,7 @@
 
     var selection = []; // [{kind:"meal"|"ex"|"macro", idx, label}]
     function maxForMode(){ return comboMode === "free" ? 3 : 2; }
+    var maxMacros = 3; // Protein + KH + Fett sollen gleichzeitig kombinierbar sein
     function allowedKind(kind){
       if(kind === "macro") return true; // Nährstoff-Anpassung lässt sich immer dazukombinieren
       if(comboMode === "gym2") return kind === "ex";
@@ -2659,9 +2660,23 @@
       var existing = selection.findIndex(function(s){ return s.kind === kind && s.idx === idx; });
       if(existing > -1){
         selection.splice(existing, 1);
+      } else if(kind === "macro"){
+        // Makros dürfen sich untereinander kombinieren (z.B. Protein + Kohlenhydrate
+        // gleichzeitig) statt sich gegenseitig zu ersetzen — nur bei zu vielen
+        // gleichzeitig ausgewählten Makros fliegt das älteste raus.
+        var macroCount = selection.filter(function(s){ return s.kind === "macro"; }).length;
+        if(macroCount >= maxMacros){
+          var oldestMacroIdx = selection.findIndex(function(s){ return s.kind === "macro"; });
+          if(oldestMacroIdx > -1) selection.splice(oldestMacroIdx, 1);
+        }
+        selection.push({ kind: kind, idx: idx, label: label });
       } else {
-        if(comboMode === "mix" || kind === "macro") selection = selection.filter(function(s){ return s.kind !== kind; });
-        if(selection.length >= maxForMode()) selection.shift();
+        if(comboMode === "mix") selection = selection.filter(function(s){ return s.kind !== kind; });
+        var nonMacroCount = selection.filter(function(s){ return s.kind !== "macro"; }).length;
+        if(nonMacroCount >= maxForMode()){
+          var oldestIdx = selection.findIndex(function(s){ return s.kind !== "macro"; });
+          if(oldestIdx > -1) selection.splice(oldestIdx, 1);
+        }
         selection.push({ kind: kind, idx: idx, label: label });
       }
       renderSelection();
@@ -2777,7 +2792,12 @@
     comboPage.appendChild(buildQuickOptionsToggle("💡 Weitere Optionen", [
       "Ruhetag sinnvoll einplanen",
       "Ernährung und Training für die Woche neu berechnen",
-      "Wochenplan erstellen (Training + Essen)"
+      "Wochenplan erstellen (Training + Essen)",
+      "Mahlzeit und Übung aufeinander abstimmen",
+      "Kalorienbilanz von Training und Essen zeigen",
+      "Was passt heute am besten zu meinem Trainingsziel?",
+      "Makros rund um mein Training optimieren",
+      "Vorschlag für Pre- und Post-Workout-Mahlzeit"
     ]));
 
     var comboCta = document.createElement("button");
@@ -2812,7 +2832,22 @@
   // in die Nachrichtenzeile ein (stapelt sich dort), gesendet wird erst
   // manuell. Wird auf allen 3 Tagesübersicht-Seiten (Ernährung/Fitness/
   // Kombiniert) verwendet, damit jeder Bereich sein eigenes Options-Menü hat.
-  function buildQuickOptionsToggle(buttonLabel, options){
+  // Zieht `n` zufällige, unterschiedliche Einträge aus einem Vorschlags-Pool.
+  function pickRandom(arr, n){
+    var copy = arr.slice();
+    var out = [];
+    while(copy.length && out.length < n){
+      var i = Math.floor(Math.random() * copy.length);
+      out.push(copy.splice(i, 1)[0]);
+    }
+    return out;
+  }
+
+  // `pool` ist eine größere Sammlung möglicher Vorschläge — angezeigt werden
+  // immer nur 2-3 zufällige davon, mit einem "🔄 Andere Vorschläge"-Chip zum
+  // Nachziehen neuer, ohne die Seite zu verlassen.
+  function buildQuickOptionsToggle(buttonLabel, pool, count){
+    count = count || 3;
     var wrap = document.createElement("div");
     wrap.style.cssText = "display:flex;flex-direction:column;gap:8px;";
     var btn = document.createElement("button");
@@ -2824,20 +2859,27 @@
     optRow.className = "cov-nutri-opts";
     optRow.hidden = true;
     var open = false;
+    function renderOpts(){
+      optRow.innerHTML = "";
+      pickRandom(pool, count).forEach(function(text){
+        var chip = document.createElement("div");
+        chip.className = "cov-chip";
+        chip.style.cssText = "width:100%;box-sizing:border-box;white-space:normal;";
+        chip.textContent = text;
+        chip.addEventListener("click", function(){ fillMainChatInput(text); });
+        optRow.appendChild(chip);
+      });
+      var refreshBtn = document.createElement("div");
+      refreshBtn.className = "cov-chip";
+      refreshBtn.style.cssText = "width:100%;box-sizing:border-box;text-align:center;color:var(--turquoise);border-style:dashed;";
+      refreshBtn.textContent = "🔄 Andere Vorschläge";
+      refreshBtn.addEventListener("click", function(e){ e.stopPropagation(); renderOpts(); });
+      optRow.appendChild(refreshBtn);
+    }
     btn.addEventListener("click", function(){
       open = !open;
       btn.classList.toggle("active", open);
-      optRow.innerHTML = "";
-      if(open){
-        options.forEach(function(text){
-          var chip = document.createElement("div");
-          chip.className = "cov-chip";
-          chip.style.cssText = "width:100%;box-sizing:border-box;white-space:normal;";
-          chip.textContent = text;
-          chip.addEventListener("click", function(){ fillMainChatInput(text); });
-          optRow.appendChild(chip);
-        });
-      }
+      if(open) renderOpts();
       optRow.hidden = !open;
     });
     wrap.appendChild(btn);
@@ -2853,17 +2895,32 @@
     kh: [
       "Kohlenhydrate zur nächsten Mahlzeit hinzufügen",
       "Kohlenhydratreiche Mahlzeit empfehlen",
-      "Kohlenhydrate mit anderen Nährstoffen kombinieren"
+      "Kohlenhydrate mit anderen Nährstoffen kombinieren",
+      "Wie viele Kohlenhydrate fehlen mir heute noch?",
+      "Kohlenhydratarme Alternative vorschlagen",
+      "Beste Kohlenhydratquellen für heute Abend",
+      "Kohlenhydrate vor dem Training timen",
+      "Kohlenhydrate auf die restlichen Mahlzeiten verteilen"
     ],
     fett: [
       "Fett zur nächsten Mahlzeit hinzufügen",
       "Fettreiche Mahlzeit empfehlen",
-      "Fett mit anderen Nährstoffen kombinieren"
+      "Fett mit anderen Nährstoffen kombinieren",
+      "Wie viel Fett habe ich heute noch übrig?",
+      "Gesunde Fettquellen vorschlagen",
+      "Fettarme Alternative vorschlagen",
+      "Fett gleichmäßig über den Tag verteilen",
+      "Fettziel für heute neu berechnen"
     ],
     protein: [
       "Protein zur nächsten Mahlzeit hinzufügen",
       "Proteinreiche Mahlzeit empfehlen",
-      "Protein mit anderen Nährstoffen kombinieren"
+      "Protein mit anderen Nährstoffen kombinieren",
+      "Wie viel Protein fehlt mir heute noch?",
+      "Proteinquelle nach dem Training vorschlagen",
+      "Proteinshake ins Tagesziel einrechnen",
+      "Protein auf alle Mahlzeiten verteilen",
+      "Proteinziel für heute anpassen"
     ]
   };
 
@@ -2896,17 +2953,9 @@
     optRow.hidden = true;
     var activeKey = null;
 
-    function showOptsFor(key, itemEl){
-      Array.prototype.forEach.call(legend.children, function(el){ el.classList.remove("active"); });
+    function renderNutriOpts(key){
       optRow.innerHTML = "";
-      if(activeKey === key){
-        activeKey = null;
-        optRow.hidden = true;
-        return;
-      }
-      activeKey = key;
-      itemEl.classList.add("active");
-      NUTRI_CHAT_OPTS[key].forEach(function(text){
+      pickRandom(NUTRI_CHAT_OPTS[key], 3).forEach(function(text){
         var chip = document.createElement("div");
         chip.className = "cov-chip";
         chip.style.cssText = "width:100%;box-sizing:border-box;white-space:normal;";
@@ -2914,6 +2963,25 @@
         chip.addEventListener("click", function(){ fillMainChatInput(text); });
         optRow.appendChild(chip);
       });
+      var refreshBtn = document.createElement("div");
+      refreshBtn.className = "cov-chip";
+      refreshBtn.style.cssText = "width:100%;box-sizing:border-box;text-align:center;color:var(--turquoise);border-style:dashed;";
+      refreshBtn.textContent = "🔄 Andere Vorschläge";
+      refreshBtn.addEventListener("click", function(e){ e.stopPropagation(); renderNutriOpts(key); });
+      optRow.appendChild(refreshBtn);
+    }
+
+    function showOptsFor(key, itemEl){
+      Array.prototype.forEach.call(legend.children, function(el){ el.classList.remove("active"); });
+      if(activeKey === key){
+        activeKey = null;
+        optRow.hidden = true;
+        optRow.innerHTML = "";
+        return;
+      }
+      activeKey = key;
+      itemEl.classList.add("active");
+      renderNutriOpts(key);
       optRow.hidden = false;
     }
 
@@ -3006,7 +3074,12 @@
       "Trainingsplan für diese Woche zeigen",
       "Sätze/Wiederholungen anpassen",
       "Pause zwischen Sätzen optimieren",
-      "Meinen Trainingsfortschritt zeigen"
+      "Meinen Trainingsfortschritt zeigen",
+      "Gewicht für die nächste Übung anpassen",
+      "Alternative Übung bei Zeitmangel vorschlagen",
+      "Aufwärmprogramm vor dem Training zeigen",
+      "Wie viele Übungen fehlen mir heute noch?",
+      "Trainingsintensität für heute einschätzen"
     ]));
 
     // Seite 3 — Kombiniert: Mahlzeiten + Übungen gemeinsam auswählen und
