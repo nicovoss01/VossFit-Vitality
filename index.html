@@ -47,6 +47,12 @@
     padding: 14px 18px; background: linear-gradient(var(--bg) 78%, transparent);
   }
   .topbar-left{ display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .topbar-right{ display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  .modal-backdrop{ position: fixed; inset: 0; background: rgba(0,0,0,.62); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
+  .modal-backdrop[hidden]{ display: none; }
+  .modal-box{ width: min(360px, 100%); background: #000; border: 1.5px solid var(--turquoise); border-radius: 18px; box-shadow: var(--glow-md); padding: 18px; }
+  .modal-head{ display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .modal-head .iconbtn{ width: 28px; height: 28px; font-size: 13px; }
   .app-icon{ width: 46px; height: 46px; border-radius: 50%; flex-shrink: 0; object-fit: contain; background: #000; transition: width .15s, height .15s; filter: drop-shadow(0 0 6px rgba(18,203,238,.55)); }
   .topbar h1{ font-family: var(--display); font-weight: 600; font-size: 21px; letter-spacing: .2px; margin: 0; color: var(--text); text-shadow: var(--glow-text); }
   .topbar .sub{ font-size: 12px; color: var(--text-dim); margin-top: 2px; }
@@ -386,6 +392,23 @@
         <div>
           <h1 id="pageTitle">Ernährung</h1>
           <div class="sub" id="profileNameLabel"></div>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="iconbtn" id="chatMenuBtn" hidden>⋮</div>
+      </div>
+    </div>
+
+    <div class="modal-backdrop" id="apiKeyModal" hidden>
+      <div class="modal-box">
+        <div class="modal-head">
+          <div class="eyebrow" style="margin:0">KI-Verbindung (ChatGPT / OpenAI)</div>
+          <div class="iconbtn" id="apiKeyModalClose">✕</div>
+        </div>
+        <div class="field" style="margin-top:12px">
+          <label>Dein eigener OpenAI-API-Key</label>
+          <input type="password" id="openaiKeyInput" placeholder="sk-..." autocomplete="off" spellcheck="false">
+          <p class="hint" id="openaiKeyStatus" style="margin-top:6px"></p>
         </div>
       </div>
     </div>
@@ -732,14 +755,6 @@
       <!-- ---------- VOSSBOT: CHATLISTE ---------- -->
       <div id="tab-chatlist" hidden>
         <section>
-          <div class="meal-toolbar">
-            <div class="eyebrow" style="margin:0">KI-Verbindung (OpenAI)</div>
-          </div>
-          <div class="field" style="margin-bottom:14px">
-            <label>Dein eigener OpenAI-API-Key</label>
-            <input type="password" id="openaiKeyInput" placeholder="sk-..." autocomplete="off" spellcheck="false">
-            <p class="hint" id="openaiKeyStatus" style="margin-top:6px"></p>
-          </div>
           <div class="meal-toolbar">
             <div class="eyebrow" style="margin:0">Deine Chats mit VoßBot</div>
           </div>
@@ -2034,6 +2049,16 @@
       renderChatMessages();
     }
 
+    var lowerForIntercept = text.trim().toLowerCase();
+    if(isCapabilityQuestion(lowerForIntercept)){
+      finishOk(buildCapabilitiesAnswer());
+      return;
+    }
+    if(CODE_WORDS_DIRECT.indexOf(lowerForIntercept) > -1){
+      runOfflineAssistant(text, chat, pendingBubble, finishOk);
+      return;
+    }
+
     var history, contextBlock, systemInstruction;
     try{
       history = chat.messages.slice(0, -1).map(function(m){ return (m.role === "user" ? "Nutzer" : "VoßBot") + ": " + m.text; }).join("\n");
@@ -2415,6 +2440,48 @@
     });
   }
 
+  // ---------- Funktionsübersicht & Code-Wörter ----------
+  // Code-Wörter lösen die jeweilige Funktion direkt und zuverlässig aus (ohne KI),
+  // unabhängig davon, ob gerade eine Online-KI verfügbar wäre.
+  var CODE_WORDS_DIRECT = ["plan", "status", "übersicht", "tagesübersicht", "bestätigen", "profil", "sync"];
+
+  function isCapabilityQuestion(lower){
+    var pats = [
+      "was kannst du", "was kannst du alles", "welche funktionen", "was für funktionen",
+      "was machst du", "wie kannst du mir helfen", "was bietest du", "deine funktionen",
+      "deine fähigkeiten", "wozu bist du da", "wozu bist du gut", "was gibt es hier",
+      "wobei kannst du helfen", "code wort", "code wörter", "codewort", "codewörter",
+      "welche befehle", "befehle", "commands", "hilfe"
+    ];
+    return pats.some(function(p){ return lower.indexOf(p) > -1; });
+  }
+
+  function isLikelyOnline(){
+    var netOk = (typeof navigator === "undefined" || navigator.onLine !== false);
+    var hasAiChannel = !!(state.openaiApiKey) || !!(window.claude && window.claude.use);
+    return netOk && hasAiChannel;
+  }
+
+  function buildCapabilitiesAnswer(){
+    var lines = [];
+    lines.push("Das kann ich — auch ganz ohne Internet:");
+    lines.push("• Tagesbedarf & aktuelle Tageswerte anzeigen — Code-Wort: STATUS");
+    lines.push("• Kompletten Ernährungsplan für heute vorschlagen — Code-Wort: PLAN");
+    lines.push("• Lebensmittel zu einer Mahlzeit hinzufügen, z. B. \"150g Reis zum Mittagessen\"");
+    lines.push("• Erklären, wie du eine Mahlzeit bestätigst — Code-Wort: BESTÄTIGEN");
+    lines.push("• Erklären, wie du ein Profil anlegst oder wechselst — Code-Wort: PROFIL");
+    lines.push("• Erklären, wie die Cloud-Synchronisierung funktioniert — Code-Wort: SYNC");
+    lines.push("Tipp: schreib einfach eines der Code-Wörter, oder frag in normalen Sätzen — beides funktioniert.");
+    if(isLikelyOnline()){
+      lines.push("");
+      lines.push("Zusätzlich online (gerade verfügbar): freie, ausführliche Antworten auf beliebige Fragen über eine echte KI-Anbindung.");
+    } else {
+      lines.push("");
+      lines.push("Online-Funktionen (freie KI-Antworten) sind gerade nicht aktiv — dafür kannst du oben rechts (⋮) einen eigenen OpenAI-API-Key hinterlegen.");
+    }
+    return lines.join("\n");
+  }
+
   function runOfflineAssistant(text, chat, pendingBubble, finishOk){
     pendingBubble.className = "chat-bubble pending";
     pendingBubble.textContent = "…";
@@ -2540,7 +2607,7 @@
         }
 
         var p = activeProfile();
-        if(p && (lower.indexOf("kalorien") > -1 || lower.indexOf("kcal") > -1 || lower.indexOf("ziel") > -1 || lower.indexOf("wie viel") > -1 || lower.indexOf("übrig") > -1 || lower.indexOf("offen") > -1 || lower.indexOf("bedarf") > -1)){
+        if(p && (lower.indexOf("kalorien") > -1 || lower.indexOf("kcal") > -1 || lower.indexOf("ziel") > -1 || lower.indexOf("wie viel") > -1 || lower.indexOf("übrig") > -1 || lower.indexOf("offen") > -1 || lower.indexOf("bedarf") > -1 || lower.indexOf("status") > -1 || lower.indexOf("übersicht") > -1)){
           var m = calcEngine(p);
           var day = getDay(p, state.selectedDate);
           var sums = confirmedSums(day);
@@ -2565,9 +2632,9 @@
           return;
         }
 
-        finishOk("Ich bin gerade offline unterwegs und antworte dir mit meinem einfachen Assistenten (keine Internet-KI verfügbar). Ich kann dir z.B. helfen mit: \"Ernährungsplan für heute\" (kompletter Tagesvorschlag mit Rezepten), \"100g Reis zum Mittagessen hinzufügen\", \"Wie viele Kalorien habe ich noch übrig?\" oder \"Wie bestätige ich eine Mahlzeit?\". Wie kann ich helfen?");
+        finishOk("Das habe ich nicht ganz verstanden. Frag mich z. B. nach \"Ernährungsplan für heute\" (PLAN), \"100g Reis zum Mittagessen hinzufügen\", \"Wie viele Kalorien habe ich noch übrig?\" (STATUS) oder \"Wie bestätige ich eine Mahlzeit?\" (BESTÄTIGEN). Tipp: schreib \"was kannst du\" für alle meine Funktionen.");
       }catch(e){
-        finishOk("Ich bin gerade offline unterwegs und konnte deine Anfrage nicht ganz einordnen. Frag mich gern z.B. nach deinen Tageswerten oder sag mir direkt, welches Lebensmittel du hinzufügen möchtest.");
+        finishOk("Das konnte ich nicht ganz einordnen. Frag mich gern nach deinen Tageswerten (STATUS) oder sag mir direkt, welches Lebensmittel du hinzufügen möchtest.");
       }
     }, 250);
   }
@@ -3046,6 +3113,8 @@
   function setTopbar(view){
     document.getElementById("backBtn").hidden = (view === "home");
     setTopbarIcon();
+    var menuBtn = document.getElementById("chatMenuBtn");
+    if(menuBtn) menuBtn.hidden = (state.activeTab !== "chat");
   }
   function goBack(){
     if(state.view === "mealeditor"){
@@ -3168,6 +3237,17 @@
       state.openaiApiKey = e.target.value.trim();
       save();
       renderOpenaiKeyStatus();
+    });
+    document.getElementById("chatMenuBtn").addEventListener("click", function(){
+      document.getElementById("openaiKeyInput").value = state.openaiApiKey || "";
+      renderOpenaiKeyStatus();
+      document.getElementById("apiKeyModal").hidden = false;
+    });
+    document.getElementById("apiKeyModalClose").addEventListener("click", function(){
+      document.getElementById("apiKeyModal").hidden = true;
+    });
+    document.getElementById("apiKeyModal").addEventListener("click", function(e){
+      if(e.target.id === "apiKeyModal") document.getElementById("apiKeyModal").hidden = true;
     });
     document.getElementById("chatInput").addEventListener("keydown", function(e){
       if(e.key === "Enter" && !e.shiftKey){ e.preventDefault(); sendChatMessage(); }
