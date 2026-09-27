@@ -303,6 +303,7 @@
   .cov-lg .cov-mixed-cta{ font-size: 13.5px; }
   .cov-lg .cov-donut{ width: 78px; height: 78px; }
   .chat-empty{ color: var(--text-dim); font-size: 13px; text-align: center; padding: 30px 10px; }
+  .chat-empty-list-header{ color: var(--text-faint); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; padding: 0 4px 4px; }
   .chat-hint{ font-size: 11px; color: var(--text-dim); text-align: center; padding: 2px 4px 8px; }
   /* Fix ans untere Bildschirmende (wie die Tableiste) statt mit der Seite
      mitzuscrollen — sonst verschwindet die Eingabezeile bei längeren
@@ -3250,8 +3251,10 @@
     if(oldMain) oldMain.isMain = false;
     var id = createNewChat("VoßBot");
     activeChats()[id].isMain = true;
-    var welcome = randomChatWelcome();
-    activeChats()[id].messages.push({ role: "assistant", text: welcome.text, suggestChips: welcome.chips });
+    // Bleibt bewusst leer (kein sofortiges Willkommen) — solange nichts
+    // geschrieben wurde, zeigt der Mainchat/die Sprechblase stattdessen
+    // "Alle Chats" als Startseite. Erst eine abgeschickte Nachricht macht
+    // daraus einen echten Chat (siehe sendChatMessage).
     state.activeChatId = id;
     save();
     showTab("chat");
@@ -3310,10 +3313,43 @@
     wrap.innerHTML = "";
     var chat = currentChat();
     if(!chat || chat.messages.length === 0){
+      // Solange der (Haupt-)Chat noch leer ist — egal ob im Vollbild-Tab
+      // oder in der Sprechblase, beide zeigen ja denselben Chat — dient die
+      // Fläche als Startseite: kurzer Hinweis oben, direkt darunter "Alle
+      // Chats" zum Weitermachen. Erst eine abgeschickte Nachricht macht
+      // daraus einen echten neuen Chat nach Standard-Einstellungen.
       var empty = document.createElement("div");
       empty.className = "chat-empty";
       empty.textContent = "Hey, ich bin VoßBot — sowas wie die digitale Version von Nico. Frag mich einfach drauf los: Essen, Training, deine Werte, was heute schon reingegangen ist.";
       wrap.appendChild(empty);
+
+      var otherIds = Object.keys(activeChats()).filter(function(id){
+        var c = activeChats()[id];
+        return c && c.messages && c.messages.length && (!chat || id !== chat.id);
+      }).sort(function(a,b){ return activeChats()[b].updatedAt - activeChats()[a].updatedAt; });
+      if(otherIds.length){
+        var listHeader = document.createElement("div");
+        listHeader.className = "chat-empty-list-header";
+        listHeader.textContent = "Alle Chats";
+        wrap.appendChild(listHeader);
+        var listWrap = document.createElement("div");
+        listWrap.style.cssText = "display:flex;flex-direction:column;gap:8px";
+        otherIds.forEach(function(id){
+          var c = activeChats()[id];
+          var last = c.messages[c.messages.length-1];
+          var card = document.createElement("div");
+          card.className = "profile-card";
+          var info = document.createElement("div");
+          info.className = "info";
+          var d = new Date(c.updatedAt);
+          var dateStr = pad2(d.getDate())+"."+pad2(d.getMonth()+1)+"."+d.getFullYear()+" "+pad2(d.getHours())+":"+pad2(d.getMinutes());
+          info.innerHTML = '<div class="n">'+(c.isMain ? "⭐ " : "")+c.title+'</div><div class="m">'+(last ? (last.text.length>50?last.text.slice(0,50)+"…":last.text) : "Noch keine Nachrichten")+' · '+dateStr+'</div>';
+          info.addEventListener("click", function(){ openChatConversation(id); });
+          card.appendChild(info);
+          listWrap.appendChild(card);
+        });
+        wrap.appendChild(listWrap);
+      }
     }
     if(chat){
       chat.messages.forEach(function(msg){
@@ -3783,6 +3819,15 @@
 
     var chat = currentChat();
     if(!chat){ createNewChat(); chat = currentChat(); }
+
+    // War der Chat bis jetzt leer (Startseite mit "Alle Chats" statt
+    // Verlauf), macht das Absenden einer Nachricht daraus einen echten Chat
+    // nach Standard-Einstellungen: erst das übliche Willkommen, direkt
+    // gefolgt von der gerade geschriebenen Nachricht.
+    if(chat.messages.length === 0 && !chatOnboarding){
+      var stdWelcome = randomChatWelcome();
+      chat.messages.push({ role: "assistant", text: stdWelcome.text, suggestChips: stdWelcome.chips });
+    }
 
     // Der Hauptchat ist ein durchgehender Chat mit voller
     // Befehlsketten-Funktionalität — jede Nachricht bleibt einfach im
