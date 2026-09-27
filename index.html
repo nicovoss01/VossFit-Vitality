@@ -1077,7 +1077,11 @@
       var localIds = Object.keys(state.profiles || {});
       if(!localIds.length){
         setSyncStatus("Angemeldet — noch keine Cloud-Daten. Leg dein erstes Profil an.", "pending");
-        finishOnboardingEmpty();
+        if(!chatOnboarding){
+          showTab("chat");
+          openChatConversation(createNewChat());
+          startChatOnboarding();
+        }
         renderSettings();
         return;
       }
@@ -1346,13 +1350,13 @@
   }
 
   function defaultState(){
-    var id = "p" + Date.now();
-    var profiles = {};
-    profiles[id] = newProfile("Profil 1");
+    // Kein Platzhalter-Profil mehr vorab — ganz ohne Login/lokale Datei landet
+    // man direkt bei VoßBot im Chat, der die Basics abfragt und daraus das
+    // erste Profil anlegt (siehe boot() / startChatOnboarding()).
     return {
       onboarded: false,
-      activeProfileId: id,
-      profiles: profiles,
+      activeProfileId: null,
+      profiles: {},
       foodDb: [],
       selectedDate: todayKey(),
       activeTab: "ernaehrung",
@@ -2130,6 +2134,138 @@
     document.getElementById("chatSendBtn").classList.toggle("disabled", !enabled);
   }
 
+  // ================= VOßBOT-ONBOARDING =================
+  // Ohne Login oder lokale Datei landet man direkt bei VoßBot — er stellt die
+  // Körperdaten-Fragen im Chat, statt einem Formular-Assistenten, und trägt
+  // die Antworten selbst als Profildaten ein.
+  var chatOnboarding = null; // { step, answers }
+
+  function extractNumber(text){
+    var m = (text || "").replace(",", ".").match(/-?\d+(\.\d+)?/);
+    return m ? parseFloat(m[0]) : null;
+  }
+
+  function onboardQuestionText(step, answers){
+    switch(step){
+      case 0: return "Bevor's losgeht, brauch ich ein paar Basics von dir. Wie soll ich dein Profil nennen? (Einfach deinen Namen schreiben, oder \"skip\" für \"Profil 1\")";
+      case 1: return "Alles klar" + (answers.name ? ", " + answers.name : "") + "! Bist du eher Mann oder Frau? (Wichtig für die Kalorien-Formel)";
+      case 2: return "Wie alt bist du?";
+      case 3: return "Wie groß bist du (in cm)?";
+      case 4: return "Wie viel wiegst du aktuell (in kg)?";
+      case 5: return "Wie hoch schätzt du deinen Körperfettanteil in Prozent? Grobe Schätzung reicht, z.B. 20.";
+      case 6: return "Wie aktiv bist du im Alltag? Antworte einfach mit der Zahl:\n" + PAL_STAGES.map(function(s,i){ return (i+1) + ") " + s.desc; }).join("\n");
+      case 7: return "Und dein Trainingsziel? Antworte mit der Zahl:\n" + ZIEL_STAGES.map(function(s,i){ return (i+1) + ") " + s.label + " — " + s.desc; }).join("\n");
+    }
+    return null;
+  }
+
+  function startChatOnboarding(){
+    chatOnboarding = { step: 0, answers: {} };
+    var chat = currentChat();
+    if(!chat) return;
+    chat.messages.push({ role: "assistant", text: "Hey! 👋 Ich bin VoßBot. Bevor wir loslegen, brauch ich kurz ein paar Basics von dir, dann rechne ich direkt deinen Tagesbedarf aus." });
+    chat.messages.push({ role: "assistant", text: onboardQuestionText(0, {}) });
+    chat.updatedAt = Date.now();
+    renderChatMessages();
+    save({skipCloud:true});
+  }
+
+  function finishChatOnboarding(chat){
+    var a = chatOnboarding.answers;
+    var kfaIdx = 0, bestDiff = Infinity;
+    KFA_STAGES.forEach(function(s, i){ var d = Math.abs(s.pct - (a.kfaPct != null ? a.kfaPct : 20)); if(d < bestDiff){ bestDiff = d; kfaIdx = i; } });
+    var weight = a.weight || 80;
+    var profile = {
+      name: a.name || "Profil 1",
+      gender: a.gender || "mann",
+      age: a.age || 30,
+      height: a.height || 175,
+      weight: weight,
+      kfaIdx: kfaIdx,
+      zielgewicht: suggestZielgewicht(weight, kfaIdx),
+      pal: PAL_STAGES[a.palIdx != null ? a.palIdx : 2].val,
+      ziel: ZIEL_STAGES[a.zielIdx != null ? a.zielIdx : 0].val,
+      mealSettings: { count: 4, mode: "plan", times: ["07:00","12:30","16:00","20:00"] },
+      days: {}, trainingDays: {}, exerciseHistory: {}
+    };
+    var id = "p" + Date.now();
+    if(!state.profiles) state.profiles = {};
+    if(fbUser) state.profiles = {}; // angemeldet: lokal bleibt nur EIN aktives Profil
+    state.profiles[id] = profile;
+    state.activeProfileId = id;
+    state.onboarded = true;
+    chatOnboarding = null;
+    save();
+    if(fbUser) pushProfileToCloud(id);
+    var eng = calcEngine(profile);
+    chat.messages.push({ role: "assistant", text: "Fertig, dein Profil steht! 🎉 Dein Tagesbedarf liegt bei ca. " + Math.round(eng.kcal) + " kcal (" + eng.protein + "g Eiweiß, " + eng.fett + "g Fett, " + eng.kh + "g Kohlenhydrate). Frag mich einfach, was als Nächstes ansteht — z.B. \"was kannst du\"." });
+    chat.updatedAt = Date.now();
+    renderChatMessages();
+    save();
+  }
+
+  function handleOnboardingAnswer(text, chat){
+    var o = chatOnboarding;
+    var t = (text || "").trim();
+    switch(o.step){
+      case 0:
+        o.answers.name = (t.toLowerCase() === "skip" || !t) ? "" : t;
+        o.step = 1;
+        break;
+      case 1:
+        if(/\b(frau|weiblich|female|w)\b/i.test(t)) o.answers.gender = "frau";
+        else if(/\b(mann|männlich|male|m)\b/i.test(t)) o.answers.gender = "mann";
+        else { chat.messages.push({ role: "assistant", text: "Sorry, versteh ich nicht ganz — schreib einfach \"Mann\" oder \"Frau\"." }); return; }
+        o.step = 2;
+        break;
+      case 2: {
+        var age = extractNumber(t);
+        if(age == null || age < 5 || age > 120){ chat.messages.push({ role: "assistant", text: "Gib mir bitte eine Zahl fürs Alter, z.B. 27." }); return; }
+        o.answers.age = Math.round(age);
+        o.step = 3;
+        break;
+      }
+      case 3: {
+        var h = extractNumber(t);
+        if(h == null){ chat.messages.push({ role: "assistant", text: "Wie groß bist du in cm? Z.B. 180." }); return; }
+        if(h < 3) h = h * 100;
+        o.answers.height = Math.round(h);
+        o.step = 4;
+        break;
+      }
+      case 4: {
+        var w = extractNumber(t);
+        if(w == null || w <= 0){ chat.messages.push({ role: "assistant", text: "Wie viel wiegst du in kg? Z.B. 78." }); return; }
+        o.answers.weight = w;
+        o.step = 5;
+        break;
+      }
+      case 5: {
+        var kfa = extractNumber(t);
+        if(kfa == null){ chat.messages.push({ role: "assistant", text: "Grobe Schätzung reicht — wie viel Prozent Körperfett ca.? Z.B. 20." }); return; }
+        o.answers.kfaPct = kfa;
+        o.step = 6;
+        break;
+      }
+      case 6: {
+        var pIdx = extractNumber(t);
+        if(pIdx == null || pIdx < 1 || pIdx > PAL_STAGES.length){ chat.messages.push({ role: "assistant", text: "Bitte eine Zahl von 1 bis " + PAL_STAGES.length + " aus der Liste oben." }); return; }
+        o.answers.palIdx = Math.round(pIdx) - 1;
+        o.step = 7;
+        break;
+      }
+      case 7: {
+        var zIdx = extractNumber(t);
+        if(zIdx == null || zIdx < 1 || zIdx > ZIEL_STAGES.length){ chat.messages.push({ role: "assistant", text: "Bitte eine Zahl von 1 bis " + ZIEL_STAGES.length + " aus der Liste oben." }); return; }
+        o.answers.zielIdx = Math.round(zIdx) - 1;
+        finishChatOnboarding(chat);
+        return;
+      }
+    }
+    var q = onboardQuestionText(o.step, o.answers);
+    if(q) chat.messages.push({ role: "assistant", text: q });
+  }
+
   function sendChatMessage(){
     if(chatBusy) return;
     var input = document.getElementById("chatInput");
@@ -2143,6 +2279,14 @@
     chat.messages.push({ role: "user", text: text });
     if(chat.messages.length === 1){ chat.title = chatTitleFromMessages(chat.messages); document.getElementById("pageTitle").textContent = chat.title; }
     chat.updatedAt = Date.now();
+
+    if(chatOnboarding){
+      handleOnboardingAnswer(text, chat);
+      chat.updatedAt = Date.now();
+      renderChatMessages();
+      save({skipCloud:true});
+      return;
+    }
 
     if(!activeProfile()){
       chat.messages.push({ role: "assistant", text: "Bevor ich loslegen kann, brauch ich noch ein Profil mit deinen Körperdaten. Leg das kurz unter Einstellungen → Profile an, dann quatschen wir weiter." });
@@ -3295,6 +3439,10 @@
   }
 
   function importProfileFromFile(file){
+    if(!fbUser && Object.keys(state.profiles).length >= 5){
+      document.getElementById("exportFallback").innerHTML = '<p class="hint" style="color:var(--warn)">Lokal sind maximal 5 Profile möglich. Lösche zuerst eins, um zu importieren.</p>';
+      return;
+    }
     var reader = new FileReader();
     reader.onload = function(){
       try{
@@ -3304,7 +3452,7 @@
         if(!data.name) data.name = "Importiertes Profil";
         if(typeof data.zielgewicht !== "number") data.zielgewicht = suggestZielgewicht(data.weight||100, data.kfaIdx);
         var id = "p" + Date.now();
-        state.profiles = {}; // lokal passt nur ein Profil — der Import ersetzt es
+        if(fbUser) state.profiles = {}; // angemeldet: lokal bleibt nur EIN aktives Profil
         state.profiles[id] = data;
         state.activeProfileId = id;
         save();
@@ -3548,28 +3696,25 @@
     // Cloud gesichert ist und dort in "Weitere Profile in der Cloud" bleibt;
     // als Gast ohne Cloud-Konto geht es beim Ersetzen wirklich verloren, daher
     // dort vorher eine Bestätigung).
+    // Ohne Login (offline): bis zu 5 lokale Profile möglich. Angemeldet bleibt
+    // es bei genau einem lokalen/aktiven Profil (alles andere lebt in der Cloud).
     function startNewProfileWizard(){
-      function proceed(){
-        startWizard(newProfile(), function(draft){
-          var id = "p"+Date.now();
-          state.profiles = {};
-          state.profiles[id] = draft;
-          state.activeProfileId = id;
-          save();
-          if(fbUser) pushProfileToCloud(id);
-          document.getElementById("wizard").hidden = true;
-          document.getElementById("mainApp").hidden = false;
-          showTab("einstellungen");
-        }, "newProfile");
+      var existingIds = Object.keys(state.profiles);
+      if(!fbUser && existingIds.length >= 5){
+        window.alert("Lokal sind maximal 5 Profile möglich. Lösche zuerst eins, um ein neues anzulegen.");
+        return;
       }
-      var hasExisting = Object.keys(state.profiles).length > 0;
-      if(hasExisting && !fbUser){
-        if(window.confirm("Lokal passt nur ein Profil. Dein aktuelles Profil wird dabei ersetzt und geht verloren, wenn du es nicht vorher herunterlädst. Trotzdem ein neues Profil anlegen?")){
-          proceed();
-        }
-      } else {
-        proceed();
-      }
+      startWizard(newProfile("Profil " + (existingIds.length + 1)), function(draft){
+        var id = "p"+Date.now();
+        if(fbUser) state.profiles = {}; // angemeldet: lokal bleibt nur EIN aktives Profil
+        state.profiles[id] = draft;
+        state.activeProfileId = id;
+        save();
+        if(fbUser) pushProfileToCloud(id);
+        document.getElementById("wizard").hidden = true;
+        document.getElementById("mainApp").hidden = false;
+        showTab("einstellungen");
+      }, "newProfile");
     }
     document.getElementById("newProfileBtn").addEventListener("click", startNewProfileWizard);
     var emptyNewBtn = document.getElementById("ernaehrungEmptyNewProfileBtn");
@@ -3952,19 +4097,12 @@
     if(state.onboarded){
       initApp();
     } else {
-      startWizard(activeProfile(), function(draft){
-        if(draft){
-          state.profiles[state.activeProfileId] = draft;
-        } else {
-          // Google-Login ohne vorhandene Cloud-Daten: ohne Profil starten,
-          // statt den unbearbeiteten Platzhalter als "echtes" Profil zu übernehmen.
-          state.profiles = {};
-          state.activeProfileId = null;
-        }
-        state.onboarded = true;
-        save({skipCloud: !draft});
-        initApp();
-      }, "onboarding");
+      // Ohne Login oder lokale Datei landet man direkt bei VoßBot — er fragt
+      // die Basics im Chat ab, statt eines Formular-Assistenten.
+      initApp();
+      showTab("chat");
+      openChatConversation(createNewChat());
+      startChatOnboarding();
     }
   }
 
