@@ -3168,16 +3168,39 @@
     });
   }
 
+  // Echter Browser-Download (Blob + <a download>) — löst im normalen Browser
+  // (z.B. GitHub Pages) den ganz normalen Speichern-Dialog des Browsers aus,
+  // genau wie bei jedem anderen Datei-Download. Nur als Claude-Artifact (in
+  // einer Sandbox ohne direkten Dateisystemzugriff) greift stattdessen zuerst
+  // die "downloads"-Fähigkeit oben, und die Kopieren-Box ist der allerletzte
+  // Rückfall, falls wirklich gar nichts davon funktioniert.
+  function tryBlobDownload(jsonText, filename){
+    try{
+      var blob = new Blob([jsonText], { type: "application/json" });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 2000);
+      return true;
+    }catch(e){ return false; }
+  }
+
   function exportProfile(profile){
     var json = JSON.stringify(profile, null, 2);
     var filename = "vossfit-" + slugify(profile.name) + ".json";
     if(window.claude && window.claude.use){
       window.claude.use("downloads").then(function(dl){
-        if(!dl){ showExportFallback(json, filename); return; }
+        if(!dl){ if(!tryBlobDownload(json, filename)) showExportFallback(json, filename); return; }
         dl.save({ filename: filename, data: json }).then(function(){
           document.getElementById("exportFallback").innerHTML = '<p class="hint">„'+filename+'" wurde gespeichert.</p>';
-        }).catch(function(){ showExportFallback(json, filename); });
-      }).catch(function(){ showExportFallback(json, filename); });
+        }).catch(function(){ if(!tryBlobDownload(json, filename)) showExportFallback(json, filename); });
+      }).catch(function(){ if(!tryBlobDownload(json, filename)) showExportFallback(json, filename); });
+    } else if(tryBlobDownload(json, filename)){
+      document.getElementById("exportFallback").innerHTML = '<p class="hint">„'+filename+'" wird heruntergeladen…</p>';
     } else {
       showExportFallback(json, filename);
     }
