@@ -3143,6 +3143,9 @@
     }
     if(chat){
       chat.messages.forEach(function(msg){
+        // Login-Auswahl (Google/ohne Login) blendet sich komplett aus,
+        // sobald sie erledigt ist — kein "Angemeldet ✓"-Rest im Verlauf.
+        if(msg.authChoice && msg.resolved) return;
         var b = document.createElement("div");
         b.className = "chat-bubble " + msg.role;
         if(msg.authChoice){
