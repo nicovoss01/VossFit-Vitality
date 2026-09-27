@@ -892,7 +892,25 @@
     }
   }
 
-  // kind: "error" (rot) | "pending" (gelb, Zustand unklar/läuft gerade) | sonst = "ok" (grün).
+  // Wenn ein Cloud-Push fehlschlägt, WEIL gerade kein Internet da ist, ist das kein
+  // echter Fehler (rot), sondern ein vorübergehender, unklarer Zustand (gelb) — die
+  // Änderung liegt sicher in localStorage und wird automatisch nachgeladen, sobald
+  // die Verbindung zurück ist (siehe "online"-Listener weiter unten).
+  function syncFailureKind(){ return (typeof navigator !== "undefined" && navigator.onLine === false) ? "pending" : "error"; }
+  function syncFailureText(err){
+    if(typeof navigator !== "undefined" && navigator.onLine === false){
+      return "Gerade offline — wird automatisch synchronisiert, sobald wieder Internet da ist.";
+    }
+    return "Sync fehlgeschlagen: " + (err && err.message ? err.message : "Unbekannt");
+  }
+
+  // Sobald die Verbindung zurückkommt, automatisch alles hochladen, was offline
+  // geändert wurde — ohne dass der Nutzer manuell auf Sync tippen muss.
+  if(typeof window !== "undefined"){
+    window.addEventListener("online", function(){ if(fbUser) manualSyncNow(); });
+  }
+
+  // kind: "error" (rot) | "pending" (gelb, Zustand unklar/läuft gerade, auch: offline) | sonst = "ok" (grün).
   // true wird weiterhin als "error" behandelt (Rückwärtskompatibilität).
   function setSyncStatus(text, kind){
     var isError = kind === true || kind === "error";
@@ -996,7 +1014,7 @@
         save({skipCloud:true});
         renderSettings();
       }).catch(function(err){
-        setSyncStatus("Sync fehlgeschlagen: " + (err && err.message ? err.message : "Unbekannt"), true);
+        setSyncStatus(syncFailureText(err), syncFailureKind());
       });
     }, 1500);
   }
@@ -1054,9 +1072,8 @@
       renderSettings();
       if(onDone) onDone(true);
     }).catch(function(err){
-      var msg = err && err.message ? err.message : "Unbekannt";
-      setSyncStatus("Sync fehlgeschlagen: " + msg, true);
-      if(onDone) onDone(false, msg);
+      setSyncStatus(syncFailureText(err), syncFailureKind());
+      if(onDone) onDone(false, err && err.message);
     });
   }
 
@@ -1074,9 +1091,8 @@
       if(cloudProfileIndex) cloudProfileIndex[profileId] = state.profiles[profileId];
       if(onDone) onDone(true);
     }).catch(function(err){
-      var msg = err && err.message ? err.message : "Unbekannt";
-      setSyncStatus("Sichern fehlgeschlagen: " + msg, true);
-      if(onDone) onDone(false, msg);
+      setSyncStatus(syncFailureText(err), syncFailureKind());
+      if(onDone) onDone(false, err && err.message);
     });
   }
 
@@ -1090,9 +1106,8 @@
       if(cloudProfileIndex) delete cloudProfileIndex[profileId];
       if(onDone) onDone(true);
     }).catch(function(err){
-      var msg = err && err.message ? err.message : "Unbekannt";
-      setSyncStatus("Löschen fehlgeschlagen: " + msg, true);
-      if(onDone) onDone(false, msg);
+      setSyncStatus(syncFailureText(err), syncFailureKind());
+      if(onDone) onDone(false, err && err.message);
     });
   }
 
@@ -3149,12 +3164,22 @@
       var actBtn = document.createElement("div");
       actBtn.className = "iconbtn"; actBtn.textContent = "→"; actBtn.title = "Aktivieren";
       actBtn.addEventListener("click", function(){
-        state.profiles[id] = cp;
-        state.activeProfileId = id;
-        pruneLocalToActiveOnly();
-        save();
-        renderSettings();
-        renderHome();
+        // Vorher den bisherigen aktiven Stand noch sichern, damit beim Wechsel
+        // nichts verloren geht, das seit dem letzten Hintergrund-Sync geändert wurde.
+        var prevId = state.activeProfileId;
+        function doSwitch(){
+          state.profiles[id] = cp;
+          state.activeProfileId = id;
+          pruneLocalToActiveOnly();
+          save();
+          renderSettings();
+          renderHome();
+        }
+        if(prevId && state.profiles[prevId]){
+          pushProfileToCloud(prevId, function(){ doSwitch(); });
+        } else {
+          doSwitch();
+        }
       });
       actions.appendChild(actBtn);
 
@@ -3245,9 +3270,11 @@
         if(!data.name) data.name = "Importiertes Profil";
         if(typeof data.zielgewicht !== "number") data.zielgewicht = suggestZielgewicht(data.weight||100, data.kfaIdx);
         var id = "p" + Date.now();
+        state.profiles = {}; // lokal passt nur ein Profil — der Import ersetzt es
         state.profiles[id] = data;
         state.activeProfileId = id;
         save();
+        if(fbUser) pushProfileToCloud(id);
         renderSettings();
       }catch(e){
         document.getElementById("exportFallback").innerHTML = '<p class="hint" style="color:var(--warn)">Datei konnte nicht gelesen werden — ist es ein VossFit-Profil-Export?</p>';
@@ -3482,17 +3509,33 @@
       btn.addEventListener("click", function(){ showSettingsTab(btn.getAttribute("data-tab")); renderSettings(); });
     });
 
+    // Lokal ist immer nur EIN Profil möglich — ein neues Profil ersetzt das
+    // bisherige lokale (das dann, falls angemeldet, bereits automatisch in der
+    // Cloud gesichert ist und dort in "Weitere Profile in der Cloud" bleibt;
+    // als Gast ohne Cloud-Konto geht es beim Ersetzen wirklich verloren, daher
+    // dort vorher eine Bestätigung).
     function startNewProfileWizard(){
-      startWizard(newProfile("Profil "+(Object.keys(state.profiles).length+1)), function(draft){
-        var id = "p"+Date.now();
-        state.profiles[id] = draft;
-        state.activeProfileId = id;
-        save();
-        if(fbUser) pushProfileToCloud(id);
-        document.getElementById("wizard").hidden = true;
-        document.getElementById("mainApp").hidden = false;
-        showTab("einstellungen");
-      }, "newProfile");
+      function proceed(){
+        startWizard(newProfile(), function(draft){
+          var id = "p"+Date.now();
+          state.profiles = {};
+          state.profiles[id] = draft;
+          state.activeProfileId = id;
+          save();
+          if(fbUser) pushProfileToCloud(id);
+          document.getElementById("wizard").hidden = true;
+          document.getElementById("mainApp").hidden = false;
+          showTab("einstellungen");
+        }, "newProfile");
+      }
+      var hasExisting = Object.keys(state.profiles).length > 0;
+      if(hasExisting && !fbUser){
+        if(window.confirm("Lokal passt nur ein Profil. Dein aktuelles Profil wird dabei ersetzt und geht verloren, wenn du es nicht vorher herunterlädst. Trotzdem ein neues Profil anlegen?")){
+          proceed();
+        }
+      } else {
+        proceed();
+      }
     }
     document.getElementById("newProfileBtn").addEventListener("click", startNewProfileWizard);
     var emptyNewBtn = document.getElementById("ernaehrungEmptyNewProfileBtn");
