@@ -1049,7 +1049,7 @@
           <div class="chat-overview-card" id="chatOverviewCard" hidden></div>
           <div class="chat-messages" id="chatMessages"></div>
           <p class="chat-hint">VoßBot redet locker mit dir, ersetzt aber keinen Arzt &amp; keine medizinische Beratung.</p>
-          <div class="chat-inputrow">
+          <div class="chat-inputrow" id="chatInputRow">
             <textarea id="chatInput" rows="1" placeholder="Schreib VoßBot einfach, was los ist…"></textarea>
             <div class="chat-sendbtn" id="chatSendBtn">➤</div>
           </div>
@@ -2484,6 +2484,7 @@
       // bleibt sichtbar, kein Zurück-Button, immer erreichbar über den
       // VoßBot-Reiter.
       showTab("chat");
+      positionChatInputRow();
       setTimeout(function(){ document.getElementById("chatInput").focus(); }, 50);
       return;
     }
@@ -2495,6 +2496,7 @@
     document.querySelector("nav.tabbar").hidden = true;
     document.getElementById("pageTitle").textContent = currentChat().title || "VoßBot";
     renderChatMessages();
+    positionChatInputRow();
     save();
     setTimeout(function(){ document.getElementById("chatInput").focus(); }, 50);
   }
@@ -3067,6 +3069,20 @@
 
   // Stellt sicher, dass der Hauptchat (VoßBot-Startpunkt) geöffnet ist —
   // wird von allen Vorschlags-Optionen benutzt, die dort etwas eintragen.
+  // Die fixe Eingabezeile sitzt am unteren Bildschirmrand — wenn die
+  // Tableiste gleichzeitig sichtbar ist (Hauptchat als Reiter), muss sie
+  // ÜBER der Tableiste schweben statt direkt dahinter zu verschwinden
+  // (beide sonst übereinander bei bottom:0). Höhe wird live gemessen,
+  // damit Safe-Area-Insets auf echten Geräten korrekt berücksichtigt sind.
+  function positionChatInputRow(){
+    var row = document.getElementById("chatInputRow");
+    var wrap = document.querySelector(".chat-wrap");
+    var tabbar = document.querySelector("nav.tabbar");
+    var tabbarH = (tabbar && !tabbar.hidden) ? tabbar.offsetHeight : 0;
+    if(row) row.style.bottom = tabbarH + "px";
+    if(wrap) wrap.style.paddingBottom = (tabbarH + 150) + "px";
+  }
+
   function openMainChatConversation(){
     var mc = mainChat();
     if(mc){
@@ -3089,6 +3105,7 @@
     input.value = existing ? (existing + " + " + text) : text;
     input.style.height = "auto";
     input.style.height = Math.min(110, input.scrollHeight) + "px";
+    positionChatInputRow();
     input.focus();
   }
 
@@ -3443,6 +3460,7 @@
     // wieder freigeben, ohne den Chat zu verlassen.
     setTopbar(state.view);
     document.querySelector("nav.tabbar").hidden = navLocked();
+    positionChatInputRow();
   }
 
   // Markiert die offene Frage im Chatverlauf als beantwortet — auch wenn
@@ -5025,6 +5043,7 @@
         state.activeChatId = mc.id;
         renderChatMessages();
       }
+      positionChatInputRow();
     }
     save();
   }
@@ -5267,7 +5286,10 @@
     document.getElementById("chatInput").addEventListener("input", function(e){
       e.target.style.height = "auto";
       e.target.style.height = Math.min(110, e.target.scrollHeight) + "px";
+      positionChatInputRow();
     });
+    window.addEventListener("resize", positionChatInputRow);
+    window.addEventListener("orientationchange", positionChatInputRow);
 
     document.getElementById("mcPrev").addEventListener("click", function(){ shiftMonth(-1); });
     document.getElementById("mcNext").addEventListener("click", function(){ shiftMonth(1); });
