@@ -1838,11 +1838,11 @@
         return;
       }
       runProxyChat(systemInstruction, contextBlock, text, pendingBubble, finishOk, function(proxyErr){
-        runOfflineAssistant(text, pendingBubble, finishOk);
+        runOfflineAssistant(text, chat, pendingBubble, finishOk);
       });
     }).catch(function(){
       runProxyChat(systemInstruction, contextBlock, text, pendingBubble, finishOk, function(proxyErr){
-        runOfflineAssistant(text, pendingBubble, finishOk);
+        runOfflineAssistant(text, chat, pendingBubble, finishOk);
       });
     });
   }
@@ -2046,15 +2046,60 @@
     });
   }
 
-  function runOfflineAssistant(text, pendingBubble, finishOk){
+  function runOfflineAssistant(text, chat, pendingBubble, finishOk){
     pendingBubble.className = "chat-bubble pending";
     pendingBubble.textContent = "…";
     // Kleine Verzögerung, damit die Antwort nicht wirkt wie ein Absturz/Sofort-Echo.
     setTimeout(function(){
       try{
-        var lower = text.toLowerCase();
+        var lowerCurrent = text.toLowerCase();
+        // Bezieht die letzten Nachrichten desselben Chats mit ein (nicht nur die
+        // aktuelle) — so kann z.B. "Hähnchen" in einer Nachricht und "200g" in der
+        // nächsten zusammen erkannt werden. Mengen-/Wort-Erkennung läuft auf diesem
+        // kombinierten Text; nur die Kurz-Bestätigung ("Ja") bezieht sich bewusst
+        // ausschließlich auf die aktuelle Nachricht.
+        var recentUserTexts = (chat && chat.messages)
+          ? chat.messages.filter(function(m){ return m.role === "user"; }).slice(-5).map(function(m){ return m.text; })
+          : [text];
+        var lower = recentUserTexts.join(" ").toLowerCase();
+
         var addVerbs = ["füg", "hinzufüg", "eintragen", "trag ein", "gegessen", "add", "war heute"];
         var hasAddIntent = addVerbs.some(function(v){ return lower.indexOf(v) > -1; });
+
+        // Merkt sich pro Chatverlauf, was zuletzt vorgeschlagen wurde (Tagesplan,
+        // Rezept oder Lebensmittel), damit eine kurze Bestätigung wie "Ja, trag ihn
+        // ein" ohne Wiederholung des vollen Namens funktioniert.
+        var ctx = chat && chat.offlineContext;
+        var isShortConfirm = /^(ja|jap|jep|joa|passt|gerne|ok|okay|alles klar|mach das|mach es|klingt gut)\b/.test(lowerCurrent.trim());
+        var mentionsTragEin = lowerCurrent.indexOf("trag") > -1 && lowerCurrent.indexOf("ein") > -1;
+        var wantsAddFromContext = ctx && (isShortConfirm || mentionsTragEin) && !findFoodMatch(lowerCurrent) && !findRecipeMatch(lowerCurrent);
+
+        if(wantsAddFromContext){
+          if(ctx.type === "plan"){
+            var addedNames = [];
+            ctx.plan.forEach(function(p2){
+              if(!p2.recipe) return;
+              addFoodToDayEntry({ mealName: p2.meal, foodName: p2.recipe.name, kh: p2.recipe.kh, fett: p2.recipe.fett, protein: p2.recipe.protein });
+              addedNames.push(p2.meal + ": " + p2.recipe.name);
+            });
+            if(chat) chat.offlineContext = null;
+            finishOk("Eingetragen (noch unbestätigt, bitte in den Mahlzeiten bestätigen):\n" + addedNames.join("\n"));
+            return;
+          }
+          if(ctx.type === "recipe"){
+            var rr = ctx.recipe;
+            var resultCtxR = addFoodToDayEntry({ mealName: detectMealName(lower) || rr.meal, foodName: rr.name, kh: rr.kh, fett: rr.fett, protein: rr.protein });
+            if(chat) chat.offlineContext = null;
+            finishOk((resultCtxR && resultCtxR.message) || "Hinzugefügt.");
+            return;
+          }
+          if(ctx.type === "food"){
+            var resultCtxF = addFoodToDayEntry(ctx.food);
+            if(chat) chat.offlineContext = null;
+            finishOk((resultCtxF && resultCtxF.message) || "Hinzugefügt.");
+            return;
+          }
+        }
 
         var planKeywords = ["ernährungsplan", "essensplan", "tagesplan", "was soll ich essen", "was soll ich heute essen", "was kann ich essen", "was koche ich", "plan für heute", "vorschlag für heute", "vorschläge fürs essen"];
         var wantsPlan = planKeywords.some(function(v){ return lower.indexOf(v) > -1; });
@@ -2071,7 +2116,8 @@
             lines.push(p2.meal + ": " + r.name + " (~" + r.kcal + " kcal) — " + r.zutaten);
           });
           lines.push("Gesamt: ca. " + totalKcal + " kcal (" + totalKh + "g KH, " + totalFett + "g Fett, " + totalProtein + "g Protein).");
-          lines.push("Sag z.B. \"" + (plan[0].recipe ? plan[0].recipe.name : "Rührei mit Vollkornbrot") + " zum Frühstück hinzufügen\", damit ich ein Gericht direkt einträge.");
+          lines.push("Sag \"Ja, trag ihn ein\", wenn dir der Plan gefällt — dann trage ich alle vier Mahlzeiten ein. Oder nenn mir ein einzelnes Gericht, das ich stattdessen eintragen soll.");
+          if(chat) chat.offlineContext = { type: "plan", plan: plan };
           finishOk(lines.join("\n"));
           return;
         }
@@ -2080,11 +2126,13 @@
         if(recipeMatch && hasAddIntent){
           var mealNameR = detectMealName(lower) || recipeMatch.meal;
           var resultR = addFoodToDayEntry({ mealName: mealNameR, foodName: recipeMatch.name, kh: recipeMatch.kh, fett: recipeMatch.fett, protein: recipeMatch.protein });
+          if(chat) chat.offlineContext = null;
           finishOk((resultR && resultR.message) || "Hinzugefügt.");
           return;
         }
         if(recipeMatch && !hasAddIntent){
-          finishOk(recipeMatch.name + ": ca. " + recipeMatch.kcal + " kcal (" + recipeMatch.kh + "g KH, " + recipeMatch.fett + "g Fett, " + recipeMatch.protein + "g Protein). Zutaten: " + recipeMatch.zutaten + ". Sag \"" + recipeMatch.name + " zum " + recipeMatch.meal + " hinzufügen\", damit ich es einträge.");
+          if(chat) chat.offlineContext = { type: "recipe", recipe: recipeMatch };
+          finishOk(recipeMatch.name + ": ca. " + recipeMatch.kcal + " kcal (" + recipeMatch.kh + "g KH, " + recipeMatch.fett + "g Fett, " + recipeMatch.protein + "g Protein). Zutaten: " + recipeMatch.zutaten + ". Sag \"ja, trag ihn ein\" oder \"" + recipeMatch.name + " zum " + recipeMatch.meal + " hinzufügen\", damit ich es einträge.");
           return;
         }
 
@@ -2115,7 +2163,10 @@
         if(match && !hasAddIntent){
           var f2 = match.food;
           var kcal2 = Math.round(foodKcal(f2.kh, f2.fett, f2.protein));
-          finishOk("Pro " + f2.g + "g " + match.key + ": ca. " + kcal2 + " kcal (" + f2.kh + "g KH, " + f2.fett + "g Fett, " + f2.protein + "g Protein). Sag mir z.B. \"150g " + match.key + " zum Mittagessen hinzufügen\", damit ich es einträge.");
+          var mealNameF = detectMealName(lower);
+          var foodLabelF = f2.g + "g " + match.key.charAt(0).toUpperCase() + match.key.slice(1);
+          if(chat) chat.offlineContext = { type: "food", food: { mealName: mealNameF, foodName: foodLabelF, kh: f2.kh, fett: f2.fett, protein: f2.protein } };
+          finishOk("Pro " + f2.g + "g " + match.key + ": ca. " + kcal2 + " kcal (" + f2.kh + "g KH, " + f2.fett + "g Fett, " + f2.protein + "g Protein). Sag \"ja, trag ein\" oder \"150g " + match.key + " zum Mittagessen hinzufügen\", damit ich es einträge.");
           return;
         }
 
