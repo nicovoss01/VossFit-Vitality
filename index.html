@@ -57,9 +57,7 @@
   .topbar h1{ font-family: var(--display); font-weight: 600; font-size: 21px; letter-spacing: .2px; margin: 0; color: var(--text); text-shadow: var(--glow-text); }
   .topbar .sub{ font-size: 12px; color: var(--text-dim); margin-top: 2px; }
   .iconbtn{ width: 34px; height: 34px; border-radius: 10px; background: #000; border: 1px solid var(--turquoise); display: grid; place-items: center; color: var(--turquoise); cursor: pointer; flex-shrink: 0; font-size: 16px; box-shadow: var(--glow-border); }
-  .sync-icon{ width: 30px; height: 30px; border-radius: 50%; background: #000; display: grid; place-items: center; flex-shrink: 0; cursor: default; font-size: 14px; font-weight: 700; user-select: none; border: 1.5px solid var(--ok, #1a9d5c); color: var(--ok, #1a9d5c); box-shadow: 0 0 10px rgba(18,203,238,.18); }
-  .sync-icon.spin{ animation: sync-spin 1s linear infinite; }
-  .ghost-btn.sync-now-btn{ padding: 6px 10px; font-size: 12px; white-space: nowrap; box-shadow: none; }
+  .icon-square.spin{ animation: sync-spin 1s linear infinite; }
   @keyframes sync-spin{ from{ transform: rotate(0deg); } to{ transform: rotate(360deg); } }
 
   main{ flex: 1; padding: 4px 18px 104px; display: flex; flex-direction: column; gap: 20px; }
@@ -287,9 +285,9 @@
   .wizard-nav .ghost-btn, .wizard-nav .primary-btn{ flex: 1; }
 
   /* ---------- Settings ---------- */
-  .settings-tabs{ display: flex; flex-wrap: nowrap; gap: 5px; padding: 0 18px; }
-  .settings-tabs button{ flex: 1 1 0; min-width: 0; background: #000; border: 1px solid var(--turquoise); color: var(--turquoise); font-family: var(--body); font-size: 9.5px; font-weight: 600; padding: 7px 2px 6px; border-radius: 10px; cursor: pointer; box-shadow: var(--glow-border); display: flex; flex-direction: column; align-items: center; gap: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .settings-tabs button .ti{ font-size: 13px; line-height: 1; }
+  .settings-tabs{ display: flex; flex-wrap: nowrap; gap: 7px; padding: 0 18px; }
+  .settings-tabs button{ flex: 1 1 0; min-width: 0; background: #000; border: 1.5px solid var(--turquoise); color: var(--turquoise); font-family: var(--body); font-size: 11px; font-weight: 700; padding: 13px 2px 11px; border-radius: 16px; cursor: pointer; box-shadow: var(--glow-border); display: flex; flex-direction: column; align-items: center; gap: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .settings-tabs button .ti{ font-size: 19px; line-height: 1; }
   .settings-tabs button.active{ background: var(--turquoise); color: #000; box-shadow: var(--glow-sm); }
 
   .profile-card{ background: #000; border: 1px solid var(--border); border-radius: 14px; padding: 12px 14px; display: flex; align-items: center; gap: 10px; }
@@ -301,6 +299,61 @@
   .profile-actions{ display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
   .profile-actions .iconbtn{ width: 30px; height: 30px; font-size: 13px; }
   .rename-input{ background: #000; border: 1px solid var(--turquoise); border-radius: 8px; padding: 8px 10px; color: var(--text); font-family: var(--body); font-size: 13px; width: 100%; }
+
+  /* ---------- Einstellungen: Referenz-Layout ---------- */
+  .settings-page-head{ display: flex; align-items: center; justify-content: space-between; padding: 2px 18px 14px; }
+  .settings-page-head .spht{ font-family: var(--display); font-size: 26px; font-weight: 800; color: var(--text); line-height: 1.05; }
+  .settings-page-head .sphs{ font-size: 13px; color: var(--text-faint); margin-top: 2px; }
+  .icon-square{ width: 42px; height: 42px; border-radius: 12px; border: 1.5px solid var(--turquoise); display: grid; place-items: center; color: var(--turquoise); font-size: 18px; cursor: pointer; background: #000; flex-shrink: 0; box-shadow: var(--glow-border); }
+  .icon-square.danger{ border-color: #ff5c5c; color: #ff5c5c; box-shadow: none; }
+
+  .eyebrow-icon-row{ display: flex; align-items: center; gap: 8px; color: var(--turquoise); font-size: 14.5px; font-weight: 700; margin-bottom: 12px; }
+  .eyebrow-icon-row .ic{ font-size: 16px; }
+  .section-head-row{ display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .add-circle{ width: 30px; height: 30px; border-radius: 50%; border: 1.5px solid var(--turquoise); color: var(--turquoise); display: grid; place-items: center; cursor: pointer; font-size: 17px; flex-shrink: 0; }
+
+  .sync-card{ background: #000; border: 1px solid var(--border); border-radius: 16px; padding: 16px; }
+  .sync-card .row{ display: flex; align-items: center; gap: 12px; }
+  .sync-avatar-wrap{ width: 56px; height: 56px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 18px rgba(18,203,238,.4); overflow: hidden; background: var(--turquoise); display: grid; place-items: center; }
+  .sync-avatar-wrap img{ width: 100%; height: 100%; object-fit: cover; display: block; }
+  .sync-avatar-wrap .initial{ font-size: 22px; font-weight: 800; color: #000; }
+  .sync-name-block{ flex: 1; min-width: 0; }
+  .sync-name-block .nm{ font-size: 16px; font-weight: 700; color: var(--text); line-height: 1.25; }
+  .sync-status-line{ font-size: 12.5px; margin-top: 3px; display: flex; align-items: center; gap: 5px; color: var(--text-faint); }
+  .sync-actions{ display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  .sync-actions .divider-v{ width: 1px; align-self: stretch; background: var(--border); }
+
+  .profile-card-v2{ background: #000; border: 1.5px solid var(--turquoise); border-radius: 16px; padding: 14px; box-shadow: var(--glow-sm); margin-bottom: 10px; }
+  .profile-card-v2 .pc-head{ display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .profile-card-v2 .pc-head .n{ font-size: 16px; font-weight: 700; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .profile-card-v2 .pc-kebab{ color: var(--turquoise); font-size: 18px; cursor: pointer; padding: 2px 6px; flex-shrink: 0; }
+  .pc-row{ display: flex; align-items: stretch; gap: 10px; }
+  .pc-bars{ flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+  .pc-chips{ display: flex; align-items: center; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .pc-chip{ flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 9px 4px; font-size: 12.5px; font-weight: 600; color: var(--text); white-space: nowrap; }
+  .pc-chip .ic{ color: var(--turquoise); font-size: 13px; flex-shrink: 0; }
+  .pc-chips .pc-sep{ color: var(--text-faint); font-size: 12px; padding: 0 2px; }
+  .pc-chips .pc-chip + .pc-chip{ border-left: 1px solid var(--border); }
+  .pc-side{ display: flex; flex-direction: column; justify-content: center; gap: 8px; border-left: 1px solid var(--border); padding-left: 10px; flex-shrink: 0; }
+  .pc-side .iconbtn{ width: 36px; height: 36px; }
+  .pc-side .iconbtn.danger{ border-color: #ff5c5c; color: #ff5c5c; }
+
+  .new-profile-card{ display: flex; align-items: center; gap: 12px; border: 1.5px dashed var(--turquoise); border-radius: 16px; padding: 14px; cursor: pointer; margin-top: 4px; background: transparent; width: 100%; text-align: left; font-family: var(--body); }
+  .new-profile-card .plus-circle{ width: 42px; height: 42px; border-radius: 50%; border: 1.5px solid var(--turquoise); color: var(--turquoise); display: grid; place-items: center; font-size: 19px; flex-shrink: 0; }
+  .new-profile-card .npc-text{ flex: 1; min-width: 0; }
+  .new-profile-card .npc-text .t{ font-weight: 700; color: var(--turquoise); font-size: 14.5px; }
+  .new-profile-card .npc-text .d{ font-size: 12px; color: var(--text-faint); margin-top: 2px; }
+  .new-profile-card .chev{ color: var(--turquoise); font-size: 18px; flex-shrink: 0; }
+
+  .appdata-section{ background: #000; border: 1px solid var(--border); border-radius: 16px; padding: 14px; }
+  .appdata-row{ display: flex; align-items: center; gap: 12px; padding: 11px 2px; border-bottom: 1px solid var(--border); cursor: pointer; background: none; border-left: none; border-right: none; border-top: none; width: 100%; text-align: left; font-family: var(--body); color: var(--text); }
+  .appdata-row:last-child{ border-bottom: none; padding-bottom: 2px; }
+  .appdata-row:first-child{ padding-top: 2px; }
+  .appdata-row .aic{ width: 38px; height: 38px; border-radius: 10px; background: #0a0a0a; border: 1px solid var(--border); display: grid; place-items: center; font-size: 16px; flex-shrink: 0; }
+  .appdata-row .at{ flex: 1; min-width: 0; }
+  .appdata-row .at .t{ font-weight: 600; font-size: 14px; }
+  .appdata-row .at .d{ font-size: 11.5px; color: var(--text-faint); margin-top: 1px; }
+  .appdata-row .chev{ color: var(--text-faint); font-size: 16px; flex-shrink: 0; }
 
   .export-fallback{ background: #0a0a0a; border: 1px solid var(--border); border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
   .export-fallback textarea{ width: 100%; height: 90px; background: #000; border: 1px solid var(--border); border-radius: 8px; color: var(--text-dim); font-family: var(--mono); font-size: 10.5px; padding: 8px; resize: none; }
@@ -400,6 +453,7 @@
         </div>
       </div>
       <div class="topbar-right">
+        <div class="icon-square" id="settingsEditBtn" hidden title="Profil bearbeiten">✎</div>
         <div class="iconbtn" id="chatMenuBtn" hidden>⋮</div>
       </div>
     </div>
@@ -588,42 +642,76 @@
 
         <div id="settings-profile">
           <section>
-            <div class="eyebrow">Konto & Cloud-Sync</div>
             <div id="authSignedOut">
+              <div class="eyebrow-icon-row"><span class="ic">☁</span>Konto & Cloud-Sync</div>
               <button class="primary-btn" id="googleSignInBtn" style="width:100%">Mit Google anmelden</button>
               <p class="hint" style="margin-top:6px">Sichert deine Profile automatisch in der Cloud, geräteübergreifend.</p>
               <p class="hint" id="authDiagStatus" style="margin-top:6px"></p>
             </div>
             <div id="authSignedIn" hidden>
-              <div style="display:flex;align-items:center;gap:10px">
-                <img id="authAvatar" src="" alt="" style="width:36px;height:36px;border-radius:50%;flex-shrink:0">
-                <div style="flex:1;min-width:0">
-                  <div id="authName" style="font-weight:600;font-size:14px"></div>
+              <div class="eyebrow-icon-row"><span class="ic">☁</span>Konto und Synchronisierung</div>
+              <div class="sync-card">
+                <div class="row">
+                  <div class="sync-avatar-wrap"><img id="authAvatar" src="" alt="" hidden></div>
+                  <div class="sync-name-block">
+                    <div class="nm" id="authName"></div>
+                    <div class="sync-status-line" id="wizAuthStatusInline"></div>
+                  </div>
+                  <div class="sync-actions">
+                    <div class="icon-square" id="syncNowBtn" title="Jetzt synchronisieren">🔄</div>
+                    <div class="divider-v"></div>
+                    <div class="icon-square danger" id="googleSignOutBtn" title="Abmelden">⏻</div>
+                  </div>
                 </div>
-                <button class="ghost-btn sync-now-btn" id="syncNowBtn" title="Jetzt synchronisieren">🔄 Sync</button>
-                <div id="syncIcon" class="sync-icon" title="Sync-Status">✓</div>
-                <button class="ghost-btn" id="googleSignOutBtn">Abmelden</button>
               </div>
             </div>
           </section>
           <section>
-            <div class="eyebrow">Gespeicherte Profile</div>
-            <div id="profileList" style="display:flex;flex-direction:column;gap:8px"></div>
+            <div class="section-head-row">
+              <div class="eyebrow-icon-row" style="margin:0"><span class="ic">🗄</span>Gespeicherte Profile</div>
+              <div class="add-circle" id="newProfileQuickBtn" title="Neues Profil">+</div>
+            </div>
+            <div id="profileList"></div>
             <div id="cloudProfileListWrap" hidden>
               <div class="eyebrow" style="margin-top:14px">Weitere Profile in der Cloud</div>
               <div id="cloudProfileList" style="display:flex;flex-direction:column;gap:8px"></div>
             </div>
-            <div style="display:flex;gap:8px;margin-top:6px">
-              <button class="primary-btn" id="newProfileBtn" style="flex:1">+ Neues Profil</button>
-              <span id="localFileActions" style="gap:8px">
-                <button class="ghost-btn" id="importProfileBtn" title="Datei importieren" style="width:46px;padding:0;font-size:16px">📥</button>
-                <button class="ghost-btn" id="exportProfileBtn" title="Exportieren" style="width:46px;padding:0;font-size:16px">📤</button>
+            <button type="button" class="new-profile-card" id="newProfileBtn">
+              <span class="plus-circle">+</span>
+              <span class="npc-text">
+                <div class="t">+ Neues Profil</div>
+                <div class="d">Neues Profil mit eigenen Daten anlegen</div>
               </span>
+              <span class="chev">›</span>
+            </button>
+            <div id="localFileActions" style="display:flex;gap:8px;margin-top:10px">
+              <button class="ghost-btn" id="importProfileBtn" title="Datei importieren" style="flex:1;padding:11px;font-size:13px">📥 Importieren</button>
+              <button class="ghost-btn" id="exportProfileBtn" title="Exportieren" style="flex:1;padding:11px;font-size:13px">📤 Exportieren</button>
             </div>
             <div id="exportPicker" hidden style="margin-top:8px"></div>
-            <p class="hint" id="profileActionsHint" style="margin-top:2px"></p>
+            <p class="hint" id="profileActionsHint" style="margin-top:6px"></p>
             <input type="file" id="importFileInput" accept="application/json" hidden>
             <div id="exportFallback"></div>
+          </section>
+          <section>
+            <div class="eyebrow-icon-row"><span class="ic">⚙</span>App & Daten</div>
+            <div class="appdata-section">
+              <button type="button" class="appdata-row" id="appdataDesign">
+                <span class="aic">🎨</span>
+                <span class="at"><div class="t">Design</div><div class="d">Farben, Dark Mode, Darstellung</div></span>
+                <span class="chev">›</span>
+              </button>
+              <button type="button" class="appdata-row" id="appdataUnits">
+                <span class="aic">📏</span>
+                <span class="at"><div class="t">Einheiten</div><div class="d">kg/lbs, cm/ft, kcal/kJ</div></span>
+                <span class="chev">›</span>
+              </button>
+              <button type="button" class="appdata-row" id="appdataData">
+                <span class="aic">🗄</span>
+                <span class="at"><div class="t">Datenverwaltung</div><div class="d">Import, Export, Zurücksetzen</div></span>
+                <span class="chev">›</span>
+              </button>
+            </div>
           </section>
         </div>
 
@@ -880,8 +968,25 @@
     if(!out || !inn) return;
     if(fbUser){
       out.hidden = true; inn.hidden = false;
-      document.getElementById("authAvatar").src = fbUser.photoURL || "";
-      document.getElementById("authName").textContent = fbUser.displayName || fbUser.email || "Angemeldet";
+      var avatarImg = document.getElementById("authAvatar");
+      var avatarWrap = avatarImg ? avatarImg.closest(".sync-avatar-wrap") : null;
+      var dispName = fbUser.displayName || fbUser.email || "Angemeldet";
+      if(avatarImg){
+        if(fbUser.photoURL){
+          avatarImg.src = fbUser.photoURL;
+          avatarImg.hidden = false;
+          if(avatarWrap){ var oldI = avatarWrap.querySelector(".initial"); if(oldI) oldI.remove(); }
+        } else {
+          avatarImg.hidden = true;
+          if(avatarWrap && !avatarWrap.querySelector(".initial")){
+            var initEl = document.createElement("span");
+            initEl.className = "initial";
+            initEl.textContent = dispName.charAt(0).toUpperCase();
+            avatarWrap.appendChild(initEl);
+          }
+        }
+      }
+      document.getElementById("authName").textContent = dispName;
     } else {
       out.hidden = false; inn.hidden = true;
       cloudProfileIndex = null;
@@ -933,17 +1038,20 @@
   function setSyncStatus(text, kind){
     var isError = kind === true || kind === "error";
     var isPending = kind === "pending";
+    var color = isError ? "var(--warn, #ff5c5c)" : (isPending ? "#e8c547" : "var(--ok, #1a9d5c)");
+    var mark = isError ? "✕" : (isPending ? "…" : "✔");
     var el = document.getElementById("wizAuthStatus");
     if(el){ el.textContent = text; el.style.color = isError ? "var(--warn)" : ""; }
-    var icon = document.getElementById("syncIcon");
-    if(icon){
-      icon.title = text;
-      var color = isError ? "var(--warn, #ff5c5c)" : (isPending ? "#e8c547" : "var(--ok, #1a9d5c)");
-      icon.style.color = color;
-      icon.style.borderColor = color;
-      icon.textContent = isError ? "✕" : (isPending ? "🔄" : "✓");
-      icon.classList.toggle("spin", isPending);
+    var inline = document.getElementById("wizAuthStatusInline");
+    if(inline){
+      inline.style.color = color;
+      inline.innerHTML = "";
+      var shortText = isPending ? "Synchronisiere…" : (isError ? "Sync-Fehler" : "Synchronisiert");
+      inline.textContent = shortText + " " + mark;
+      inline.title = text;
     }
+    var syncBtn = document.getElementById("syncNowBtn");
+    if(syncBtn) syncBtn.classList.toggle("spin", isPending);
   }
 
   function setDiagStatus(text, isError){
@@ -3245,91 +3353,115 @@
       var p = state.profiles[id];
       var isActive = id === state.activeProfileId;
       var card = document.createElement("div");
-      card.className = "profile-card" + (isActive ? " active" : "");
+      card.className = "profile-card-v2";
 
-      var info = document.createElement("div");
-      info.className = "info";
-      var cloudTag = "";
-      if(fbUser){
-        if(cloudProfileIndex && cloudProfileIndex[id]) cloudTag = ' <span style="color:var(--ok,#1a9d5c)">· ☁ in der Cloud</span>';
-        else if(cloudProfileIndex) cloudTag = ' <span style="color:#e8c547">· nur lokal, noch nicht in der Cloud</span>';
-        else cloudTag = ' <span style="color:var(--text-faint)">· Cloud-Status wird geprüft…</span>';
-      }
-      info.innerHTML = '<div class="n">'+p.name+'</div><div class="m">'+profileSummaryLine(p)+cloudTag+'</div>';
-
-      var actions = document.createElement("div");
-      actions.className = "profile-actions";
+      // ---- Kopfzeile: Name, AKTIV-Badge/Aktivieren, Kebab-Menü (Umbenennen) ----
+      var head = document.createElement("div");
+      head.className = "pc-head";
+      var nameEl = document.createElement("div");
+      nameEl.className = "n";
+      nameEl.textContent = p.name;
+      head.appendChild(nameEl);
 
       if(isActive){
         var b = document.createElement("span"); b.className = "badge"; b.textContent = "AKTIV";
-        actions.appendChild(b);
+        head.appendChild(b);
       } else {
         var selBtn = document.createElement("div");
         selBtn.className = "iconbtn"; selBtn.textContent = "→"; selBtn.title = "Aktivieren";
+        selBtn.style.width = "28px"; selBtn.style.height = "28px"; selBtn.style.fontSize = "12px";
         selBtn.addEventListener("click", function(){ state.activeProfileId = id; save(); renderSettings(); });
-        actions.appendChild(selBtn);
+        head.appendChild(selBtn);
       }
 
-      var renameBtn = document.createElement("div");
-      renameBtn.className = "iconbtn"; renameBtn.textContent = "✎"; renameBtn.title = "Umbenennen";
-      renameBtn.addEventListener("click", function(){
-        info.innerHTML = "";
+      var kebab = document.createElement("div");
+      kebab.className = "pc-kebab"; kebab.textContent = "⋮"; kebab.title = "Umbenennen";
+      kebab.addEventListener("click", function(){
+        nameEl.innerHTML = "";
         var input = document.createElement("input");
         input.className = "rename-input"; input.value = p.name;
         input.addEventListener("keydown", function(e){ if(e.key === "Enter"){ p.name = input.value || p.name; save(); renderSettings(); } });
         input.addEventListener("blur", function(){ p.name = input.value || p.name; save(); renderSettings(); });
-        info.appendChild(input);
+        nameEl.appendChild(input);
         input.focus();
       });
-      actions.appendChild(renameBtn);
+      head.appendChild(kebab);
+      card.appendChild(head);
 
+      // ---- Stat-Leisten: Ziel (oben) + Aktuell (unten) ----
+      var row = document.createElement("div");
+      row.className = "pc-row";
+      var bars = document.createElement("div");
+      bars.className = "pc-bars";
+
+      var curPct = KFA_STAGES[p.kfaIdx].pct;
+      var targetPct = estimateTargetKfaPct(p.weight, curPct, p.zielgewicht);
+      var targetBar = document.createElement("div");
+      targetBar.className = "pc-chips";
+      targetBar.innerHTML =
+        '<span class="pc-chip"><span class="ic">🎯</span>' + p.zielgewicht + ' kg</span>' +
+        '<span class="pc-sep">~</span>' +
+        '<span class="pc-chip"><span class="ic">🔥</span>' + (targetPct !== null ? targetPct : "–") + '% KFA</span>';
+      bars.appendChild(targetBar);
+
+      var heightM = (p.height / 100).toFixed(2).replace(".", ",");
+      var curBar = document.createElement("div");
+      curBar.className = "pc-chips";
+      curBar.innerHTML =
+        '<span class="pc-chip"><span class="ic">🎂</span>' + p.age + ' J.</span>' +
+        '<span class="pc-chip"><span class="ic">📏</span>' + heightM + ' m</span>' +
+        '<span class="pc-chip"><span class="ic">⚖</span>' + p.weight + ' kg</span>' +
+        '<span class="pc-chip"><span class="ic">🔥</span>' + curPct + '%</span>';
+      bars.appendChild(curBar);
       if(fbUser){
-        // Angemeldete Nutzer haben nur diesen einen Löschbutton — er räumt Cloud UND
-        // lokalen Stand in einem Schritt auf (kein separater "lokaler" Löschbutton).
-        var cloudDelBtn = document.createElement("div");
-        cloudDelBtn.className = "iconbtn"; cloudDelBtn.textContent = "☁🗑"; cloudDelBtn.title = "Profil löschen (Cloud & Gerät)";
-        cloudDelBtn.style.fontSize = "10px";
-        var cloudConfirming = false;
-        cloudDelBtn.addEventListener("click", function(){
-          if(!cloudConfirming){
-            cloudConfirming = true;
-            cloudDelBtn.textContent = "Sicher?"; cloudDelBtn.style.color = "var(--warn)";
-            setTimeout(function(){ cloudConfirming = false; cloudDelBtn.textContent = "☁🗑"; cloudDelBtn.style.color = ""; }, 2500);
-            return;
-          }
-          cloudConfirming = false;
-          cloudDelBtn.style.color = "";
-          cloudDelBtn.textContent = "…";
-          deleteProfileFromCloud(id, function(ok){ cloudDelBtn.textContent = ok ? "✓" : "✕"; setTimeout(function(){ cloudDelBtn.textContent = "☁🗑"; }, 2000); });
-          delete state.profiles[id];
-          if(state.activeProfileId === id){ var rest = Object.keys(state.profiles); state.activeProfileId = rest.length ? rest[0] : null; }
-          save();
-          renderSettings();
-          renderHome();
-        });
-        actions.appendChild(cloudDelBtn);
-      } else {
-        var delBtn = document.createElement("div");
-        delBtn.className = "iconbtn"; delBtn.textContent = "🗑"; delBtn.title = "Löschen";
-        var confirming = false;
-        delBtn.addEventListener("click", function(){
-          if(!confirming){
-            confirming = true;
-            delBtn.textContent = "Sicher?"; delBtn.style.color = "var(--warn)";
-            setTimeout(function(){ confirming = false; delBtn.textContent = "🗑"; delBtn.style.color = ""; }, 2500);
-            return;
-          }
-          delete state.profiles[id];
-          if(state.activeProfileId === id){ var rest = Object.keys(state.profiles); state.activeProfileId = rest.length ? rest[0] : null; }
-          save();
-          renderSettings();
-          renderHome();
-        });
-        actions.appendChild(delBtn);
+        var cloudLine = document.createElement("div");
+        cloudLine.style.cssText = "font-size:11px;margin-top:2px;padding-left:2px";
+        if(cloudProfileIndex && cloudProfileIndex[id]){ cloudLine.style.color = "var(--ok,#1a9d5c)"; cloudLine.textContent = "☁ in der Cloud"; }
+        else if(cloudProfileIndex){ cloudLine.style.color = "#e8c547"; cloudLine.textContent = "nur lokal, noch nicht in der Cloud"; }
+        else { cloudLine.style.color = "var(--text-faint)"; cloudLine.textContent = "Cloud-Status wird geprüft…"; }
+        bars.appendChild(cloudLine);
       }
+      row.appendChild(bars);
 
-      card.appendChild(info);
-      card.appendChild(actions);
+      // ---- Seitliche Aktionen: Bearbeiten (→ Körperdaten) + Löschen ----
+      var side = document.createElement("div");
+      side.className = "pc-side";
+
+      var editBtn = document.createElement("div");
+      editBtn.className = "iconbtn"; editBtn.textContent = "✎"; editBtn.title = "Bearbeiten";
+      editBtn.addEventListener("click", function(){
+        state.activeProfileId = id;
+        save();
+        showSettingsTab("koerperdaten");
+        renderSettings();
+      });
+      side.appendChild(editBtn);
+
+      var delBtn = document.createElement("div");
+      delBtn.className = "iconbtn danger"; delBtn.textContent = "🗑"; delBtn.title = "Löschen";
+      var confirming = false;
+      delBtn.addEventListener("click", function(){
+        if(!confirming){
+          confirming = true;
+          delBtn.textContent = "!";
+          setTimeout(function(){ confirming = false; delBtn.textContent = "🗑"; }, 2500);
+          return;
+        }
+        confirming = false;
+        if(fbUser){
+          delBtn.textContent = "…";
+          deleteProfileFromCloud(id, function(){ delBtn.textContent = "🗑"; });
+        }
+        delete state.profiles[id];
+        if(state.activeProfileId === id){ var rest = Object.keys(state.profiles); state.activeProfileId = rest.length ? rest[0] : null; }
+        save();
+        renderSettings();
+        renderHome();
+      });
+      side.appendChild(delBtn);
+
+      row.appendChild(side);
+      card.appendChild(row);
       el.appendChild(card);
     });
 
@@ -3592,7 +3724,12 @@
 
   function renderSettings(){
     renderProfileList();
-    if(activeProfile()){
+    var p = activeProfile();
+    if(state.activeTab === "einstellungen"){
+      var lbl = document.getElementById("profileNameLabel");
+      if(lbl) lbl.textContent = p ? p.name : "";
+    }
+    if(p){
       renderSettingsKoerperdaten();
       renderSettingsZiele();
       renderSettingsRohdaten();
@@ -3650,6 +3787,8 @@
     setTopbarIcon();
     var menuBtn = document.getElementById("chatMenuBtn");
     if(menuBtn) menuBtn.hidden = (state.activeTab !== "chat");
+    var editBtn = document.getElementById("settingsEditBtn");
+    if(editBtn) editBtn.hidden = (state.activeTab !== "einstellungen");
   }
   function goBack(){
     if(state.view === "mealeditor"){
@@ -3741,6 +3880,22 @@
     document.getElementById("newProfileBtn").addEventListener("click", startNewProfileWizard);
     var emptyNewBtn = document.getElementById("ernaehrungEmptyNewProfileBtn");
     if(emptyNewBtn) emptyNewBtn.addEventListener("click", startNewProfileWizard);
+    var quickNewBtn = document.getElementById("newProfileQuickBtn");
+    if(quickNewBtn) quickNewBtn.addEventListener("click", startNewProfileWizard);
+    var settingsEditBtn = document.getElementById("settingsEditBtn");
+    if(settingsEditBtn) settingsEditBtn.addEventListener("click", function(){
+      if(!activeProfile()) return;
+      showSettingsTab("koerperdaten");
+      renderSettings();
+    });
+    // "App & Daten": Layout/Design ist schon fertig, die Funktionen dahinter
+    // (Design, Einheiten, Datenverwaltung) kommen als eigene Aufgabe später.
+    ["appdataDesign","appdataUnits","appdataData"].forEach(function(rid){
+      var rowEl = document.getElementById(rid);
+      if(rowEl) rowEl.addEventListener("click", function(){
+        document.getElementById("exportFallback").innerHTML = '<p class="hint">Kommt bald — dieser Bereich ist noch nicht verknüpft.</p>';
+      });
+    });
 
     document.getElementById("importProfileBtn").addEventListener("click", function(){ document.getElementById("importFileInput").click(); });
     document.getElementById("importFileInput").addEventListener("change", function(e){
