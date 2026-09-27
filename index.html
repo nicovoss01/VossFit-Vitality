@@ -283,8 +283,9 @@
   .wizard-nav .ghost-btn, .wizard-nav .primary-btn{ flex: 1; }
 
   /* ---------- Settings ---------- */
-  .settings-tabs{ display: flex; flex-wrap: wrap; gap: 6px; padding: 0 18px; }
-  .settings-tabs button{ flex: 1 1 40%; background: #000; border: 1px solid var(--turquoise); color: var(--turquoise); font-family: var(--body); font-size: 11.5px; font-weight: 600; padding: 10px 4px; border-radius: 10px; cursor: pointer; box-shadow: var(--glow-border); }
+  .settings-tabs{ display: flex; flex-wrap: nowrap; gap: 5px; padding: 0 18px; }
+  .settings-tabs button{ flex: 1 1 0; min-width: 0; background: #000; border: 1px solid var(--turquoise); color: var(--turquoise); font-family: var(--body); font-size: 9.5px; font-weight: 600; padding: 7px 2px 6px; border-radius: 10px; cursor: pointer; box-shadow: var(--glow-border); display: flex; flex-direction: column; align-items: center; gap: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .settings-tabs button .ti{ font-size: 13px; line-height: 1; }
   .settings-tabs button.active{ background: var(--turquoise); color: #000; box-shadow: var(--glow-sm); }
 
   .profile-card{ background: #000; border: 1px solid var(--border); border-radius: 14px; padding: 12px 14px; display: flex; align-items: center; gap: 10px; }
@@ -574,10 +575,10 @@
       <div id="tab-einstellungen" hidden>
         <section style="margin-bottom:4px">
           <div class="settings-tabs">
-            <button data-tab="profile" class="active">Profile</button>
-            <button data-tab="koerperdaten">Körperdaten</button>
-            <button data-tab="ziele">Ziele</button>
-            <button data-tab="rohdaten">Rohdaten</button>
+            <button data-tab="profile" class="active"><span class="ti">👤</span>Profile</button>
+            <button data-tab="koerperdaten"><span class="ti">📏</span>Körperdaten</button>
+            <button data-tab="ziele"><span class="ti">🎯</span>Ziele</button>
+            <button data-tab="rohdaten"><span class="ti">📊</span>Rohdaten</button>
           </div>
         </section>
 
@@ -594,14 +595,10 @@
                 <img id="authAvatar" src="" alt="" style="width:36px;height:36px;border-radius:50%;flex-shrink:0">
                 <div style="flex:1;min-width:0">
                   <div id="authName" style="font-weight:600;font-size:14px"></div>
-                  <div style="display:flex;align-items:center;gap:5px;margin-top:2px">
-                    <span id="syncDot" style="width:6px;height:6px;border-radius:50%;background:var(--ok,#1a9d5c);flex-shrink:0"></span>
-                    <span id="authSyncStatus" class="hint" style="margin:0"></span>
-                  </div>
+                  <div id="syncIcon" title="" style="font-size:12px;line-height:1;margin-top:3px;color:var(--ok,#1a9d5c)">☁</div>
                 </div>
                 <button class="ghost-btn" id="googleSignOutBtn">Abmelden</button>
               </div>
-              <button class="ghost-btn" id="syncNowBtn" style="width:100%;margin-top:10px">🔄 Synchronisieren</button>
             </div>
           </section>
           <section>
@@ -891,14 +888,18 @@
     }
   }
 
-  function setSyncStatus(text, isError){
-    [document.getElementById("authSyncStatus"), document.getElementById("wizAuthStatus")].forEach(function(el){
-      if(!el) return;
-      el.textContent = text;
-      el.style.color = isError ? "var(--warn)" : "";
-    });
-    var dot = document.getElementById("syncDot");
-    if(dot) dot.style.background = isError ? "var(--warn)" : "var(--ok, #1a9d5c)";
+  // kind: "error" (rot) | "pending" (gelb, Zustand unklar/läuft gerade) | sonst = "ok" (grün).
+  // true wird weiterhin als "error" behandelt (Rückwärtskompatibilität).
+  function setSyncStatus(text, kind){
+    var isError = kind === true || kind === "error";
+    var isPending = kind === "pending";
+    var el = document.getElementById("wizAuthStatus");
+    if(el){ el.textContent = text; el.style.color = isError ? "var(--warn)" : ""; }
+    var icon = document.getElementById("syncIcon");
+    if(icon){
+      icon.title = text;
+      icon.style.color = isError ? "var(--warn, #ff5c5c)" : (isPending ? "#e8c547" : "var(--ok, #1a9d5c)");
+    }
   }
 
   function setDiagStatus(text, isError){
@@ -958,7 +959,7 @@
     cloudSaveTimer = setTimeout(function(){
       var ids = Object.keys(state.profiles || {});
       if(!ids.length) return;
-      setSyncStatus("Synchronisiere…");
+      setSyncStatus("Synchronisiere…", "pending");
       Promise.all(ids.map(function(id){
         return fbDbReady.then(function(db){
           if(!db || !fsApi) throw new Error("Cloud-Datenbank nicht verfügbar" + (fsLoadError ? (": " + fsLoadError) : ""));
@@ -976,34 +977,6 @@
     }, 1500);
   }
 
-  // ---------- Ein Sync-Button: pusht sofort (statt zu warten) und holt danach ----------
-  // weitere Cloud-Profile von anderen Geräten neu.
-  function syncNow(onDone){
-    if(!fbUser){ if(onDone) onDone(false, "Nicht angemeldet."); return; }
-    clearTimeout(cloudSaveTimer);
-    var ids = Object.keys(state.profiles || {});
-    setSyncStatus("Synchronisiere…");
-    Promise.all(ids.map(function(id){
-      return fbDbReady.then(function(db){
-        if(!db || !fsApi) throw new Error("Cloud-Datenbank nicht verfügbar" + (fsLoadError ? (": " + fsLoadError) : ""));
-        return fsApi.setDoc(fsApi.doc(db, "users", fbUser.uid, "profiles", id), {
-          profile: JSON.stringify(state.profiles[id]),
-          updatedAt: fsApi.serverTimestamp()
-        });
-      });
-    })).then(function(){
-      return new Promise(function(resolve){ refreshCloudProfileIndex(resolve); });
-    }).then(function(){
-      setSyncStatus("Synchronisiert ✓");
-      renderSettings();
-      if(onDone) onDone(true);
-    }).catch(function(err){
-      var msg = err && err.message ? err.message : "Unbekannt";
-      setSyncStatus("Sync fehlgeschlagen: " + msg, true);
-      if(onDone) onDone(false, msg);
-    });
-  }
-
   // Frischer Login: alle bereits vorhandenen lokalen Profile automatisch als
   // eigene Cloud-Dokumente sichern (kein Überschreiben anderer Geräte, da jedes
   // Profil sein eigenes Dokument ist), danach weitere Cloud-Profile (von anderen
@@ -1013,13 +986,13 @@
     var localIds = Object.keys(state.profiles || {});
     if(!localIds.length){
       refreshCloudProfileIndex(function(){
-        setSyncStatus("Angemeldet — noch keine Cloud-Daten. Leg dein erstes Profil an.");
+        setSyncStatus("Angemeldet — noch keine Cloud-Daten. Leg dein erstes Profil an.", "pending");
         finishOnboardingEmpty();
         renderSettings();
       });
       return;
     }
-    setSyncStatus("Übernehme deine Profile in die Cloud…");
+    setSyncStatus("Übernehme deine Profile in die Cloud…", "pending");
     Promise.all(localIds.map(function(id){
       return new Promise(function(resolve){ pushProfileToCloud(id, resolve); });
     })).then(function(){
@@ -1126,7 +1099,7 @@
           justSignedIn = false;
           handleFreshLogin(user.uid);
         } else if(user){
-          setSyncStatus("Angemeldet — Änderungen werden synchronisiert.");
+          setSyncStatus("Angemeldet — Änderungen werden synchronisiert.", "pending");
           finishOnboardingIfWaiting();
         }
       });
@@ -1221,6 +1194,22 @@
     var kfaPct = KFA_STAGES[kfaIdx].pct;
     var fatDiff = kfaPct - 20;
     return Math.round((weight - weight * (fatDiff/100)) * 10) / 10;
+  }
+
+  // Rechnet aus dem aktuellen KFA% + Gewicht die Fettfreie Masse aus und leitet
+  // daraus den KFA% beim (ggf. manuell angepassten) Zielgewicht ab — angenommen,
+  // die fettfreie Masse bleibt beim Abnehmen/Zunehmen konstant.
+  function estimateTargetKfaPct(weight, curKfaPct, zielgewicht){
+    if(!weight || !zielgewicht || zielgewicht <= 0) return null;
+    var lbm = weight * (1 - curKfaPct / 100);
+    var pct = (1 - lbm / zielgewicht) * 100;
+    return Math.max(0, Math.round(pct));
+  }
+
+  function profileSummaryLine(p){
+    var curPct = KFA_STAGES[p.kfaIdx].pct;
+    var targetPct = estimateTargetKfaPct(p.weight, curPct, p.zielgewicht);
+    return p.weight + "kg · " + curPct + "% KFA  →  Ziel " + p.zielgewicht + "kg" + (targetPct !== null ? " · " + targetPct + "% KFA" : "");
   }
 
   function newProfile(name){
@@ -2972,7 +2961,7 @@
 
       var info = document.createElement("div");
       info.className = "info";
-      info.innerHTML = '<div class="n">'+p.name+'</div><div class="m">'+p.weight+'kg · '+KFA_STAGES[p.kfaIdx].range+' KFA · Ziel '+p.ziel.toFixed(1)+'</div>';
+      info.innerHTML = '<div class="n">'+p.name+'</div><div class="m">'+profileSummaryLine(p)+'</div>';
 
       var actions = document.createElement("div");
       actions.className = "profile-actions";
@@ -3087,7 +3076,7 @@
 
       var info = document.createElement("div");
       info.className = "info";
-      info.innerHTML = '<div class="n">'+(cp.name||"Profil")+'</div><div class="m">'+cp.weight+'kg · '+KFA_STAGES[cp.kfaIdx].range+' KFA · nur in der Cloud</div>';
+      info.innerHTML = '<div class="n">'+(cp.name||"Profil")+'</div><div class="m">'+profileSummaryLine(cp)+' · nur in der Cloud</div>';
 
       var actions = document.createElement("div");
       actions.className = "profile-actions";
@@ -3435,15 +3424,6 @@
     var gsi = document.getElementById("googleSignInBtn"); if(gsi) gsi.addEventListener("click", signInGoogle);
     var gso = document.getElementById("googleSignOutBtn"); if(gso) gso.addEventListener("click", signOutGoogle);
 
-    var syncNowBtn = document.getElementById("syncNowBtn");
-    if(syncNowBtn){
-      syncNowBtn.addEventListener("click", function(){
-        var orig = syncNowBtn.textContent;
-        syncNowBtn.textContent = "… synchronisiere";
-        syncNowBtn.disabled = true;
-        syncNow(function(){ syncNowBtn.textContent = orig; syncNowBtn.disabled = false; });
-      });
-    }
 
     updateAuthUI();
     document.getElementById("openaiKeyInput").addEventListener("input", function(e){
