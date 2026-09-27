@@ -2733,6 +2733,12 @@
       }
     }
 
+    comboPage.appendChild(buildQuickOptionsToggle("💡 Weitere Optionen", [
+      "Ruhetag sinnvoll einplanen",
+      "Ernährung und Training für die Woche neu berechnen",
+      "Wochenplan erstellen (Training + Essen)"
+    ]));
+
     var comboCta = document.createElement("button");
     comboCta.type = "button";
     comboCta.className = "cov-mixed-cta";
@@ -2760,6 +2766,44 @@
   // der echten Tagesdaten.
   // Kleines Donut-Diagramm (KH/Fett/Protein) im Stil des großen aus dem
   // Cook-Tab, aber kompakt für die Tagesübersicht-Seite.
+  // Kleines wiederverwendbares Info-/Optionsmenü: ein Button blendet eine
+  // Liste passender Vorschläge ein/aus. Antippen trägt den Vorschlag nur
+  // in die Nachrichtenzeile ein (stapelt sich dort), gesendet wird erst
+  // manuell. Wird auf allen 3 Tagesübersicht-Seiten (Ernährung/Fitness/
+  // Kombiniert) verwendet, damit jeder Bereich sein eigenes Options-Menü hat.
+  function buildQuickOptionsToggle(buttonLabel, options){
+    var wrap = document.createElement("div");
+    wrap.style.cssText = "display:flex;flex-direction:column;gap:8px;";
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "cov-mode-btn";
+    btn.style.alignSelf = "flex-start";
+    btn.textContent = buttonLabel;
+    var optRow = document.createElement("div");
+    optRow.className = "cov-nutri-opts";
+    optRow.hidden = true;
+    var open = false;
+    btn.addEventListener("click", function(){
+      open = !open;
+      btn.classList.toggle("active", open);
+      optRow.innerHTML = "";
+      if(open){
+        options.forEach(function(text){
+          var chip = document.createElement("div");
+          chip.className = "cov-chip";
+          chip.style.cssText = "width:100%;box-sizing:border-box;white-space:normal;";
+          chip.textContent = text;
+          chip.addEventListener("click", function(){ fillMainChatInput(text); });
+          optRow.appendChild(chip);
+        });
+      }
+      optRow.hidden = !open;
+    });
+    wrap.appendChild(btn);
+    wrap.appendChild(optRow);
+    return wrap;
+  }
+
   // Nährstoff-Details antippbar: statt sofort zu fragen, zeigt ein Tap auf
   // KH/Fett/Protein erst ein paar passende Vorschläge, die (durch Antippen
   // oder freies Dazutippen) in der Nachrichtenzeile gesammelt werden, bis
@@ -2916,6 +2960,13 @@
       gymPage.appendChild(gymEmpty);
     }
     gymPage.appendChild(buildCovExList(gym.exercises));
+    gymPage.appendChild(buildQuickOptionsToggle("💡 Optionen", [
+      "Neue Übung planen",
+      "Trainingsplan für diese Woche zeigen",
+      "Sätze/Wiederholungen anpassen",
+      "Pause zwischen Sätzen optimieren",
+      "Meinen Trainingsfortschritt zeigen"
+    ]));
 
     // Seite 3 — Kombiniert: Mahlzeiten + Übungen gemeinsam auswählen und
     // erst auf Bestätigung hin anpassen/im Chat besprechen (kein Chat wird
