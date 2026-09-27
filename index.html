@@ -700,9 +700,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/firebase@10.14.1/firebase-app-compat.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/firebase@10.14.1/firebase-auth-compat.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/firebase@10.14.1/firebase-firestore-compat.js"></script>
-<script>
+<script src="https://cdn.jsdelivr.net/npm/firebase@10.14.1/firebase-auth-compat.js"></script><script>
   window.addEventListener("error", function(e){
     if(e && e.target && e.target.tagName === "SCRIPT"){
       console.error("Script konnte nicht geladen werden:", e.target.src);
@@ -716,7 +714,7 @@
   var LS_KEY = "vossfit_prototype_v6";
 
   // ================= FIREBASE (Google-Login + Cloud-Sync) =================
-  var fbApp = null, fbAuth = null, fbDb = null, fbUser = null;
+  var fbApp = null, fbAuth = null, fbDb = null, fbUser = null, fsApi = null;
   var cloudSaveTimer = null;
   try{
     if(window.firebase){
@@ -729,9 +727,19 @@
         appId: "1:939253982636:web:e22370002c8eb9b2934609"
       });
       fbAuth = firebase.auth();
-      fbDb = fbApp.firestore("vossfitvitality");
     }
   }catch(e){ console.warn("Firebase init fehlgeschlagen:", e); }
+
+  // Firestore läuft über eine benannte Datenbank ("vossfitvitality", nicht "(default)"),
+  // das unterstützt nur das moderne modulare SDK zuverlässig — daher separater dynamischer Import.
+  var fbDbReady = fbApp ? import(/* webpackIgnore: true */ "https://cdn.jsdelivr.net/npm/firebase@10.14.1/firebase-firestore.js").then(function(mod){
+    fsApi = mod;
+    fbDb = mod.getFirestore(fbApp, "vossfitvitality");
+    return fbDb;
+  }).catch(function(e){
+    console.warn("Firestore-Modul konnte nicht geladen werden:", e);
+    return null;
+  }) : Promise.resolve(null);
 
   function updateAuthUI(){
     var out = document.getElementById("authSignedOut");
@@ -769,21 +777,23 @@
   }
 
   function loadCloudState(uid){
-    if(!fbDb) return;
     setSyncStatus("Lade Cloud-Daten…");
-    fbDb.collection("users").doc(uid).get().then(function(doc){
-      if(doc.exists && doc.data() && doc.data().state){
-        try{
-          var cloudState = JSON.parse(doc.data().state);
-          try{ localStorage.setItem(LS_KEY, JSON.stringify(cloudState)); }catch(e){}
-          location.reload();
-          return;
-        }catch(e){ setSyncStatus("Cloud-Daten konnten nicht gelesen werden.", true); finishOnboardingIfWaiting(); }
-      } else {
-        setSyncStatus("Noch keine Cloud-Daten — wird beim nächsten Speichern angelegt.");
-        saveCloudState();
-        finishOnboardingIfWaiting();
-      }
+    fbDbReady.then(function(db){
+      if(!db || !fsApi){ setSyncStatus("Cloud-Datenbank nicht verfügbar.", true); finishOnboardingIfWaiting(); return; }
+      return fsApi.getDoc(fsApi.doc(db, "users", uid)).then(function(snap){
+        if(snap.exists() && snap.data() && snap.data().state){
+          try{
+            var cloudState = JSON.parse(snap.data().state);
+            try{ localStorage.setItem(LS_KEY, JSON.stringify(cloudState)); }catch(e){}
+            location.reload();
+            return;
+          }catch(e){ setSyncStatus("Cloud-Daten konnten nicht gelesen werden.", true); finishOnboardingIfWaiting(); }
+        } else {
+          setSyncStatus("Noch keine Cloud-Daten — wird beim nächsten Speichern angelegt.");
+          saveCloudState();
+          finishOnboardingIfWaiting();
+        }
+      });
     }).catch(function(err){
       setSyncStatus("Cloud-Sync fehlgeschlagen: " + (err && err.message ? err.message : "Unbekannt"), true);
       finishOnboardingIfWaiting();
@@ -791,12 +801,15 @@
   }
 
   function saveCloudState(){
-    if(!fbDb || !fbUser) return;
+    if(!fbUser) return;
     clearTimeout(cloudSaveTimer);
     cloudSaveTimer = setTimeout(function(){
-      fbDb.collection("users").doc(fbUser.uid).set({
-        state: JSON.stringify(state),
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      fbDbReady.then(function(db){
+        if(!db || !fsApi) throw new Error("Cloud-Datenbank nicht verfügbar");
+        return fsApi.setDoc(fsApi.doc(db, "users", fbUser.uid), {
+          state: JSON.stringify(state),
+          updatedAt: fsApi.serverTimestamp()
+        });
       }).then(function(){ setSyncStatus("Synchronisiert ✓"); })
       .catch(function(err){ setSyncStatus("Cloud-Sync fehlgeschlagen: " + (err && err.message ? err.message : "Unbekannt"), true); });
     }, 1500);
