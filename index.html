@@ -525,13 +525,20 @@
               <p class="hint" style="margin-top:6px">Meldet dich an und speichert deine Daten zusätzlich in der Cloud — dann verfügbar auf jedem Gerät, auf dem du dich mit demselben Google-Konto anmeldest.</p>
               <p class="hint" id="authDiagStatus" style="margin-top:6px"></p>
             </div>
-            <div id="authSignedIn" hidden style="display:flex;align-items:center;gap:10px">
-              <img id="authAvatar" src="" alt="" style="width:36px;height:36px;border-radius:50%;flex-shrink:0">
-              <div style="flex:1;min-width:0">
-                <div id="authName" style="font-weight:600;font-size:14px"></div>
-                <div id="authSyncStatus" class="hint" style="margin:0"></div>
+            <div id="authSignedIn" hidden>
+              <div style="display:flex;align-items:center;gap:10px">
+                <img id="authAvatar" src="" alt="" style="width:36px;height:36px;border-radius:50%;flex-shrink:0">
+                <div style="flex:1;min-width:0">
+                  <div id="authName" style="font-weight:600;font-size:14px"></div>
+                  <div id="authSyncStatus" class="hint" style="margin:0"></div>
+                </div>
+                <button class="ghost-btn" id="googleSignOutBtn">Abmelden</button>
               </div>
-              <button class="ghost-btn" id="googleSignOutBtn">Abmelden</button>
+              <div style="display:flex;gap:8px;margin-top:10px">
+                <button class="ghost-btn" id="syncUploadBtn" style="flex:1">☁⬆ Hochladen</button>
+                <button class="ghost-btn" id="syncDownloadBtn" style="flex:1">☁⬇ Herunterladen</button>
+              </div>
+              <p class="hint" style="margin-top:4px">Hochladen ersetzt deinen Cloud-Stand mit diesem Gerät, Herunterladen ersetzt diesen Gerätestand mit der Cloud.</p>
             </div>
           </section>
           <section>
@@ -838,6 +845,54 @@
       }).then(function(){ setSyncStatus("Synchronisiert ✓"); })
       .catch(function(err){ setSyncStatus("Cloud-Sync fehlgeschlagen: " + (err && err.message ? err.message : "Unbekannt"), true); });
     }, 1500);
+  }
+
+  // ---------- Manuelles Ganzer-Account-Sync (mit Bestätigung, sofort statt debounced) ----------
+  function uploadAccountNow(onDone){
+    if(!fbUser){ if(onDone) onDone(false, "Nicht angemeldet."); return; }
+    clearTimeout(cloudSaveTimer);
+    fbDbReady.then(function(db){
+      if(!db || !fsApi) throw new Error("Cloud-Datenbank nicht verfügbar" + (fsLoadError ? (": " + fsLoadError) : ""));
+      return fsApi.setDoc(fsApi.doc(db, "users", fbUser.uid), {
+        state: JSON.stringify(state),
+        updatedAt: fsApi.serverTimestamp()
+      });
+    }).then(function(){
+      setSyncStatus("Hochgeladen ✓ — Cloud-Stand entspricht jetzt diesem Gerät.");
+      if(onDone) onDone(true);
+    }).catch(function(err){
+      var msg = err && err.message ? err.message : "Unbekannt";
+      setSyncStatus("Hochladen fehlgeschlagen: " + msg, true);
+      if(onDone) onDone(false, msg);
+    });
+  }
+
+  function downloadAccountNow(onDone){
+    if(!fbUser){ if(onDone) onDone(false, "Nicht angemeldet."); return; }
+    fbDbReady.then(function(db){
+      if(!db || !fsApi) throw new Error("Cloud-Datenbank nicht verfügbar" + (fsLoadError ? (": " + fsLoadError) : ""));
+      return fsApi.getDoc(fsApi.doc(db, "users", fbUser.uid));
+    }).then(function(snap){
+      if(snap && snap.exists() && snap.data() && snap.data().state){
+        try{
+          var cloudState = JSON.parse(snap.data().state);
+          try{ localStorage.setItem(LS_KEY, JSON.stringify(cloudState)); }catch(e){}
+          setSyncStatus("Heruntergeladen ✓ — lade neu…");
+          if(onDone) onDone(true);
+          location.reload();
+        }catch(e){
+          setSyncStatus("Cloud-Daten konnten nicht gelesen werden.", true);
+          if(onDone) onDone(false, "Cloud-Daten konnten nicht gelesen werden.");
+        }
+      } else {
+        setSyncStatus("Keine Cloud-Daten für dieses Konto gefunden.", true);
+        if(onDone) onDone(false, "Keine Cloud-Daten gefunden.");
+      }
+    }).catch(function(err){
+      var msg = err && err.message ? err.message : "Unbekannt";
+      setSyncStatus("Herunterladen fehlgeschlagen: " + msg, true);
+      if(onDone) onDone(false, msg);
+    });
   }
 
   // ---------- Einzelne Profile: manuell in die Cloud sichern / daraus löschen ----------
@@ -2298,6 +2353,30 @@
     document.getElementById("chatSendBtn").addEventListener("click", sendChatMessage);
     var gsi = document.getElementById("googleSignInBtn"); if(gsi) gsi.addEventListener("click", signInGoogle);
     var gso = document.getElementById("googleSignOutBtn"); if(gso) gso.addEventListener("click", signOutGoogle);
+
+    function wireConfirmButton(btn, confirmLabel, action){
+      if(!btn) return;
+      var origLabel = btn.textContent;
+      var confirming = false;
+      btn.addEventListener("click", function(){
+        if(!confirming){
+          confirming = true;
+          btn.textContent = confirmLabel;
+          setTimeout(function(){ confirming = false; btn.textContent = origLabel; }, 3000);
+          return;
+        }
+        confirming = false;
+        btn.textContent = "…";
+        action(function(){ btn.textContent = origLabel; });
+      });
+    }
+    wireConfirmButton(document.getElementById("syncUploadBtn"), "Wirklich hochladen? (überschreibt Cloud)", function(done){
+      uploadAccountNow(function(){ done(); });
+    });
+    wireConfirmButton(document.getElementById("syncDownloadBtn"), "Wirklich herunterladen? (überschreibt Gerät)", function(done){
+      downloadAccountNow(function(ok){ if(!ok) done(); });
+    });
+
     updateAuthUI();
     document.getElementById("openaiKeyInput").addEventListener("input", function(e){
       state.openaiApiKey = e.target.value.trim();
