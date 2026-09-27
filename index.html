@@ -419,6 +419,15 @@
   .appdata-row .at .d{ font-size: 11.5px; color: var(--text-faint); margin-top: 1px; }
   .appdata-row .chev{ color: var(--text-faint); font-size: 18px; flex-shrink: 0; display: grid; place-items: center; }
   .appdata-row .chev svg{ width: 1em; height: 1em; display: block; }
+  .appdata-row.open .chev svg{ transform: rotate(90deg); }
+  .appdata-row .chev svg{ transition: transform .15s ease; }
+
+  .appdata-panel{ margin-top: 4px; padding: 14px 2px 2px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; }
+  .appdata-panel .ap-title{ font-weight: 700; font-size: 14.5px; color: var(--text); }
+  .appdata-panel .ap-desc{ font-size: 12.5px; color: var(--text-faint); line-height: 1.5; }
+  .appdata-panel .ap-row{ display: flex; gap: 8px; }
+  .appdata-panel .ap-row > *{ flex: 1; }
+  .appdata-panel .ap-meta{ font-size: 11.5px; color: var(--text-faint); }
 
   .export-fallback{ background: #0a0a0a; border: 1px solid var(--border); border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
   .export-fallback textarea{ width: 100%; height: 90px; background: #000; border: 1px solid var(--border); border-radius: 8px; color: var(--text-dim); font-family: var(--mono); font-size: 10.5px; padding: 8px; resize: none; }
@@ -777,8 +786,8 @@
             <div class="eyebrow-icon-row"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82A1.65 1.65 0 0 0 3 13.09H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>App & Daten</div>
             <div class="appdata-section">
               <button type="button" class="appdata-row" id="appdataDesign">
-                <span class="aic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21a9 9 0 0 1-8-12 7 7 0 0 1 13-3 6 6 0 0 1 5 6 8 8 0 0 1-10 9z"/><circle cx="8" cy="11" r="1.2" fill="currentColor"/><circle cx="12" cy="8.5" r="1.2" fill="currentColor"/><circle cx="15.5" cy="12" r="1.2" fill="currentColor"/></svg></span>
-                <span class="at"><div class="t">Design</div><div class="d">Farben, Dark Mode, Darstellung</div></span>
+                <span class="aic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5"/><circle cx="12" cy="8.2" r="1" fill="currentColor" stroke="none"/></svg></span>
+                <span class="at"><div class="t">Über VossFit</div><div class="d">Version, Danke & Infos</div></span>
                 <span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>
               </button>
               <button type="button" class="appdata-row" id="appdataUnits">
@@ -791,6 +800,7 @@
                 <span class="at"><div class="t">Datenverwaltung</div><div class="d">Import, Export, Zurücksetzen</div></span>
                 <span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>
               </button>
+              <div class="appdata-panel" id="appdataPanel" hidden></div>
             </div>
           </section>
         </div>
@@ -1024,6 +1034,29 @@
       localStorage.removeItem(GUEST_LS_KEY);
     }catch(e){}
     location.reload();
+  }
+
+  // Kompletter Reset (Einstellungen → App & Daten → Datenverwaltung): meldet
+  // ab (ohne den Gast-Schnappschuss wiederherzustellen, anders als ein
+  // normaler Logout) und löscht wirklich ALLES lokal, dann Neuladen —
+  // startet danach frisch bei VoßBot mit der Login-Auswahl.
+  function performFullReset(){
+    function wipeAndReload(){
+      try{ localStorage.removeItem(LS_KEY); }catch(e){}
+      try{ localStorage.removeItem(GUEST_LS_KEY); }catch(e){}
+      location.reload();
+    }
+    if(fbUser){
+      fbReady.then(function(r){
+        if(r && fbAuth && authApi){
+          authApi.signOut(fbAuth).then(wipeAndReload).catch(wipeAndReload);
+        } else {
+          wipeAndReload();
+        }
+      });
+    } else {
+      wipeAndReload();
+    }
   }
 
   // ================= FIREBASE (Google-Login + Cloud-Sync) =================
@@ -2602,6 +2635,28 @@
     if(chat.messages.length === 1){ chat.title = chatTitleFromMessages(chat.messages); document.getElementById("pageTitle").textContent = chat.title; }
     chat.updatedAt = Date.now();
 
+    // Wer bei der Login-Auswahl direkt lostippt statt auf einen Button zu
+    // klicken, meint damit implizit "ohne Login fortfahren" — der getippte
+    // Text zählt dann gleich als erste Antwort im Fragebogen, statt die
+    // Auswahl nochmal extra zu verlangen.
+    if(!chatOnboarding){
+      var pendingAuth = null;
+      for(var pai = chat.messages.length - 1; pai >= 0; pai--){
+        var pm = chat.messages[pai];
+        if(pm.authChoice && !pm.resolved){ pendingAuth = pm; break; }
+      }
+      if(pendingAuth){
+        pendingAuth.resolved = true;
+        pendingAuth.resolvedText = "Ohne Login fortgesetzt";
+        chatOnboarding = { step: 0, answers: {} };
+        handleOnboardingAnswer(text, chat);
+        chat.updatedAt = Date.now();
+        renderChatMessages();
+        save({skipCloud:true});
+        return;
+      }
+    }
+
     if(chatOnboarding){
       handleOnboardingAnswer(text, chat);
       chat.updatedAt = Date.now();
@@ -4089,12 +4144,75 @@
       showSettingsTab("koerperdaten");
       renderSettings();
     });
-    // "App & Daten": Layout/Design ist schon fertig, die Funktionen dahinter
-    // (Design, Einheiten, Datenverwaltung) kommen als eigene Aufgabe später.
-    ["appdataDesign","appdataUnits","appdataData"].forEach(function(rid){
-      var rowEl = document.getElementById(rid);
-      if(rowEl) rowEl.addEventListener("click", function(){
-        document.getElementById("exportFallback").innerHTML = '<p class="hint">Kommt bald — dieser Bereich ist noch nicht verknüpft.</p>';
+    // "App & Daten": "Über VossFit" und "Datenverwaltung" öffnen ein
+    // Akkordeon direkt unter den Zeilen; "Einheiten" bleibt vorerst ein
+    // Platzhalter (Standard ist und bleibt unser metrisches System).
+    var appdataOpenRow = null;
+    function closeAppdataPanel(){
+      var panel = document.getElementById("appdataPanel");
+      if(panel){ panel.hidden = true; panel.innerHTML = ""; }
+      if(appdataOpenRow) appdataOpenRow.classList.remove("open");
+      appdataOpenRow = null;
+    }
+    function openAppdataPanel(rowEl, buildFn){
+      var panel = document.getElementById("appdataPanel");
+      if(!panel) return;
+      if(appdataOpenRow === rowEl){ closeAppdataPanel(); return; }
+      if(appdataOpenRow) appdataOpenRow.classList.remove("open");
+      rowEl.classList.add("open");
+      appdataOpenRow = rowEl;
+      panel.innerHTML = "";
+      buildFn(panel);
+      panel.hidden = false;
+      panel.scrollIntoView({block:"nearest", behavior:"smooth"});
+    }
+
+    document.getElementById("appdataDesign").addEventListener("click", function(){
+      var rowEl = this;
+      openAppdataPanel(rowEl, function(panel){
+        panel.innerHTML =
+          '<div class="ap-title">VossFit Vitality</div>' +
+          '<div class="ap-desc">Deine persönliche Fitness- &amp; Ernährungs-App — Körperdaten, Tagesbedarf, Mahlzeiten und VoßBot an einem Ort, alles lokal oder synchronisiert über dein Google-Konto.</div>' +
+          '<div class="ap-meta">Version ' + (typeof LS_KEY === "string" ? LS_KEY.split("_v")[1] || "" : "") + ' · Gebaut mit ❤️ für dich, Nico.</div>';
+      });
+    });
+
+    document.getElementById("appdataUnits").addEventListener("click", function(){
+      var rowEl = this;
+      openAppdataPanel(rowEl, function(panel){
+        panel.innerHTML =
+          '<div class="ap-title">Einheiten</div>' +
+          '<div class="ap-desc">Umstellbare Einheiten (kg/lbs, cm/ft, kcal/kJ) kommen bald. Standardmäßig rechnet VossFit mit unserem metrischen System — Kilogramm, Zentimeter, Kilokalorien.</div>';
+      });
+    });
+
+    document.getElementById("appdataData").addEventListener("click", function(){
+      var rowEl = this;
+      openAppdataPanel(rowEl, function(panel){
+        panel.innerHTML =
+          '<div class="ap-title">Datenverwaltung</div>' +
+          '<div class="ap-desc">Profile lokal als Datei sichern oder laden findest du oben bei „Gespeicherte Profile". Hier kannst du stattdessen die komplette App zurücksetzen.</div>' +
+          '<div class="ap-row"><button type="button" class="danger-btn" id="appdataResetBtn">Alles zurücksetzen</button></div>' +
+          '<div class="ap-meta" id="appdataResetHint">Löscht alle lokalen Profile &amp; Chats auf diesem Gerät unwiderruflich und meldet dich ab. In der Cloud gespeicherte Profile bleiben erhalten.</div>';
+        var resetBtn = panel.querySelector("#appdataResetBtn");
+        var confirming = false;
+        resetBtn.addEventListener("click", function(){
+          if(!confirming){
+            confirming = true;
+            resetBtn.textContent = "Wirklich alles löschen?";
+            document.getElementById("appdataResetHint").textContent = "Letzte Warnung — das kann nicht rückgängig gemacht werden. Nochmal klicken zum Bestätigen.";
+            setTimeout(function(){
+              confirming = false;
+              if(resetBtn) resetBtn.textContent = "Alles zurücksetzen";
+              var hint = document.getElementById("appdataResetHint");
+              if(hint) hint.textContent = "Löscht alle lokalen Profile & Chats auf diesem Gerät unwiderruflich und meldet dich ab. In der Cloud gespeicherte Profile bleiben erhalten.";
+            }, 3000);
+            return;
+          }
+          resetBtn.disabled = true;
+          resetBtn.textContent = "Wird zurückgesetzt…";
+          performFullReset();
+        });
       });
     });
 
