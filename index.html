@@ -1838,11 +1838,11 @@
         return;
       }
       runProxyChat(systemInstruction, contextBlock, text, pendingBubble, finishOk, function(proxyErr){
-        runLocalChat(systemInstruction, contextBlock, text, pendingBubble, finishOk, finishError, proxyErr);
+        runOfflineAssistant(text, pendingBubble, finishOk);
       });
     }).catch(function(){
       runProxyChat(systemInstruction, contextBlock, text, pendingBubble, finishOk, function(proxyErr){
-        runLocalChat(systemInstruction, contextBlock, text, pendingBubble, finishOk, finishError, proxyErr);
+        runOfflineAssistant(text, pendingBubble, finishOk);
       });
     });
   }
@@ -1901,6 +1901,155 @@
       console.warn("Gemini-Proxy fehlgeschlagen, weiche auf lokales Modell aus:", err);
       onFail(msg);
     });
+  }
+
+  // ---------- Letzter Fallback: regelbasierter Offline-Assistent (keine KI, kein Netzwerk) ----------
+  // Greift nur, wenn weder eigener OpenAI-Key noch Claude-sample() noch der Gemini-Proxy
+  // verfügbar sind (z.B. kein Internet). Läuft komplett lokal per Mustererkennung, kann
+  // Lebensmittel zu Mahlzeiten hinzufügen und Fragen zur Bedienung/den Tageswerten
+  // beantworten. Zeigt bewusst NIE einen Fehler an — im Zweifel antwortet er mit einer
+  // freundlichen Rückfrage statt mit einer Fehlermeldung.
+  var FOOD_MACROS_DB = [
+    { keys: ["reis"], g: 100, kh: 28, fett: 0.3, protein: 2.7 },
+    { keys: ["nudeln", "pasta", "spaghetti"], g: 100, kh: 25, fett: 1.1, protein: 5.3 },
+    { keys: ["haferflocken", "hafer"], g: 100, kh: 58, fett: 7, protein: 13 },
+    { keys: ["kartoffel", "kartoffeln"], g: 100, kh: 17, fett: 0.1, protein: 2 },
+    { keys: ["brot", "vollkornbrot"], g: 100, kh: 41, fett: 3, protein: 8 },
+    { keys: ["ei", "eier"], g: 55, kh: 0.6, fett: 5.2, protein: 6.9, perPiece: true },
+    { keys: ["hähnchenbrust", "hähnchen", "huhn", "pute", "putenbrust"], g: 100, kh: 0, fett: 2, protein: 31 },
+    { keys: ["rindfleisch", "rind"], g: 100, kh: 0, fett: 8, protein: 27 },
+    { keys: ["lachs"], g: 100, kh: 0, fett: 13, protein: 20 },
+    { keys: ["thunfisch"], g: 100, kh: 0, fett: 1, protein: 25 },
+    { keys: ["quark", "magerquark"], g: 100, kh: 4, fett: 0.2, protein: 12 },
+    { keys: ["joghurt"], g: 100, kh: 4.7, fett: 3.5, protein: 3.5 },
+    { keys: ["milch"], g: 100, kh: 4.8, fett: 1.5, protein: 3.4 },
+    { keys: ["käse", "gouda", "cheddar"], g: 100, kh: 0, fett: 27, protein: 25 },
+    { keys: ["banane"], g: 120, kh: 27.6, fett: 0.36, protein: 1.3, perPiece: true },
+    { keys: ["apfel"], g: 150, kh: 21, fett: 0.3, protein: 0.45, perPiece: true },
+    { keys: ["butter"], g: 100, kh: 0.1, fett: 83, protein: 0.7 },
+    { keys: ["olivenöl", "öl"], g: 100, kh: 0, fett: 100, protein: 0 },
+    { keys: ["honig"], g: 100, kh: 80, fett: 0, protein: 0.3 },
+    { keys: ["linsen"], g: 100, kh: 20, fett: 0.4, protein: 9 },
+    { keys: ["mandeln", "nüsse"], g: 100, kh: 10, fett: 50, protein: 21 },
+    { keys: ["erdnussbutter"], g: 100, kh: 13, fett: 50, protein: 25 },
+    { keys: ["proteinpulver", "whey", "eiweißpulver"], g: 100, kh: 5, fett: 3, protein: 80 }
+  ];
+
+  function findFoodMatch(lower){
+    var best = null;
+    FOOD_MACROS_DB.forEach(function(f){
+      f.keys.forEach(function(k){
+        var idx = lower.indexOf(k);
+        if(idx > -1 && (!best || k.length > best.key.length)){
+          best = { food: f, key: k, idx: idx };
+        }
+      });
+    });
+    return best;
+  }
+
+  function parseQuantity(lower, match){
+    // Sucht die nächstgelegene Zahl vor oder nach dem Lebensmittel-Namen.
+    var re = /(\d+[.,]?\d*)\s*(g|gramm|gr|stück|stk|st\.?)?/gi;
+    var m, best = null, bestDist = Infinity;
+    while((m = re.exec(lower))){
+      var dist = Math.abs(m.index - match.idx);
+      if(dist < bestDist){ bestDist = dist; best = m; }
+    }
+    if(!best) return null;
+    var num = parseFloat(best[1].replace(",", "."));
+    var unit = (best[2] || "").toLowerCase();
+    var isPieceUnit = unit.indexOf("st") === 0;
+    return { amount: num, isPieceUnit: isPieceUnit };
+  }
+
+  function guessMealNameByTime(){
+    var h = new Date().getHours();
+    if(h < 11) return "Frühstück";
+    if(h < 15) return "Mittagessen";
+    if(h < 19) return "Abendessen";
+    return "Snack";
+  }
+
+  function detectMealName(lower){
+    if(lower.indexOf("frühstück") > -1) return "Frühstück";
+    if(lower.indexOf("mittagessen") > -1 || lower.indexOf("mittag") > -1) return "Mittagessen";
+    if(lower.indexOf("abendessen") > -1 || lower.indexOf("abend") > -1) return "Abendessen";
+    if(lower.indexOf("snack") > -1) return "Snack";
+    return guessMealNameByTime();
+  }
+
+  function runOfflineAssistant(text, pendingBubble, finishOk){
+    pendingBubble.className = "chat-bubble pending";
+    pendingBubble.textContent = "…";
+    // Kleine Verzögerung, damit die Antwort nicht wirkt wie ein Absturz/Sofort-Echo.
+    setTimeout(function(){
+      try{
+        var lower = text.toLowerCase();
+        var addVerbs = ["füg", "hinzufüg", "eintragen", "trag ein", "gegessen", "add", "war heute"];
+        var hasAddIntent = addVerbs.some(function(v){ return lower.indexOf(v) > -1; });
+        var match = findFoodMatch(lower);
+
+        if(match && hasAddIntent){
+          var f = match.food;
+          var qty = parseQuantity(lower, match);
+          var grams;
+          if(qty && qty.isPieceUnit && f.perPiece){
+            grams = qty.amount * f.g;
+          } else if(qty){
+            grams = qty.amount;
+          } else {
+            grams = f.g;
+          }
+          var factor = grams / f.g;
+          var kh = Math.round(f.kh * factor * 10) / 10;
+          var fett = Math.round(f.fett * factor * 10) / 10;
+          var protein = Math.round(f.protein * factor * 10) / 10;
+          var mealName = detectMealName(lower);
+          var foodLabel = Math.round(grams) + "g " + match.key.charAt(0).toUpperCase() + match.key.slice(1);
+          var result = addFoodToDayEntry({ mealName: mealName, foodName: foodLabel, kh: kh, fett: fett, protein: protein });
+          finishOk((result && result.message) || "Hinzugefügt.");
+          return;
+        }
+
+        if(match && !hasAddIntent){
+          var f2 = match.food;
+          var kcal2 = Math.round(foodKcal(f2.kh, f2.fett, f2.protein));
+          finishOk("Pro " + f2.g + "g " + match.key + ": ca. " + kcal2 + " kcal (" + f2.kh + "g KH, " + f2.fett + "g Fett, " + f2.protein + "g Protein). Sag mir z.B. \"150g " + match.key + " zum Mittagessen hinzufügen\", damit ich es einträge.");
+          return;
+        }
+
+        var p = activeProfile();
+        if(p && (lower.indexOf("kalorien") > -1 || lower.indexOf("ziel") > -1 || lower.indexOf("wie viel") > -1 || lower.indexOf("übrig") > -1 || lower.indexOf("offen") > -1)){
+          var m = calcEngine(p);
+          var day = getDay(p, state.selectedDate);
+          var sums = confirmedSums(day);
+          finishOk("Dein Tagesziel: " + Math.round(m.TB) + " kcal (" + m.kh + "g KH, " + m.fett + "g Fett, " + m.protein + "g Protein). Heute bereits bestätigt: " + fmtInt(sums.kh) + "g KH, " + fmtInt(sums.fett) + "g Fett, " + fmtInt(sums.protein) + "g Protein. Noch offen: " + fmtInt(Math.max(0, m.kh - sums.kh)) + "g KH, " + fmtInt(Math.max(0, m.fett - sums.fett)) + "g Fett, " + fmtInt(Math.max(0, m.protein - sums.protein)) + "g Protein.");
+          return;
+        }
+
+        if(lower.indexOf("bestätig") > -1){
+          finishOk("Tippe auf der Startseite bei einer Mahlzeit auf den Haken, um sie zu bestätigen — erst dann fließt sie in deine Tagesbilanz ein.");
+          return;
+        }
+        if(lower.indexOf("hinzufüg") > -1 || (lower.indexOf("lebensmittel") > -1 && lower.indexOf("wie") > -1)){
+          finishOk("Tippe auf der Startseite bei der gewünschten Mahlzeit auf \"+\", trage Name und Nährwerte ein und speichere. Danach bestätige die Mahlzeit über den Haken. Du kannst mir hier im Chat auch direkt sagen \"100g Reis zum Mittagessen hinzufügen\" — das trage ich dann selbst ein.");
+          return;
+        }
+        if(lower.indexOf("profil") > -1){
+          finishOk("Unter Einstellungen → Profile kannst du ein neues Profil anlegen, bearbeiten oder wechseln.");
+          return;
+        }
+        if(lower.indexOf("google") > -1 || lower.indexOf("sync") > -1 || lower.indexOf("cloud") > -1 || lower.indexOf("konto") > -1){
+          finishOk("Deine Daten (inkl. Chatverläufe) werden automatisch mit deinem Google-Konto synchronisiert, sobald du dich in den Einstellungen anmeldest.");
+          return;
+        }
+
+        finishOk("Ich bin gerade offline unterwegs und antworte dir mit meinem einfachen Assistenten (keine Internet-KI verfügbar). Ich kann dir z.B. helfen mit: \"100g Reis zum Mittagessen hinzufügen\", \"Wie viele Kalorien habe ich noch übrig?\" oder \"Wie bestätige ich eine Mahlzeit?\". Wie kann ich helfen?");
+      }catch(e){
+        finishOk("Ich bin gerade offline unterwegs und konnte deine Anfrage nicht ganz einordnen. Frag mich gern z.B. nach deinen Tageswerten oder sag mir direkt, welches Lebensmittel du hinzufügen möchtest.");
+      }
+    }, 250);
   }
 
   function runOpenAIChat(systemInstruction, contextBlock, text, pendingBubble, finishOk, finishError){
