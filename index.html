@@ -222,6 +222,11 @@
   .chat-bubble.assistant{ align-self: flex-start; background: #111; border: 1px solid var(--border); color: var(--text); border-bottom-left-radius: 4px; }
   .chat-bubble.pending{ align-self: flex-start; background: #111; border: 1px solid var(--border); color: var(--text-dim); border-bottom-left-radius: 4px; }
   .chat-bubble.error{ align-self: flex-start; background: #2a0f12; border: 1px solid var(--protein); color: #ff9fae; }
+  .chat-bubble.chat-auth-choice{ max-width: 92%; width: 92%; }
+  .chat-auth-choice .cac-text{ margin-bottom: 12px; }
+  .chat-auth-choice .cac-actions{ display: flex; flex-direction: column; gap: 8px; }
+  .chat-auth-choice .cac-actions .status-pill{ padding: 11px 18px; }
+  .chat-auth-choice .cac-resolved{ color: var(--text-faint); font-size: 13px; font-style: italic; }
   .chat-empty{ color: var(--text-dim); font-size: 13px; text-align: center; padding: 30px 10px; }
   .chat-hint{ font-size: 11px; color: var(--text-dim); text-align: center; padding: 2px 4px 8px; }
   .chat-inputrow{ display: flex; gap: 8px; align-items: flex-end; padding-top: 8px; border-top: 1px solid var(--border); }
@@ -2306,11 +2311,80 @@
       chat.messages.forEach(function(msg){
         var b = document.createElement("div");
         b.className = "chat-bubble " + msg.role;
-        b.textContent = msg.text;
+        if(msg.authChoice){
+          b.classList.add("chat-auth-choice");
+          var txt = document.createElement("div");
+          txt.className = "cac-text";
+          txt.textContent = msg.text;
+          b.appendChild(txt);
+          if(msg.resolved){
+            var resolved = document.createElement("div");
+            resolved.className = "cac-resolved";
+            resolved.textContent = msg.resolvedText || "";
+            b.appendChild(resolved);
+          } else {
+            var actions = document.createElement("div");
+            actions.className = "cac-actions";
+            var gImg = "";
+            var gsiEl = document.getElementById("googleSignInBtn");
+            var gsiImg = gsiEl ? gsiEl.querySelector("img") : null;
+            if(gsiImg) gImg = gsiImg.src;
+            var gBtn = document.createElement("button");
+            gBtn.type = "button";
+            gBtn.className = "status-pill white";
+            gBtn.innerHTML = '<span class="spi"><img src="' + gImg + '" alt=""></span><span class="spd"></span><span class="spt">Mit Google anmelden</span>';
+            gBtn.addEventListener("click", function(){ handleChatAuthGoogleClick(msg); });
+            actions.appendChild(gBtn);
+            var skipBtn = document.createElement("button");
+            skipBtn.type = "button";
+            skipBtn.className = "ghost-btn";
+            skipBtn.textContent = "Ohne Login fortfahren";
+            skipBtn.addEventListener("click", function(){ handleChatAuthSkipClick(msg); });
+            actions.appendChild(skipBtn);
+            b.appendChild(actions);
+          }
+        } else {
+          b.textContent = msg.text;
+        }
         wrap.appendChild(b);
       });
     }
     wrap.scrollTop = wrap.scrollHeight;
+  }
+
+  function handleChatAuthGoogleClick(msg){
+    msg.resolved = true;
+    msg.resolvedText = "Anmeldung wird geöffnet…";
+    renderChatMessages();
+    save({skipCloud:true});
+    signInGoogle();
+  }
+
+  function handleChatAuthSkipClick(msg){
+    msg.resolved = true;
+    msg.resolvedText = "Ohne Login fortgesetzt";
+    renderChatMessages();
+    save({skipCloud:true});
+    beginQuestionnaireAfterAuthChoice();
+  }
+
+  function startChatAuthChoice(){
+    var chat = currentChat();
+    if(!chat) return;
+    chat.messages.push({ role: "assistant", authChoice: true, text: "Hey! 👋 Ich bin VoßBot. Bevor wir loslegen: Willst du dich mit Google anmelden (Cloud-Sync auf allen Geräten) oder erstmal ohne Login weitermachen?" });
+    chat.updatedAt = Date.now();
+    renderChatMessages();
+    save({skipCloud:true});
+  }
+
+  function beginQuestionnaireAfterAuthChoice(){
+    chatOnboarding = { step: 0, answers: {} };
+    var chat = currentChat();
+    if(!chat) return;
+    chat.messages.push({ role: "assistant", text: onboardQuestionText(0, {}) });
+    chat.updatedAt = Date.now();
+    renderChatMessages();
+    save({skipCloud:true});
   }
 
   function buildChatContext(){
@@ -4403,11 +4477,13 @@
       initApp();
     } else {
       // Ohne Login oder lokale Datei landet man direkt bei VoßBot — er fragt
-      // die Basics im Chat ab, statt eines Formular-Assistenten.
+      // zuerst, ob man sich mit Google anmelden oder ohne Login fortfahren
+      // will, und stellt danach die Basics im Chat ab, statt eines
+      // Formular-Assistenten.
       initApp();
       showTab("chat");
       openChatConversation(createNewChat());
-      startChatOnboarding();
+      startChatAuthChoice();
     }
   }
 
