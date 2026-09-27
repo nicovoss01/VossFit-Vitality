@@ -1935,13 +1935,30 @@
     { keys: ["proteinpulver", "whey", "eiweißpulver"], g: 100, kh: 5, fett: 3, protein: 80 }
   ];
 
+  function isWordChar(ch){
+    return !!ch && /[a-zA-Z0-9äöüÄÖÜß]/.test(ch);
+  }
+
+  // Sucht Lebensmittel-Namen als eigenständiges Wort, nicht als beliebigen
+  // Textbestandteil — sonst würde z.B. "Ei" auch in "einen", "meinen", "sein"
+  // fälschlich erkannt werden.
   function findFoodMatch(lower){
     var best = null;
     FOOD_MACROS_DB.forEach(function(f){
       f.keys.forEach(function(k){
-        var idx = lower.indexOf(k);
-        if(idx > -1 && (!best || k.length > best.key.length)){
-          best = { food: f, key: k, idx: idx };
+        var searchFrom = 0;
+        while(true){
+          var idx = lower.indexOf(k, searchFrom);
+          if(idx === -1) break;
+          var beforeOk = !isWordChar(lower[idx - 1]);
+          var afterOk = !isWordChar(lower[idx + k.length]);
+          if(beforeOk && afterOk){
+            if(!best || k.length > best.key.length){
+              best = { food: f, key: k, idx: idx };
+            }
+            break;
+          }
+          searchFrom = idx + 1;
         }
       });
     });
@@ -2020,7 +2037,7 @@
         }
 
         var p = activeProfile();
-        if(p && (lower.indexOf("kalorien") > -1 || lower.indexOf("ziel") > -1 || lower.indexOf("wie viel") > -1 || lower.indexOf("übrig") > -1 || lower.indexOf("offen") > -1)){
+        if(p && (lower.indexOf("kalorien") > -1 || lower.indexOf("kcal") > -1 || lower.indexOf("ziel") > -1 || lower.indexOf("wie viel") > -1 || lower.indexOf("übrig") > -1 || lower.indexOf("offen") > -1 || lower.indexOf("bedarf") > -1)){
           var m = calcEngine(p);
           var day = getDay(p, state.selectedDate);
           var sums = confirmedSums(day);
