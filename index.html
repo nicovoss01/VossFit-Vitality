@@ -1559,7 +1559,7 @@
           } else {
             showTab("chat");
             var mcId1 = createNewChat("VoßBot");
-            state.chats[mcId1].isMain = true;
+            activeChats()[mcId1].isMain = true;
             openChatConversation(mcId1);
             startChatOnboarding();
           }
@@ -2424,6 +2424,18 @@
     return withTimeout(work, 90000, "Zeitüberschreitung — die Antwort hat nach 90 Sekunden nicht fertig generiert.");
   }
 
+  // Chats werden pro Profil getrennt gespeichert — jedes Profil hat seine
+  // eigene, komplett unabhängige "Alle Chats"-Liste inkl. eigenem
+  // Hauptchat. Vor dem ersten Profil (während Login-Wahl/Onboarding) landet
+  // alles vorübergehend im "_guest"-Fach, das direkt beim Anlegen des
+  // Profils dorthin übernommen wird (siehe finishChatOnboarding).
+  function activeChats(){
+    if(!state.chatsByProfile) state.chatsByProfile = {};
+    var pid = state.activeProfileId || "_guest";
+    if(!state.chatsByProfile[pid]) state.chatsByProfile[pid] = {};
+    return state.chatsByProfile[pid];
+  }
+
   function chatTitleFromMessages(messages){
     var firstUser = messages.filter(function(m){ return m.role === "user"; })[0];
     if(!firstUser) return "Neuer Chat";
@@ -2433,14 +2445,14 @@
 
   function createNewChat(title){
     var id = newId("c");
-    state.chats[id] = { id: id, title: title || "Neuer Chat", messages: [], updatedAt: Date.now() };
+    activeChats()[id] = { id: id, title: title || "Neuer Chat", messages: [], updatedAt: Date.now() };
     state.activeChatId = id;
     save();
     return id;
   }
 
   function currentChat(){
-    return state.chats[state.activeChatId];
+    return activeChats()[state.activeChatId];
   }
 
   // Der Hauptchat ("VoßBot") ist die Startseite der App — er zeigt immer
@@ -2448,8 +2460,8 @@
   // Jede frei getippte Nachricht dort wandert automatisch in einen neuen,
   // separaten Chat, damit der Hauptchat immer aufgeräumt bleibt.
   function mainChat(){
-    var ids = Object.keys(state.chats);
-    for(var i=0;i<ids.length;i++){ if(state.chats[ids[i]].isMain) return state.chats[ids[i]]; }
+    var ids = Object.keys(activeChats());
+    for(var i=0;i<ids.length;i++){ if(activeChats()[ids[i]].isMain) return activeChats()[ids[i]]; }
     return null;
   }
 
@@ -2474,35 +2486,6 @@
     return { text: openers[oi], chips: chipSets[ci] };
   }
 
-  // Ein aus dem Hauptchat heraus gestarteter Chat bleibt zunächst optisch
-  // Teil des Hauptchats (Tableiste sichtbar, kein Zurück-Pfeil) — erst wenn
-  // der Nutzer ihn wirklich verlässt (Tab wechseln, "Alle Chats" öffnen,
-  // nächsten neuen Chat starten), wandert er endgültig in die Chatliste.
-  // Bis dahin trägt er `pendingPromote` und wird dort ausgeblendet.
-  function promotePendingMainSpawn(){
-    var c = state.chats[state.activeChatId];
-    if(c && c.pendingPromote){
-      c.pendingPromote = false;
-      save();
-    }
-  }
-
-  // Startet einen neuen Chat mit zufälliger Begrüßung direkt im
-  // VoßBot-Reiter — bleibt (wie beim manuellen Absenden) zunächst optisch
-  // im Hauptchat, statt in eine Drilldown-Ansicht mit Zurück-Pfeil zu
-  // wechseln. Wird sowohl vom neuen Button links im Eingabefeld als auch
-  // vom Senden-Button bei leerem Eingabefeld benutzt.
-  function spawnHiddenChatFromMain(){
-    promotePendingMainSpawn();
-    var id = createNewChat();
-    state.chats[id].pendingPromote = true;
-    var welcome = randomChatWelcome();
-    state.chats[id].messages.push({ role: "assistant", text: welcome.text, suggestChips: welcome.chips });
-    state.activeChatId = id;
-    renderChatMessages();
-    positionChatInputRow();
-    save();
-  }
 
   function renderOpenaiKeyStatus(){
     var input = document.getElementById("openaiKeyInput");
@@ -2522,8 +2505,7 @@
     renderOpenaiKeyStatus();
     var wrap = document.getElementById("chatListWrap");
     wrap.innerHTML = "";
-    var ids = Object.keys(state.chats).filter(function(id){ return !state.chats[id].pendingPromote; })
-      .sort(function(a,b){ return state.chats[b].updatedAt - state.chats[a].updatedAt; });
+    var ids = Object.keys(activeChats()).sort(function(a,b){ return activeChats()[b].updatedAt - activeChats()[a].updatedAt; });
     if(ids.length === 0){
       var empty = document.createElement("div");
       empty.className = "chat-empty";
@@ -2532,7 +2514,7 @@
       return;
     }
     ids.forEach(function(id){
-      var c = state.chats[id];
+      var c = activeChats()[id];
       var last = c.messages[c.messages.length-1];
       var card = document.createElement("div");
       card.className = "profile-card";
@@ -2561,7 +2543,7 @@
             setTimeout(function(){ confirming = false; delBtn.textContent = "🗑"; delBtn.style.color = ""; }, 2500);
             return;
           }
-          delete state.chats[id];
+          delete activeChats()[id];
           if(state.activeChatId === id) state.activeChatId = null;
           save();
           renderChatList();
@@ -2575,7 +2557,7 @@
   }
 
   function openChatConversation(chatId){
-    var chat = state.chats[chatId];
+    var chat = activeChats()[chatId];
     if(chat && chat.isMain){
       // Der Hauptchat ist ein fester Tab, kein Drilldown — Tableiste
       // bleibt sichtbar, kein Zurück-Button, immer erreichbar über den
@@ -2605,7 +2587,6 @@
   // "+ Neuer Chat") — erreichbar über das ⋮-Menü im Hauptchat, nicht mehr
   // die Standardansicht des VoßBot-Reiters.
   function openChatListScreen(){
-    promotePendingMainSpawn();
     document.getElementById("tab-chat").classList.remove("chat-float-mode");
     document.getElementById("chatFloatHeader").hidden = true;
     document.getElementById("chatFabBackdrop").hidden = true;
@@ -2913,7 +2894,7 @@
       if(mc){
         if(state.activeChatId !== mc.id || state.view !== "chatconv") openChatConversation(mc.id);
       } else if(!currentChat()){
-        var ids = Object.keys(state.chats).sort(function(a,b){ return state.chats[b].updatedAt - state.chats[a].updatedAt; });
+        var ids = Object.keys(activeChats()).sort(function(a,b){ return activeChats()[b].updatedAt - activeChats()[a].updatedAt; });
         openChatConversation(ids.length ? ids[0] : createNewChat());
       } else if(state.view !== "chatconv"){
         openChatConversation(currentChat().id);
@@ -3268,9 +3249,9 @@
     var oldMain = mainChat();
     if(oldMain) oldMain.isMain = false;
     var id = createNewChat("VoßBot");
-    state.chats[id].isMain = true;
+    activeChats()[id].isMain = true;
     var welcome = randomChatWelcome();
-    state.chats[id].messages.push({ role: "assistant", text: welcome.text, suggestChips: welcome.chips });
+    activeChats()[id].messages.push({ role: "assistant", text: welcome.text, suggestChips: welcome.chips });
     state.activeChatId = id;
     save();
     showTab("chat");
@@ -3281,7 +3262,7 @@
     if(mc){
       if(state.activeChatId !== mc.id || state.view !== "chatconv") openChatConversation(mc.id);
     } else if(!currentChat()){
-      var ids = Object.keys(state.chats).sort(function(a,b){ return state.chats[b].updatedAt - state.chats[a].updatedAt; });
+      var ids = Object.keys(activeChats()).sort(function(a,b){ return activeChats()[b].updatedAt - activeChats()[a].updatedAt; });
       openChatConversation(ids.length ? ids[0] : createNewChat());
     } else if(state.view !== "chatconv"){
       openChatConversation(currentChat().id);
@@ -3642,6 +3623,16 @@
     if(!state.profiles) state.profiles = {};
     if(fbUser) state.profiles = {}; // angemeldet: lokal bleibt nur EIN aktives Profil
     state.profiles[id] = profile;
+    // Die Chats, die vor dem Profil (im "_guest"-Fach) entstanden sind —
+    // inkl. des gerade laufenden Onboarding-Chats — gehören jetzt zu diesem
+    // Profil und wandern mit rüber.
+    if(!state.chatsByProfile) state.chatsByProfile = {};
+    var guestChats = state.chatsByProfile["_guest"];
+    if(guestChats && Object.keys(guestChats).length){
+      if(!state.chatsByProfile[id]) state.chatsByProfile[id] = {};
+      Object.keys(guestChats).forEach(function(cid){ state.chatsByProfile[id][cid] = guestChats[cid]; });
+      delete state.chatsByProfile["_guest"];
+    }
     state.activeProfileId = id;
     state.onboarded = true;
     chatOnboarding = null;
@@ -3748,10 +3739,11 @@
     var input = document.getElementById("chatInput");
     var text = input.value.trim();
     if(!text){
-      // Leeres Eingabefeld absenden = neuer Chat mit zufälliger Begrüßung,
-      // genau wie beim Button links im Eingabefeld.
+      // Leeres Eingabefeld absenden = neuer Hauptchat (der bisherige
+      // wandert dabei mit vollem Verlauf in "Alle Chats"), genau wie beim
+      // "Neuen Hauptchat starten"-Eintrag im Menü links im Eingabefeld.
       var cchat = currentChat();
-      if(cchat && cchat.isMain && !chatOnboarding) spawnHiddenChatFromMain();
+      if(cchat && cchat.isMain && !chatOnboarding) startNewMainChat();
       return;
     }
     input.value = "";
@@ -3760,24 +3752,11 @@
     var chat = currentChat();
     if(!chat){ createNewChat(); chat = currentChat(); }
 
-    // Der Hauptchat bleibt frei von normalem Geplauder — eine frei
-    // getippte Nachricht dort (außerhalb von Onboarding/Login-Fragen)
-    // startet automatisch einen neuen, separaten Chat. Der bleibt aber
-    // zunächst optisch im Hauptchat (Tableiste sichtbar, kein Zurück-Pfeil)
-    // und taucht erst in der Chatliste auf, sobald dieser Chat wirklich
-    // verlassen wird — so bleibt der Hauptchat als fester Einstiegspunkt
-    // erhalten, ohne dass man beim Tippen sofort wegnavigiert wird.
-    if(chat.isMain && !chatOnboarding){
-      var hasPendingAuth = chat.messages.some(function(pm){ return pm.authChoice && !pm.resolved; });
-      var hasUnansweredChoice = chat.messages.some(function(pm){ return pm.choiceType && !pm.answered; });
-      if(!hasPendingAuth && !hasUnansweredChoice){
-        var freshId = createNewChat();
-        state.chats[freshId].pendingPromote = true;
-        state.activeChatId = freshId;
-        chat = state.chats[freshId];
-      }
-    }
-
+    // Der Hauptchat ist ein durchgehender Chat mit voller
+    // Befehlsketten-Funktionalität — jede Nachricht bleibt einfach im
+    // Hauptchat, statt automatisch einen neuen Chat aufzumachen. Nur
+    // explizit über "Neuen Hauptchat starten" wandert der bisherige
+    // Verlauf (minimiert) in "Alle Chats".
     chat.messages.push({ role: "user", text: text });
     if(chat.messages.length === 1){ chat.title = chatTitleFromMessages(chat.messages); document.getElementById("pageTitle").textContent = chat.title; }
     chat.updatedAt = Date.now();
@@ -5271,11 +5250,6 @@
 
   function showTab(tab){
     if(navLocked()) tab = "chat"; // gesperrt: nur der VoßBot-Chat ist erreichbar
-    // Tab-Wechsel = der Nutzer verlässt einen ggf. gerade aus dem Hauptchat
-    // heraus gestarteten Chat wirklich — jetzt endgültig in die Chatliste
-    // aufnehmen (auch wenn direkt wieder auf "chat" gewechselt wird, da der
-    // VoßBot-Reiter unten immer zum Hauptchat zurücksetzt).
-    promotePendingMainSpawn();
     // Ein echter Tab-Wechsel beendet immer die schwebende Ansicht — auf dem
     // VoßBot-Reiter selbst erscheint der Chat wieder im Vollbild.
     document.getElementById("tab-chat").classList.remove("chat-float-mode");
@@ -5306,7 +5280,15 @@
     if(tab === "fitness") renderFitness();
     if(tab === "einstellungen"){ showSettingsTab(state.settingsTab); renderSettings(); }
     if(tab === "chat"){
+      // Jedes Profil hat seinen eigenen Hauptchat — falls das aktuell aktive
+      // Profil (z.B. nach einem Profilwechsel) noch keinen hat, wird beim
+      // ersten Besuch auf dem VoßBot-Reiter direkt einer angelegt.
       var mc = mainChat();
+      if(!mc && activeProfile()){
+        var newMcId = createNewChat("VoßBot");
+        activeChats()[newMcId].isMain = true;
+        mc = activeChats()[newMcId];
+      }
       if(mc){
         state.activeChatId = mc.id;
         renderChatMessages();
@@ -5479,10 +5461,9 @@
     document.getElementById("dayExpand").addEventListener("click", openMonthCal);
 
     document.getElementById("newChatBtn").addEventListener("click", function(){
-      promotePendingMainSpawn();
       var id = createNewChat();
       var welcome = randomChatWelcome();
-      state.chats[id].messages.push({ role: "assistant", text: welcome.text, suggestChips: welcome.chips });
+      activeChats()[id].messages.push({ role: "assistant", text: welcome.text, suggestChips: welcome.chips });
       save();
       openChatConversation(id);
     });
@@ -5512,10 +5493,6 @@
     document.getElementById("chatFab").addEventListener("click", openFloatingChat);
     document.getElementById("chatFloatCloseBtn").addEventListener("click", closeFloatingChat);
     document.getElementById("chatFabBackdrop").addEventListener("click", closeFloatingChat);
-    document.addEventListener("visibilitychange", function(){
-      if(document.hidden) promotePendingMainSpawn();
-    });
-    window.addEventListener("pagehide", function(){ promotePendingMainSpawn(); });
     var gsi = document.getElementById("googleSignInBtn"); if(gsi) gsi.addEventListener("click", signInGoogle);
     var gso = document.getElementById("googleSignOutBtn"); if(gso) gso.addEventListener("click", signOutGoogle);
     var syncNowBtn = document.getElementById("syncNowBtn");
@@ -5567,7 +5544,7 @@
       btn.textContent = "Chat löschen";
       document.getElementById("chatMenuDropdown").hidden = true;
       var chat = currentChat();
-      if(chat) delete state.chats[chat.id];
+      if(chat) delete activeChats()[chat.id];
       state.activeChatId = null;
       save();
       showTab("chat");
@@ -5885,14 +5862,22 @@
     if(!state.activeList) state.activeList = { kh:0, fett:0, protein:0 };
     if(!state.bausteinChoice) state.bausteinChoice = { kh:"l0_i0", fett:"l0_i0", protein:"l0_i0" };
     if(state.calYear === undefined){ state.calYear = new Date().getFullYear(); state.calMonth = new Date().getMonth(); }
-    if(!state.chats){
-      state.chats = {};
-      if(state.chatHistory && state.chatHistory.length){
-        var migId = newId("c");
-        state.chats[migId] = { id: migId, title: chatTitleFromMessages(state.chatHistory), messages: state.chatHistory, updatedAt: Date.now() };
-      }
-      delete state.chatHistory;
+    // Chats werden jetzt pro Profil getrennt gespeichert (state.chatsByProfile).
+    // Ältere Spielstände kennen nur ein flaches state.chats — das wandert
+    // einmalig ins Fach des aktuell aktiven Profils (bzw. "_guest", falls
+    // noch keins gewählt war).
+    if(!state.chatsByProfile) state.chatsByProfile = {};
+    if(state.chats){
+      var migPid = state.activeProfileId || "_guest";
+      if(!state.chatsByProfile[migPid]) state.chatsByProfile[migPid] = {};
+      Object.keys(state.chats).forEach(function(cid){ state.chatsByProfile[migPid][cid] = state.chats[cid]; });
+      delete state.chats;
     }
+    if(!Object.keys(activeChats()).length && state.chatHistory && state.chatHistory.length){
+      var migId = newId("c");
+      activeChats()[migId] = { id: migId, title: chatTitleFromMessages(state.chatHistory), messages: state.chatHistory, updatedAt: Date.now() };
+    }
+    delete state.chatHistory;
     if(state.activeChatId === undefined) state.activeChatId = null;
     if(state.openaiApiKey === undefined) state.openaiApiKey = "";
     if(!state.knownCloudIds) state.knownCloudIds = {};
@@ -5900,17 +5885,18 @@
     // ältesten Chat (bzw. den mit Titel "VoßBot") nachträglich als
     // Hauptchat markieren, damit die Tagesübersicht weiter dort erscheint.
     (function(){
-      var ids = Object.keys(state.chats);
+      var chats = activeChats();
+      var ids = Object.keys(chats);
       if(!ids.length) return;
-      for(var i=0;i<ids.length;i++){ if(state.chats[ids[i]].isMain) return; }
+      for(var i=0;i<ids.length;i++){ if(chats[ids[i]].isMain) return; }
       var pick = null;
       ids.forEach(function(id){
-        var c = state.chats[id];
+        var c = chats[id];
         if(c.title === "VoßBot" && (!pick || c.updatedAt < pick.updatedAt)) pick = c;
       });
       if(!pick){
         ids.forEach(function(id){
-          var c = state.chats[id];
+          var c = chats[id];
           if(!pick || c.updatedAt < pick.updatedAt) pick = c;
         });
       }
@@ -5926,7 +5912,7 @@
       initApp();
       showTab("chat");
       var mcId0 = createNewChat("VoßBot");
-      state.chats[mcId0].isMain = true;
+      activeChats()[mcId0].isMain = true;
       openChatConversation(mcId0);
       startChatAuthChoice();
     }
