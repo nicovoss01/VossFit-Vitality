@@ -296,6 +296,8 @@
   .profile-card .info .m{ font-size: 11.5px; color: var(--text-faint); }
   .profile-card.active{ border-color: var(--turquoise); }
   .badge{ font-size: 9.5px; font-weight: 700; letter-spacing: .3px; background: var(--turquoise); color: #000; padding: 3px 8px; border-radius: 999px; }
+  .pc-aktiv-badge{ display: flex; align-items: center; gap: 6px; background: rgba(18,203,238,.08); border: 1px solid var(--turquoise); border-radius: 999px; padding: 5px 12px 5px 9px; font-size: 10.5px; font-weight: 700; letter-spacing: .4px; color: var(--text); box-shadow: var(--glow-sm); flex-shrink: 0; white-space: nowrap; }
+  .pc-aktiv-badge .dot{ width: 7px; height: 7px; border-radius: 50%; background: #3ddc84; box-shadow: 0 0 5px #3ddc84, 0 0 10px rgba(61,220,132,.7); flex-shrink: 0; }
   .profile-actions{ display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
   .profile-actions .iconbtn{ width: 30px; height: 30px; font-size: 13px; }
   .rename-input{ background: #000; border: 1px solid var(--turquoise); border-radius: 8px; padding: 8px 10px; color: var(--text); font-family: var(--body); font-size: 13px; width: 100%; }
@@ -310,8 +312,15 @@
   .eyebrow-icon-row{ display: flex; align-items: center; gap: 8px; color: var(--turquoise); font-size: 14.5px; font-weight: 700; margin-bottom: 12px; }
   .eyebrow-icon-row .ic{ font-size: 18px; display: grid; place-items: center; }
   .eyebrow-icon-row .ic svg{ width: 1em; height: 1em; display: block; }
-  .section-head-row{ display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-  .add-circle{ width: 30px; height: 30px; border-radius: 50%; border: 1.5px solid var(--turquoise); color: var(--turquoise); display: grid; place-items: center; cursor: pointer; font-size: 17px; flex-shrink: 0; }
+  .section-head-row{ display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .add-circle{ width: 40px; height: 40px; border-radius: 12px; background: #000; border: 1.5px solid var(--turquoise); color: var(--turquoise); display: grid; place-items: center; cursor: pointer; font-size: 18px; flex-shrink: 0; box-shadow: var(--glow-border); }
+  .add-circle svg{ width: 1em; height: 1em; display: block; filter: drop-shadow(0 0 3px rgba(18,203,238,.65)); }
+
+  .section-title-row{ display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .section-title-row .sti{ width: 44px; height: 44px; border-radius: 12px; background: #000; border: 1.5px solid var(--turquoise); display: grid; place-items: center; color: var(--turquoise); box-shadow: var(--glow-border); flex-shrink: 0; font-size: 23px; }
+  .section-title-row .sti svg{ width: 1em; height: 1em; display: block; filter: drop-shadow(0 0 3px rgba(18,203,238,.65)); }
+  .section-title-row h2{ font-family: var(--display); font-size: 20px; font-weight: 800; color: var(--text); line-height: 1.15; min-width: 0; }
+  .section-title-row h2 .accent{ color: var(--turquoise); }
 
   .sync-card{ background: #000; border: 1px solid var(--border); border-radius: 16px; padding: 16px; }
   .sync-card .row{ display: flex; align-items: center; gap: 12px; }
@@ -325,19 +334,22 @@
   .sync-actions .divider-v{ width: 1px; align-self: stretch; background: var(--border); }
 
   .profile-card-v2{ background: #000; border: 1.5px solid var(--turquoise); border-radius: 16px; padding: 14px; box-shadow: var(--glow-sm); margin-bottom: 10px; }
-  .profile-card-v2 .pc-head{ display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
-  .profile-card-v2 .pc-head .n{ font-size: 16px; font-weight: 700; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .profile-card-v2 .pc-kebab{ color: var(--turquoise); font-size: 18px; cursor: pointer; padding: 2px 6px; flex-shrink: 0; }
+  .profile-card-v2 .pc-head{ display: flex; align-items: center; gap: 8px; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+  .profile-card-v2 .pc-head .n{ font-size: 17px; font-weight: 700; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .profile-card-v2 .pc-kebab{ width: 30px; height: 30px; border-radius: 9px; background: #000; border: 1px solid var(--turquoise); color: var(--turquoise); font-size: 15px; display: grid; place-items: center; cursor: pointer; flex-shrink: 0; box-shadow: var(--glow-border); }
+  .profile-card-v2 .pc-kebab svg{ width: 1em; height: 1em; display: block; }
   .pc-row{ display: flex; align-items: stretch; gap: 10px; }
   .pc-bars{ flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
   .pc-chips{ display: flex; align-items: center; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
   .pc-chip{ flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 9px 4px; font-size: 12.5px; font-weight: 600; color: var(--text); white-space: nowrap; }
-  .pc-chip .ic{ color: var(--turquoise); font-size: 13px; flex-shrink: 0; }
+  .pc-chip .ic{ color: var(--turquoise); font-size: 15px; display: grid; place-items: center; flex-shrink: 0; }
+  .pc-chip .ic svg{ width: 1em; height: 1em; display: block; }
   .pc-chips .pc-sep{ color: var(--text-faint); font-size: 12px; padding: 0 2px; }
   .pc-chips .pc-chip + .pc-chip{ border-left: 1px solid var(--border); }
   .pc-side{ display: flex; flex-direction: column; justify-content: center; gap: 8px; border-left: 1px solid var(--border); padding-left: 10px; flex-shrink: 0; }
-  .pc-side .iconbtn{ width: 36px; height: 36px; }
-  .pc-side .iconbtn.danger{ border-color: #ff5c5c; color: #ff5c5c; }
+  .pc-side .iconbtn{ width: 38px; height: 38px; font-size: 16px; }
+  .pc-side .iconbtn svg{ width: 1em; height: 1em; display: block; }
+  .pc-side .iconbtn.danger{ border-color: #ff5c5c; color: #ff5c5c; box-shadow: 0 0 0 1px rgba(255,92,92,.25), 0 0 14px rgba(255,92,92,.18); }
 
   .new-profile-card{ display: flex; align-items: center; gap: 12px; border: 1.5px dashed var(--turquoise); border-radius: 16px; padding: 14px; cursor: pointer; margin-top: 4px; background: transparent; width: 100%; text-align: left; font-family: var(--body); }
   .new-profile-card .plus-circle{ width: 42px; height: 42px; border-radius: 50%; border: 1.5px solid var(--turquoise); color: var(--turquoise); display: grid; place-items: center; font-size: 19px; flex-shrink: 0; }
@@ -671,8 +683,11 @@
           </section>
           <section>
             <div class="section-head-row">
-              <div class="eyebrow-icon-row" style="margin:0"><span class="ic"></span>Gespeicherte Profile</div>
-              <div class="add-circle" id="newProfileQuickBtn" title="Neues Profil">+</div>
+              <div class="section-title-row">
+                <span class="sti"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></svg></span>
+                <h2>Gespeicherte <span class="accent">Profile</span></h2>
+              </div>
+              <div class="add-circle" id="newProfileQuickBtn" title="Neues Profil"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div>
             </div>
             <div id="profileList"></div>
             <div id="cloudProfileListWrap" hidden>
@@ -898,6 +913,19 @@
 <script>
 (function(){
   "use strict";
+
+  var ICN = {
+    target: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.2"/><circle cx="12" cy="12" r="4.6"/><circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none"/></svg>',
+    flame: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21c4 0 6.2-2.7 6.2-6.2 0-2.9-1.8-4.6-2.6-6.4-.5 1.3-1.3 1.9-2 1.3-.9-.8-1.5-3.4-3-5.3-.3 3-2.1 4.6-3.5 6.3-1.3 1.6-2.3 3.5-2.3 6.1 0 3.3 2 6.2 7.2 6.2z"/></svg>',
+    cake: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="12.5" width="16" height="7.5" rx="1.6"/><path d="M4 16.2c1.1 0 1.1-1 2.3-1s1.1 1 2.3 1 1.1-1 2.3-1 1.1 1 2.3 1 1.1-1 2.3-1 1.1 1 2.3 1"/><path d="M12 12.5V8.3"/><path d="M12 8.3c-1 0-1.4-1.3-.6-2.2.5-.5.6-1.3.6-2.1.2.8.3 1.6.8 2.1.8.9.2 2.2-.8 2.2z"/></svg>',
+    ruler: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V6.5"/><path d="M12 21c4 0 6-2.4 6-6.2C18 8.6 15 4.6 12 2c-3 2.6-6 6.6-6 12.8 0 3.8 2 6.2 6 6.2z"/><path d="M9.5 16h5M9.5 12.5h5"/></svg>',
+    scale: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 8V6.5a4 4 0 0 1 8 0V8"/><rect x="4" y="8" width="16" height="12.5" rx="2.4"/><circle cx="12" cy="14.3" r="1.15" fill="currentColor" stroke="none"/></svg>',
+    pencil: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l.7-3.5L15.6 5.6a1.6 1.6 0 0 1 2.3 0l.5.5a1.6 1.6 0 0 1 0 2.3L7.5 19.3 4 20z"/><path d="M14.2 7 17 9.8"/></svg>',
+    trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7h14"/><path d="M9 7V5.2A1.2 1.2 0 0 1 10.2 4h3.6A1.2 1.2 0 0 1 15 5.2V7"/><path d="M7 7l1 12.2A1.7 1.7 0 0 0 9.7 21h4.6a1.7 1.7 0 0 0 1.7-1.8L17 7"/><path d="M10 10.5v7M14 10.5v7"/></svg>',
+    plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+    kebab: '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="12" cy="5" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="12" cy="19" r="1.7"/></svg>',
+    arrowRight: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>'
+  };
 
   var LS_KEY = "vossfit_prototype_v6";
   // Schnappschuss des Geräts, bevor ein Google-Login etwas überschreibt — wird beim
@@ -3367,7 +3395,7 @@
       head.appendChild(nameEl);
 
       if(isActive){
-        var b = document.createElement("span"); b.className = "badge"; b.textContent = "AKTIV";
+        var b = document.createElement("span"); b.className = "pc-aktiv-badge"; b.innerHTML = '<span class="dot"></span>AKTIV';
         head.appendChild(b);
       } else {
         var selBtn = document.createElement("div");
@@ -3378,7 +3406,7 @@
       }
 
       var kebab = document.createElement("div");
-      kebab.className = "pc-kebab"; kebab.textContent = "⋮"; kebab.title = "Umbenennen";
+      kebab.className = "pc-kebab"; kebab.innerHTML = ICN.kebab; kebab.title = "Umbenennen";
       kebab.addEventListener("click", function(){
         nameEl.innerHTML = "";
         var input = document.createElement("input");
@@ -3402,19 +3430,19 @@
       var targetBar = document.createElement("div");
       targetBar.className = "pc-chips";
       targetBar.innerHTML =
-        '<span class="pc-chip"><span class="ic"></span>' + p.zielgewicht + ' kg</span>' +
+        '<span class="pc-chip"><span class="ic">' + ICN.target + '</span>' + p.zielgewicht + ' kg</span>' +
         '<span class="pc-sep">~</span>' +
-        '<span class="pc-chip"><span class="ic"></span>' + (targetPct !== null ? targetPct : "–") + '% KFA</span>';
+        '<span class="pc-chip"><span class="ic">' + ICN.flame + '</span>' + (targetPct !== null ? targetPct : "–") + '% KFA</span>';
       bars.appendChild(targetBar);
 
       var heightM = (p.height / 100).toFixed(2).replace(".", ",");
       var curBar = document.createElement("div");
       curBar.className = "pc-chips";
       curBar.innerHTML =
-        '<span class="pc-chip"><span class="ic"></span>' + p.age + ' J.</span>' +
-        '<span class="pc-chip"><span class="ic"></span>' + heightM + ' m</span>' +
-        '<span class="pc-chip"><span class="ic"></span>' + p.weight + ' kg</span>' +
-        '<span class="pc-chip"><span class="ic"></span>' + curPct + '%</span>';
+        '<span class="pc-chip"><span class="ic">' + ICN.cake + '</span>' + p.age + ' J.</span>' +
+        '<span class="pc-chip"><span class="ic">' + ICN.ruler + '</span>' + heightM + ' m</span>' +
+        '<span class="pc-chip"><span class="ic">' + ICN.scale + '</span>' + p.weight + ' kg</span>' +
+        '<span class="pc-chip"><span class="ic">' + ICN.flame + '</span>' + curPct + '%</span>';
       bars.appendChild(curBar);
       if(fbUser){
         var cloudLine = document.createElement("div");
@@ -3431,7 +3459,7 @@
       side.className = "pc-side";
 
       var editBtn = document.createElement("div");
-      editBtn.className = "iconbtn"; editBtn.textContent = ""; editBtn.title = "Bearbeiten";
+      editBtn.className = "iconbtn"; editBtn.innerHTML = ICN.pencil; editBtn.title = "Bearbeiten";
       editBtn.addEventListener("click", function(){
         state.activeProfileId = id;
         save();
@@ -3441,19 +3469,19 @@
       side.appendChild(editBtn);
 
       var delBtn = document.createElement("div");
-      delBtn.className = "iconbtn danger"; delBtn.textContent = ""; delBtn.title = "Löschen";
+      delBtn.className = "iconbtn danger"; delBtn.innerHTML = ICN.trash; delBtn.title = "Löschen";
       var confirming = false;
       delBtn.addEventListener("click", function(){
         if(!confirming){
           confirming = true;
           delBtn.textContent = "!";
-          setTimeout(function(){ confirming = false; delBtn.textContent = ""; }, 2500);
+          setTimeout(function(){ confirming = false; delBtn.innerHTML = ICN.trash; }, 2500);
           return;
         }
         confirming = false;
         if(fbUser){
           delBtn.textContent = "…";
-          deleteProfileFromCloud(id, function(){ delBtn.textContent = ""; });
+          deleteProfileFromCloud(id, function(){ delBtn.innerHTML = ICN.trash; });
         }
         delete state.profiles[id];
         if(state.activeProfileId === id){ var rest = Object.keys(state.profiles); state.activeProfileId = rest.length ? rest[0] : null; }
