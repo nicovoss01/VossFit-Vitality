@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - 'android/**'
+      - 'a_clean_high_contrast_app_icon_style_graphic_on_a.png'
       - '.github/workflows/build-android-apk.yml'
 
 permissions:
@@ -23,6 +24,10 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
+      - name: Install VossFit launcher icon
+        run: |
+          mkdir -p android/app/src/main/res/drawable-nodpi
+          cp a_clean_high_contrast_app_icon_style_graphic_on_a.png android/app/src/main/res/drawable-nodpi/vossfit_icon.png
       - name: Build installable APK
         working-directory: android
         run: gradle assembleDebug
