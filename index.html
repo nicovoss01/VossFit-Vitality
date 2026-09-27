@@ -933,6 +933,19 @@
   // jedes Profil synchronisiert für sich, permanent im Hintergrund.
   var cloudProfileIndex = null; // {id: profilObjekt}, gefüllt sobald angemeldet
 
+  // Räumt lokal alles außer dem aktiven Profil weg — aber NUR nachdem der
+  // Cloud-Stand bestätigt ist, damit dabei nie Daten verloren gehen. So wird
+  // "keine lokalen Dateien mehr" nach und nach durchgesetzt: sobald man
+  // angemeldet ist, bleibt lokal einzig das gerade aktive Profil übrig, alles
+  // andere lebt nur noch in der Cloud-Liste in der Online-UI.
+  function pruneLocalToActiveOnly(){
+    if(!fbUser || !state.activeProfileId) return;
+    var keep = state.activeProfileId;
+    Object.keys(state.profiles || {}).forEach(function(id){
+      if(id !== keep) delete state.profiles[id];
+    });
+  }
+
   function fetchCloudProfiles(){
     return fbDbReady.then(function(db){
       if(!db || !fsApi) throw new Error("Cloud-Datenbank nicht verfügbar" + (fsLoadError ? (": " + fsLoadError) : ""));
@@ -979,6 +992,9 @@
       })).then(function(){
         setSyncStatus("Synchronisiert ✓");
         if(cloudProfileIndex){ ids.forEach(function(id){ cloudProfileIndex[id] = state.profiles[id]; }); }
+        pruneLocalToActiveOnly();
+        save({skipCloud:true});
+        renderSettings();
       }).catch(function(err){
         setSyncStatus("Sync fehlgeschlagen: " + (err && err.message ? err.message : "Unbekannt"), true);
       });
@@ -1006,6 +1022,8 @@
     })).then(function(){
       refreshCloudProfileIndex(function(){
         setSyncStatus("Synchronisiert ✓");
+        pruneLocalToActiveOnly();
+        save({skipCloud:true});
         renderSettings();
       });
     });
@@ -1031,6 +1049,8 @@
       return new Promise(function(resolve){ refreshCloudProfileIndex(resolve); });
     }).then(function(){
       setSyncStatus("Synchronisiert ✓");
+      pruneLocalToActiveOnly();
+      save({skipCloud:true});
       renderSettings();
       if(onDone) onDone(true);
     }).catch(function(err){
@@ -2983,7 +3003,9 @@
   function renderProfileList(){
     var el = document.getElementById("profileList");
     el.innerHTML = "";
-    var ids0 = Object.keys(state.profiles);
+    var ids0 = (fbUser && state.activeProfileId && state.profiles[state.activeProfileId])
+      ? [state.activeProfileId]
+      : Object.keys(state.profiles);
     if(ids0.length === 0){
       var empty = document.createElement("p");
       empty.className = "hint";
@@ -3103,7 +3125,7 @@
     var cloudEl = document.getElementById("cloudProfileList");
     if(!cloudWrap || !cloudEl) return;
     var extraIds = (fbUser && cloudProfileIndex)
-      ? Object.keys(cloudProfileIndex).filter(function(id){ return !state.profiles[id]; })
+      ? Object.keys(cloudProfileIndex).filter(function(id){ return id !== state.activeProfileId; })
       : [];
     if(!extraIds.length){
       cloudWrap.hidden = true;
@@ -3124,16 +3146,17 @@
       var actions = document.createElement("div");
       actions.className = "profile-actions";
 
-      var dlBtn = document.createElement("div");
-      dlBtn.className = "iconbtn"; dlBtn.textContent = "⬇"; dlBtn.title = "Auf dieses Gerät laden";
-      dlBtn.addEventListener("click", function(){
+      var actBtn = document.createElement("div");
+      actBtn.className = "iconbtn"; actBtn.textContent = "→"; actBtn.title = "Aktivieren";
+      actBtn.addEventListener("click", function(){
         state.profiles[id] = cp;
-        if(!state.activeProfileId) state.activeProfileId = id;
+        state.activeProfileId = id;
+        pruneLocalToActiveOnly();
         save();
         renderSettings();
         renderHome();
       });
-      actions.appendChild(dlBtn);
+      actions.appendChild(actBtn);
 
       var delBtn = document.createElement("div");
       delBtn.className = "iconbtn"; delBtn.textContent = "🗑"; delBtn.title = "Aus Cloud löschen";
