@@ -1940,29 +1940,110 @@
   // beantworten. Zeigt bewusst NIE einen Fehler an — im Zweifel antwortet er mit einer
   // freundlichen Rückfrage statt mit einer Fehlermeldung.
   var FOOD_MACROS_DB = [
+    // Getreide & Kohlenhydrate
     { keys: ["reis"], g: 100, kh: 28, fett: 0.3, protein: 2.7 },
+    { keys: ["basmatireis"], g: 100, kh: 27, fett: 0.3, protein: 2.9 },
+    { keys: ["vollkornreis"], g: 100, kh: 25, fett: 0.9, protein: 2.7 },
     { keys: ["nudeln", "pasta", "spaghetti"], g: 100, kh: 25, fett: 1.1, protein: 5.3 },
+    { keys: ["vollkornnudeln"], g: 100, kh: 23, fett: 1.3, protein: 5.8 },
     { keys: ["haferflocken", "hafer"], g: 100, kh: 58, fett: 7, protein: 13 },
     { keys: ["kartoffel", "kartoffeln"], g: 100, kh: 17, fett: 0.1, protein: 2 },
+    { keys: ["süßkartoffel", "süßkartoffeln"], g: 100, kh: 20, fett: 0.1, protein: 1.6 },
     { keys: ["brot", "vollkornbrot"], g: 100, kh: 41, fett: 3, protein: 8 },
+    { keys: ["weißbrot"], g: 100, kh: 49, fett: 1.5, protein: 8 },
+    { keys: ["knäckebrot"], g: 100, kh: 70, fett: 2, protein: 10 },
+    { keys: ["reiswaffeln"], g: 100, kh: 80, fett: 1, protein: 8 },
+    { keys: ["quinoa"], g: 100, kh: 21, fett: 1.9, protein: 4.4 },
+    { keys: ["couscous"], g: 100, kh: 23, fett: 0.2, protein: 3.8 },
+    { keys: ["bulgur"], g: 100, kh: 19, fett: 0.2, protein: 3.3 },
+    { keys: ["müsli"], g: 100, kh: 60, fett: 8, protein: 10 },
+    { keys: ["cornflakes"], g: 100, kh: 84, fett: 0.9, protein: 7 },
+    { keys: ["tortilla", "wrap"], g: 60, kh: 31, fett: 5, protein: 4, perPiece: true },
+
+    // Eier & Milchprodukte
     { keys: ["ei", "eier"], g: 55, kh: 0.6, fett: 5.2, protein: 6.9, perPiece: true },
+    { keys: ["quark", "magerquark"], g: 100, kh: 4, fett: 0.2, protein: 12 },
+    { keys: ["skyr"], g: 100, kh: 4, fett: 0.2, protein: 11 },
+    { keys: ["joghurt"], g: 100, kh: 4.7, fett: 3.5, protein: 3.5 },
+    { keys: ["griechischer joghurt"], g: 100, kh: 4, fett: 10, protein: 6 },
+    { keys: ["milch"], g: 100, kh: 4.8, fett: 1.5, protein: 3.4 },
+    { keys: ["buttermilch"], g: 100, kh: 4, fett: 1, protein: 3.3 },
+    { keys: ["kefir"], g: 100, kh: 4, fett: 3, protein: 3.3 },
+    { keys: ["käse", "gouda", "cheddar"], g: 100, kh: 0, fett: 27, protein: 25 },
+    { keys: ["mozzarella"], g: 100, kh: 2, fett: 22, protein: 22 },
+    { keys: ["hüttenkäse"], g: 100, kh: 3, fett: 4, protein: 12 },
+    { keys: ["frischkäse"], g: 100, kh: 4, fett: 24, protein: 7 },
+    { keys: ["parmesan"], g: 100, kh: 0, fett: 29, protein: 38 },
+
+    // Fleisch & Fisch
     { keys: ["hähnchenbrust", "hähnchen", "huhn", "pute", "putenbrust"], g: 100, kh: 0, fett: 2, protein: 31 },
+    { keys: ["hähnchenschenkel", "hähnchenkeule"], g: 100, kh: 0, fett: 11, protein: 24 },
     { keys: ["rindfleisch", "rind"], g: 100, kh: 0, fett: 8, protein: 27 },
+    { keys: ["hackfleisch", "rinderhack"], g: 100, kh: 0, fett: 15, protein: 20 },
+    { keys: ["schweinefleisch", "schwein", "schweinefilet"], g: 100, kh: 0, fett: 7, protein: 28 },
     { keys: ["lachs"], g: 100, kh: 0, fett: 13, protein: 20 },
     { keys: ["thunfisch"], g: 100, kh: 0, fett: 1, protein: 25 },
-    { keys: ["quark", "magerquark"], g: 100, kh: 4, fett: 0.2, protein: 12 },
-    { keys: ["joghurt"], g: 100, kh: 4.7, fett: 3.5, protein: 3.5 },
-    { keys: ["milch"], g: 100, kh: 4.8, fett: 1.5, protein: 3.4 },
-    { keys: ["käse", "gouda", "cheddar"], g: 100, kh: 0, fett: 27, protein: 25 },
+    { keys: ["kabeljau", "dorsch"], g: 100, kh: 0, fett: 0.7, protein: 18 },
+    { keys: ["garnelen", "shrimps"], g: 100, kh: 0.9, fett: 1, protein: 20 },
+    { keys: ["tofu"], g: 100, kh: 2, fett: 8, protein: 15 },
+    { keys: ["seitan"], g: 100, kh: 4, fett: 2, protein: 25 },
+
+    // Hülsenfrüchte
+    { keys: ["linsen"], g: 100, kh: 20, fett: 0.4, protein: 9 },
+    { keys: ["kichererbsen"], g: 100, kh: 27, fett: 2.6, protein: 8 },
+    { keys: ["kidneybohnen", "bohnen"], g: 100, kh: 21, fett: 0.5, protein: 8.7 },
+    { keys: ["erbsen"], g: 100, kh: 14, fett: 0.4, protein: 5.4 },
+    { keys: ["edamame"], g: 100, kh: 9, fett: 5, protein: 11 },
+
+    // Obst
     { keys: ["banane"], g: 120, kh: 27.6, fett: 0.36, protein: 1.3, perPiece: true },
     { keys: ["apfel"], g: 150, kh: 21, fett: 0.3, protein: 0.45, perPiece: true },
+    { keys: ["birne"], g: 150, kh: 16.5, fett: 0.3, protein: 0.6, perPiece: true },
+    { keys: ["orange"], g: 130, kh: 15.6, fett: 0.2, protein: 1.3, perPiece: true },
+    { keys: ["traube", "trauben"], g: 100, kh: 16, fett: 0.3, protein: 0.7 },
+    { keys: ["beeren", "himbeeren", "blaubeeren", "heidelbeeren"], g: 100, kh: 8, fett: 0.4, protein: 1 },
+    { keys: ["erdbeeren"], g: 100, kh: 6, fett: 0.3, protein: 0.8 },
+    { keys: ["mango"], g: 100, kh: 15, fett: 0.4, protein: 0.8 },
+    { keys: ["ananas"], g: 100, kh: 11, fett: 0.2, protein: 0.5 },
+    { keys: ["dattel", "datteln"], g: 25, kh: 18, fett: 0.1, protein: 0.5, perPiece: true },
+    { keys: ["rosinen"], g: 100, kh: 70, fett: 0.5, protein: 3 },
+
+    // Gemüse
+    { keys: ["brokkoli"], g: 100, kh: 6, fett: 0.4, protein: 3 },
+    { keys: ["spinat"], g: 100, kh: 2, fett: 0.4, protein: 3 },
+    { keys: ["tomate", "tomaten"], g: 100, kh: 3, fett: 0.2, protein: 0.9 },
+    { keys: ["gurke"], g: 100, kh: 2, fett: 0.1, protein: 0.7 },
+    { keys: ["paprika"], g: 100, kh: 5, fett: 0.3, protein: 1 },
+    { keys: ["karotten", "möhren"], g: 100, kh: 7, fett: 0.2, protein: 0.9 },
+    { keys: ["zucchini"], g: 100, kh: 3, fett: 0.3, protein: 1.2 },
+    { keys: ["pfannengemüse", "tk-gemüse", "gemüsemix"], g: 100, kh: 7, fett: 0.3, protein: 2 },
+    { keys: ["salat"], g: 100, kh: 2, fett: 0.2, protein: 1.2 },
+    { keys: ["rosenkohl"], g: 100, kh: 7, fett: 0.5, protein: 3.4 },
+
+    // Fette, Öle & Nüsse
     { keys: ["butter"], g: 100, kh: 0.1, fett: 83, protein: 0.7 },
-    { keys: ["olivenöl", "öl"], g: 100, kh: 0, fett: 100, protein: 0 },
+    { keys: ["olivenöl"], g: 100, kh: 0, fett: 100, protein: 0 },
+    { keys: ["sonnenblumenöl"], g: 100, kh: 0, fett: 100, protein: 0 },
+    { keys: ["leinöl"], g: 100, kh: 0, fett: 100, protein: 0 },
+    { keys: ["öl"], g: 100, kh: 0, fett: 100, protein: 0 },
     { keys: ["honig"], g: 100, kh: 80, fett: 0, protein: 0.3 },
-    { keys: ["linsen"], g: 100, kh: 20, fett: 0.4, protein: 9 },
-    { keys: ["mandeln", "nüsse"], g: 100, kh: 10, fett: 50, protein: 21 },
+    { keys: ["mandeln"], g: 100, kh: 10, fett: 50, protein: 21 },
+    { keys: ["nüsse", "nuss-mix", "nussmix"], g: 100, kh: 12, fett: 55, protein: 18 },
+    { keys: ["walnüsse"], g: 100, kh: 7, fett: 65, protein: 15 },
+    { keys: ["cashews"], g: 100, kh: 27, fett: 44, protein: 18 },
+    { keys: ["pistazien"], g: 100, kh: 16, fett: 45, protein: 20 },
+    { keys: ["macadamia"], g: 100, kh: 6, fett: 76, protein: 8 },
     { keys: ["erdnussbutter"], g: 100, kh: 13, fett: 50, protein: 25 },
-    { keys: ["proteinpulver", "whey", "eiweißpulver"], g: 100, kh: 5, fett: 3, protein: 80 }
+    { keys: ["erdnüsse"], g: 100, kh: 10, fett: 49, protein: 26 },
+    { keys: ["chiasamen"], g: 100, kh: 8, fett: 31, protein: 17 },
+    { keys: ["leinsamen"], g: 100, kh: 1, fett: 42, protein: 18 },
+    { keys: ["avocado"], g: 150, kh: 6, fett: 20, protein: 3, perPiece: true },
+
+    // Sonstiges / Ergänzungen
+    { keys: ["proteinpulver", "whey", "eiweißpulver"], g: 100, kh: 5, fett: 3, protein: 80 },
+    { keys: ["zucker", "rohrzucker"], g: 100, kh: 100, fett: 0, protein: 0 },
+    { keys: ["zimt"], g: 100, kh: 27, fett: 3, protein: 4 },
+    { keys: ["kurkuma"], g: 100, kh: 45, fett: 5, protein: 8 }
   ];
 
   function isWordChar(ch){
@@ -2045,7 +2126,27 @@
     { meal: "Snack", name: "Naturjoghurt mit Nüssen", kcal: 220, kh: 12, fett: 14, protein: 10, zutaten: "200g Naturjoghurt, 20g Mandeln" },
     { meal: "Snack", name: "Apfel mit Erdnussbutter", kcal: 250, kh: 28, fett: 14, protein: 6, zutaten: "1 Apfel, 20g Erdnussbutter" },
     { meal: "Snack", name: "Proteinshake", kcal: 150, kh: 5, fett: 3, protein: 25, zutaten: "1 Scoop Proteinpulver, Wasser oder Milch" },
-    { meal: "Snack", name: "Banane mit Mandeln", kcal: 230, kh: 27, fett: 10, protein: 6, zutaten: "1 Banane, 15g Mandeln" }
+    { meal: "Snack", name: "Banane mit Mandeln", kcal: 230, kh: 27, fett: 10, protein: 6, zutaten: "1 Banane, 15g Mandeln" },
+
+    // Frühstück (Ergänzungen)
+    { meal: "Frühstück", name: "Skyr mit Zimt und Leinöl", kcal: 320, kh: 12, fett: 16, protein: 27, zutaten: "250g Skyr, 1 TL Zimt, 2 EL Zucker, 1 EL Leinöl" },
+    { meal: "Frühstück", name: "Porridge mit Beeren", kcal: 390, kh: 55, fett: 10, protein: 14, zutaten: "60g Haferflocken, 250ml Milch, 100g Beeren" },
+    { meal: "Frühstück", name: "Vollkorn-Toast mit Avocado und Ei", kcal: 420, kh: 30, fett: 22, protein: 20, zutaten: "2 Scheiben Vollkornbrot, 1/2 Avocado, 2 Eier" },
+
+    // Mittagessen / Abendessen (Ergänzungen)
+    { meal: "Mittagessen", name: "Vollkornnudeln mit Bratensoße", kcal: 620, kh: 90, fett: 16, protein: 20, zutaten: "200g Vollkornnudeln, Bratensoße" },
+    { meal: "Mittagessen", name: "Reis mit Pute und TK-Pfannengemüse (Air Fryer)", kcal: 600, kh: 65, fett: 14, protein: 45, zutaten: "100g Reis (roh), 100g Pute oder Huhn, 250g TK-Pfannengemüse, mariniert in Olivenöl, Kurkuma, Paprika, Knoblauchpulver, im Air Fryer gebraten" },
+    { meal: "Mittagessen", name: "Kichererbsen-Curry mit Reis", kcal: 590, kh: 80, fett: 14, protein: 20, zutaten: "200g Kichererbsen (gekocht), 120g Reis (roh), Kokosmilch, Curry-Gewürze" },
+    { meal: "Mittagessen", name: "Garnelen-Pfanne mit Quinoa", kcal: 540, kh: 50, fett: 14, protein: 40, zutaten: "200g Garnelen, 100g Quinoa (roh), Gemüse, 1 TL Öl" },
+    { meal: "Abendessen", name: "Thunfisch in Sonnenblumenöl mit Brot", kcal: 430, kh: 35, fett: 18, protein: 32, zutaten: "1 Dose Thunfisch (in Sonnenblumenöl), 2 Scheiben Vollkornbrot, Gemüse" },
+    { meal: "Abendessen", name: "Kartoffeln mit Rührei (Air Fryer)", kcal: 560, kh: 65, fett: 20, protein: 22, zutaten: "500g Kartoffeln geviertelt in Olivenöl im Air Fryer, 2 Eier in Olivenöl gebraten" },
+    { meal: "Abendessen", name: "Tofu-Pfanne mit Gemüse und Reis", kcal: 520, kh: 60, fett: 16, protein: 28, zutaten: "200g Tofu, Gemüse, 120g Reis (roh), 1 TL Öl" },
+    { meal: "Abendessen", name: "Kabeljau mit Süßkartoffeln", kcal: 480, kh: 45, fett: 12, protein: 40, zutaten: "200g Kabeljau, 300g Süßkartoffeln, Gemüse, 1 TL Öl" },
+
+    // Snacks (Ergänzungen)
+    { meal: "Snack", name: "Nuss-Mix (Walnüsse, Cashews, Mandeln, Pistazien, Macadamia)", kcal: 580, kh: 12, fett: 53, protein: 16, zutaten: "20g Walnüsse, 20g Cashews, 20g Mandeln, 20g Pistazien, 20g Macadamia — roh und unzubereitet" },
+    { meal: "Snack", name: "Hüttenkäse mit Beeren", kcal: 180, kh: 10, fett: 5, protein: 18, zutaten: "200g Hüttenkäse, 100g Beeren" },
+    { meal: "Snack", name: "Vitamin-Komplex mit Leinöl", kcal: 90, kh: 0, fett: 10, protein: 0, zutaten: "1 Vitamin-Komplex-Tablette, 1 Schluck Leinöl (separat eingenommen)" }
   ];
 
   function findRecipeMatch(lower){
