@@ -806,6 +806,27 @@
     }
   });
 
+  // Fragt nach, ob bereits vorhandene lokale (noch nicht mit diesem Konto
+  // verknüpfte) Profile beim Einloggen übernommen werden sollen, statt sie
+  // stillschweigend durch den Cloud-Stand zu ersetzen. Gibt den (ggf. um die
+  // lokalen Profile ergänzten) Cloud-Stand zurück.
+  function maybeMergeLocalProfiles(cloudState){
+    var localIds = Object.keys(state.profiles || {});
+    if(!localIds.length) return cloudState;
+    var wantsMerge = confirm(
+      "Auf diesem Gerät gibt es " + localIds.length + " lokale(s) Profil(e), die noch nicht mit diesem Konto verknüpft sind.\n\n" +
+      "OK = lokale Profile übernehmen und zum Konto hinzufügen.\n" +
+      "Abbrechen = stattdessen nur den Cloud-Stand dieses Kontos laden (die lokalen Profile gehen dann verloren, falls sie nirgends anders gesichert sind)."
+    );
+    if(!wantsMerge) return cloudState;
+    cloudState.profiles = cloudState.profiles || {};
+    localIds.forEach(function(id){ cloudState.profiles[id] = state.profiles[id]; });
+    if(state.activeProfileId && state.profiles[state.activeProfileId]){
+      cloudState.activeProfileId = state.activeProfileId;
+    }
+    return cloudState;
+  }
+
   function loadCloudState(uid){
     setSyncStatus("Lade Cloud-Daten…");
     fbDbReady.then(function(db){
@@ -814,14 +835,22 @@
         if(snap.exists() && snap.data() && snap.data().state){
           try{
             var cloudState = JSON.parse(snap.data().state);
+            cloudState = maybeMergeLocalProfiles(cloudState);
             try{ localStorage.setItem(LS_KEY, JSON.stringify(cloudState)); }catch(e){}
-            location.reload();
-            return;
+            // Übernommene lokale Profile gleich in die Cloud zurückschreiben, damit
+            // sie nicht verloren gehen, falls dieses Gerät danach nicht mehr benutzt wird.
+            return fsApi.setDoc(fsApi.doc(db, "users", uid), {
+              state: JSON.stringify(cloudState),
+              updatedAt: fsApi.serverTimestamp()
+            }).catch(function(){}).then(function(){
+              location.reload();
+            });
           }catch(e){ setSyncStatus("Cloud-Daten konnten nicht gelesen werden.", true); finishOnboardingEmpty(); }
         } else {
           // Neues Google-Konto, noch keine Cloud-Daten: KEIN Platzhalter-Profil anlegen
           // oder automatisch sichern — der Nutzer legt sein erstes Profil selbst an,
-          // und erst dieser manuelle Schritt erzeugt/speichert etwas.
+          // und erst dieser manuelle Schritt erzeugt/speichert etwas. Vorhandene lokale
+          // Profile bleiben unangetastet (kein Cloud-Stand zum Ersetzen vorhanden).
           setSyncStatus("Angemeldet — noch keine Cloud-Daten. Leg dein erstes Profil an.");
           finishOnboardingEmpty();
         }
@@ -876,6 +905,7 @@
       if(snap && snap.exists() && snap.data() && snap.data().state){
         try{
           var cloudState = JSON.parse(snap.data().state);
+          cloudState = maybeMergeLocalProfiles(cloudState);
           try{ localStorage.setItem(LS_KEY, JSON.stringify(cloudState)); }catch(e){}
           setSyncStatus("Heruntergeladen ✓ — lade neu…");
           if(onDone) onDone(true);
