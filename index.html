@@ -1842,12 +1842,28 @@
   function runProxyChat(systemInstruction, contextBlock, text, pendingBubble, finishOk, onFail){
     pendingBubble.className = "chat-bubble pending";
     pendingBubble.textContent = "…";
+    var toolHint = " Wenn der Nutzer eine konkrete Anpassung der heutigen Mahlzeiten möchte (z.B. ein Lebensmittel hinzufügen), nutze das Werkzeug add_food_to_day, statt es nur zu beschreiben.";
     fetch(AI_PROXY_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        system: systemInstruction + "\n\n" + NUTRITION_KNOWLEDGE,
-        message: contextBlock + "\n\nNutzer: " + text
+        system: systemInstruction + toolHint + "\n\n" + NUTRITION_KNOWLEDGE,
+        message: contextBlock + "\n\nNutzer: " + text,
+        tools: [{
+          name: "add_food_to_day",
+          description: "Fügt ein Lebensmittel mit Makronährstoffen zur heutigen Mahlzeit des Nutzers hinzu (unbestätigt, muss vom Nutzer noch bestätigt werden).",
+          parameters: {
+            type: "OBJECT",
+            properties: {
+              mealName: { type: "STRING", description: "Name der Mahlzeit, z.B. Mittagessen. Wird eine neue Mahlzeit angelegt, falls keine passende existiert." },
+              foodName: { type: "STRING", description: "Name des Lebensmittels" },
+              kh: { type: "NUMBER", description: "Kohlenhydrate in Gramm" },
+              fett: { type: "NUMBER", description: "Fett in Gramm" },
+              protein: { type: "NUMBER", description: "Protein in Gramm" }
+            },
+            required: ["foodName"]
+          }
+        }]
       })
     }).then(function(res){
       return res.json().catch(function(){ return null; }).then(function(data){
@@ -1855,6 +1871,13 @@
         return data;
       });
     }).then(function(data){
+      if(data.functionCall && data.functionCall.name === "add_food_to_day"){
+        var result;
+        try{ result = addFoodToDayEntry(data.functionCall.args || {}); }
+        catch(e){ result = { ok:false, message: "Konnte nicht hinzugefügt werden." }; }
+        finishOk(result && result.message);
+        return;
+      }
       finishOk(data.text || "…");
     }).catch(function(err){
       console.warn("Gemini-Proxy fehlgeschlagen, weiche auf lokales Modell aus:", err);
