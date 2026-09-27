@@ -94,6 +94,7 @@ export default {
   }
 };
 
+// Deploy-Test über GitHub Actions (automatisch statt manuell in Cloudflare eingefügt).
 function json(obj, status, corsHeaders) {
   return new Response(JSON.stringify(obj), {
     status: status,
