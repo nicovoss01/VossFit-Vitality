@@ -453,7 +453,7 @@
         </div>
       </div>
       <div class="topbar-right">
-        <div class="icon-square" id="settingsEditBtn" hidden title="Profil bearbeiten">✎</div>
+        <div class="icon-square" id="settingsEditBtn" hidden title="Profil bearbeiten"></div>
         <div class="iconbtn" id="chatMenuBtn" hidden>⋮</div>
       </div>
     </div>
@@ -633,23 +633,23 @@
       <div id="tab-einstellungen" hidden>
         <section style="margin-bottom:4px">
           <div class="settings-tabs">
-            <button data-tab="profile" class="active"><span class="ti">👤</span>Profile</button>
-            <button data-tab="koerperdaten"><span class="ti">📏</span>Körperdaten</button>
-            <button data-tab="ziele"><span class="ti">🎯</span>Ziele</button>
-            <button data-tab="rohdaten"><span class="ti">📊</span>Rohdaten</button>
+            <button data-tab="profile" class="active"><span class="ti"></span>Profile</button>
+            <button data-tab="koerperdaten"><span class="ti"></span>Körperdaten</button>
+            <button data-tab="ziele"><span class="ti"></span>Ziele</button>
+            <button data-tab="rohdaten"><span class="ti"></span>Rohdaten</button>
           </div>
         </section>
 
         <div id="settings-profile">
           <section>
             <div id="authSignedOut">
-              <div class="eyebrow-icon-row"><span class="ic">☁</span>Konto & Cloud-Sync</div>
+              <div class="eyebrow-icon-row"><span class="ic"></span>Konto und Synchronisierung</div>
               <button class="primary-btn" id="googleSignInBtn" style="width:100%">Mit Google anmelden</button>
               <p class="hint" style="margin-top:6px">Sichert deine Profile automatisch in der Cloud, geräteübergreifend.</p>
               <p class="hint" id="authDiagStatus" style="margin-top:6px"></p>
             </div>
             <div id="authSignedIn" hidden>
-              <div class="eyebrow-icon-row"><span class="ic">☁</span>Konto und Synchronisierung</div>
+              <div class="eyebrow-icon-row"><span class="ic"></span>Konto und Synchronisierung</div>
               <div class="sync-card">
                 <div class="row">
                   <div class="sync-avatar-wrap"><img id="authAvatar" src="" alt="" hidden></div>
@@ -658,9 +658,9 @@
                     <div class="sync-status-line" id="wizAuthStatusInline"></div>
                   </div>
                   <div class="sync-actions">
-                    <div class="icon-square" id="syncNowBtn" title="Jetzt synchronisieren">🔄</div>
+                    <div class="icon-square" id="syncNowBtn" title="Jetzt synchronisieren"></div>
                     <div class="divider-v"></div>
-                    <div class="icon-square danger" id="googleSignOutBtn" title="Abmelden">⏻</div>
+                    <div class="icon-square danger" id="googleSignOutBtn" title="Abmelden"></div>
                   </div>
                 </div>
               </div>
@@ -668,7 +668,7 @@
           </section>
           <section>
             <div class="section-head-row">
-              <div class="eyebrow-icon-row" style="margin:0"><span class="ic">🗄</span>Gespeicherte Profile</div>
+              <div class="eyebrow-icon-row" style="margin:0"><span class="ic"></span>Gespeicherte Profile</div>
               <div class="add-circle" id="newProfileQuickBtn" title="Neues Profil">+</div>
             </div>
             <div id="profileList"></div>
@@ -685,8 +685,8 @@
               <span class="chev">›</span>
             </button>
             <div id="localFileActions" style="display:flex;gap:8px;margin-top:10px">
-              <button class="ghost-btn" id="importProfileBtn" title="Datei importieren" style="flex:1;padding:11px;font-size:13px">📥 Importieren</button>
-              <button class="ghost-btn" id="exportProfileBtn" title="Exportieren" style="flex:1;padding:11px;font-size:13px">📤 Exportieren</button>
+              <button class="ghost-btn" id="importProfileBtn" title="Datei importieren" style="flex:1;padding:11px;font-size:13px">Importieren</button>
+              <button class="ghost-btn" id="exportProfileBtn" title="Exportieren" style="flex:1;padding:11px;font-size:13px">Exportieren</button>
             </div>
             <div id="exportPicker" hidden style="margin-top:8px"></div>
             <p class="hint" id="profileActionsHint" style="margin-top:6px"></p>
@@ -694,20 +694,20 @@
             <div id="exportFallback"></div>
           </section>
           <section>
-            <div class="eyebrow-icon-row"><span class="ic">⚙</span>App & Daten</div>
+            <div class="eyebrow-icon-row"><span class="ic"></span>App & Daten</div>
             <div class="appdata-section">
               <button type="button" class="appdata-row" id="appdataDesign">
-                <span class="aic">🎨</span>
+                <span class="aic"></span>
                 <span class="at"><div class="t">Design</div><div class="d">Farben, Dark Mode, Darstellung</div></span>
                 <span class="chev">›</span>
               </button>
               <button type="button" class="appdata-row" id="appdataUnits">
-                <span class="aic">📏</span>
+                <span class="aic"></span>
                 <span class="at"><div class="t">Einheiten</div><div class="d">kg/lbs, cm/ft, kcal/kJ</div></span>
                 <span class="chev">›</span>
               </button>
               <button type="button" class="appdata-row" id="appdataData">
-                <span class="aic">🗄</span>
+                <span class="aic"></span>
                 <span class="at"><div class="t">Datenverwaltung</div><div class="d">Import, Export, Zurücksetzen</div></span>
                 <span class="chev">›</span>
               </button>
@@ -3399,24 +3399,24 @@
       var targetBar = document.createElement("div");
       targetBar.className = "pc-chips";
       targetBar.innerHTML =
-        '<span class="pc-chip"><span class="ic">🎯</span>' + p.zielgewicht + ' kg</span>' +
+        '<span class="pc-chip"><span class="ic"></span>' + p.zielgewicht + ' kg</span>' +
         '<span class="pc-sep">~</span>' +
-        '<span class="pc-chip"><span class="ic">🔥</span>' + (targetPct !== null ? targetPct : "–") + '% KFA</span>';
+        '<span class="pc-chip"><span class="ic"></span>' + (targetPct !== null ? targetPct : "–") + '% KFA</span>';
       bars.appendChild(targetBar);
 
       var heightM = (p.height / 100).toFixed(2).replace(".", ",");
       var curBar = document.createElement("div");
       curBar.className = "pc-chips";
       curBar.innerHTML =
-        '<span class="pc-chip"><span class="ic">🎂</span>' + p.age + ' J.</span>' +
-        '<span class="pc-chip"><span class="ic">📏</span>' + heightM + ' m</span>' +
-        '<span class="pc-chip"><span class="ic">⚖</span>' + p.weight + ' kg</span>' +
-        '<span class="pc-chip"><span class="ic">🔥</span>' + curPct + '%</span>';
+        '<span class="pc-chip"><span class="ic"></span>' + p.age + ' J.</span>' +
+        '<span class="pc-chip"><span class="ic"></span>' + heightM + ' m</span>' +
+        '<span class="pc-chip"><span class="ic"></span>' + p.weight + ' kg</span>' +
+        '<span class="pc-chip"><span class="ic"></span>' + curPct + '%</span>';
       bars.appendChild(curBar);
       if(fbUser){
         var cloudLine = document.createElement("div");
         cloudLine.style.cssText = "font-size:11px;margin-top:2px;padding-left:2px";
-        if(cloudProfileIndex && cloudProfileIndex[id]){ cloudLine.style.color = "var(--ok,#1a9d5c)"; cloudLine.textContent = "☁ in der Cloud"; }
+        if(cloudProfileIndex && cloudProfileIndex[id]){ cloudLine.style.color = "var(--ok,#1a9d5c)"; cloudLine.textContent = "in der Cloud"; }
         else if(cloudProfileIndex){ cloudLine.style.color = "#e8c547"; cloudLine.textContent = "nur lokal, noch nicht in der Cloud"; }
         else { cloudLine.style.color = "var(--text-faint)"; cloudLine.textContent = "Cloud-Status wird geprüft…"; }
         bars.appendChild(cloudLine);
@@ -3428,7 +3428,7 @@
       side.className = "pc-side";
 
       var editBtn = document.createElement("div");
-      editBtn.className = "iconbtn"; editBtn.textContent = "✎"; editBtn.title = "Bearbeiten";
+      editBtn.className = "iconbtn"; editBtn.textContent = ""; editBtn.title = "Bearbeiten";
       editBtn.addEventListener("click", function(){
         state.activeProfileId = id;
         save();
@@ -3438,19 +3438,19 @@
       side.appendChild(editBtn);
 
       var delBtn = document.createElement("div");
-      delBtn.className = "iconbtn danger"; delBtn.textContent = "🗑"; delBtn.title = "Löschen";
+      delBtn.className = "iconbtn danger"; delBtn.textContent = ""; delBtn.title = "Löschen";
       var confirming = false;
       delBtn.addEventListener("click", function(){
         if(!confirming){
           confirming = true;
           delBtn.textContent = "!";
-          setTimeout(function(){ confirming = false; delBtn.textContent = "🗑"; }, 2500);
+          setTimeout(function(){ confirming = false; delBtn.textContent = ""; }, 2500);
           return;
         }
         confirming = false;
         if(fbUser){
           delBtn.textContent = "…";
-          deleteProfileFromCloud(id, function(){ delBtn.textContent = "🗑"; });
+          deleteProfileFromCloud(id, function(){ delBtn.textContent = ""; });
         }
         delete state.profiles[id];
         if(state.activeProfileId === id){ var rest = Object.keys(state.profiles); state.activeProfileId = rest.length ? rest[0] : null; }
