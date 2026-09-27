@@ -615,11 +615,13 @@
             </div>
             <div style="display:flex;gap:8px;margin-top:6px">
               <button class="primary-btn" id="newProfileBtn" style="flex:1">+ Neues Profil</button>
-              <button class="ghost-btn" id="importProfileBtn" title="Datei importieren" style="width:46px;padding:0;font-size:16px">📥</button>
-              <button class="ghost-btn" id="exportProfileBtn" title="Exportieren" style="width:46px;padding:0;font-size:16px">📤</button>
+              <span id="localFileActions" style="gap:8px">
+                <button class="ghost-btn" id="importProfileBtn" title="Datei importieren" style="width:46px;padding:0;font-size:16px">📥</button>
+                <button class="ghost-btn" id="exportProfileBtn" title="Exportieren" style="width:46px;padding:0;font-size:16px">📤</button>
+              </span>
             </div>
             <div id="exportPicker" hidden style="margin-top:8px"></div>
-            <p class="hint" style="margin-top:2px">Angemeldet: automatischer Cloud-Sync im Hintergrund.</p>
+            <p class="hint" id="profileActionsHint" style="margin-top:2px"></p>
             <input type="file" id="importFileInput" accept="application/json" hidden>
             <div id="exportFallback"></div>
           </section>
@@ -883,6 +885,19 @@
     } else {
       out.hidden = false; inn.hidden = true;
       cloudProfileIndex = null;
+    }
+    // Datei-Import/-Export ist eine reine Offline-Notlösung für Gäste ohne
+    // Cloud-Konto — angemeldet läuft alles nur noch online, nie über eine
+    // lokale Datei, daher verschwinden diese Buttons komplett.
+    var localFileActions = document.getElementById("localFileActions");
+    if(localFileActions) localFileActions.style.display = fbUser ? "none" : "flex";
+    var picker = document.getElementById("exportPicker");
+    if(picker && fbUser){ picker.hidden = true; picker.innerHTML = ""; }
+    var hint = document.getElementById("profileActionsHint");
+    if(hint){
+      hint.textContent = fbUser
+        ? "Angemeldet: dein Profil läuft nur noch online, permanenter Cloud-Sync im Hintergrund."
+        : "Ohne Anmeldung bleibt dein Profil rein lokal — Import/Export sichern es als Datei.";
     }
     // Login-Status ändert, ob die Cloud-Buttons in der Profilliste auftauchen —
     // die Liste war bereits gerendert, bevor Firebase (async) fertig geladen hatte.
