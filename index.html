@@ -369,6 +369,9 @@
   }
   #tab-chat.chat-float-mode #chatInputRow textarea{ font-size: 12.5px !important; padding: 7px 9px !important; }
   #tab-chat.chat-float-mode .chat-hint{ font-size: 9.5px; padding: 1px 4px 4px; }
+  /* Im Sprechblasen-Fenster nur der reine Chatverlauf — keine
+     Tagesübersicht-Kästen (die gehören nur zur Vollbild-Ansicht). */
+  #tab-chat.chat-float-mode #chatOverviewCard{ display: none !important; }
 
   /* ---------- Shared form bits ---------- */
   .field{ display: flex; flex-direction: column; gap: 6px; }
@@ -3810,10 +3813,19 @@
     }
 
     if(!activeProfile()){
-      chat.messages.push({ role: "assistant", text: "Bevor ich loslegen kann, brauch ich noch ein Profil mit deinen Körperdaten. Leg das kurz unter Einstellungen → Profile an, dann quatschen wir weiter." });
-      chat.updatedAt = Date.now();
-      renderChatMessages();
-      save();
+      // Statt nur eines Hinweises auf die Einstellungen: den echten
+      // Login/Profil-Flow direkt hier im Chat anstoßen — egal, ob es der
+      // allererste Login ist oder ein lokales Profil fehlt, es geht immer
+      // im Chat weiter, nie mit einer bloßen Textmeldung ins Leere.
+      var hasAuthChoiceMsg = chat.messages.some(function(pm){ return pm.authChoice; });
+      if(fbUser || hasAuthChoiceMsg){
+        // Login ist schon geklärt (angemeldet, oder Login/Lokal wurde in
+        // diesem Chat schon einmal gewählt) — direkt mit den Profil-Fragen
+        // weitermachen.
+        beginQuestionnaireAfterAuthChoice();
+      } else {
+        startChatAuthChoice();
+      }
       return;
     }
 
