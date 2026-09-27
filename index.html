@@ -815,6 +815,40 @@
     }, 1500);
   }
 
+  // ---------- Einzelne Profile: manuell in die Cloud sichern / daraus löschen ----------
+  function pushProfileToCloud(profileId, onDone){
+    if(!fbUser){ if(onDone) onDone(false, "Nicht angemeldet."); return; }
+    fbDbReady.then(function(db){
+      if(!db || !fsApi) throw new Error("Cloud-Datenbank nicht verfügbar");
+      return fsApi.setDoc(fsApi.doc(db, "users", fbUser.uid, "profiles", profileId), {
+        profile: JSON.stringify(state.profiles[profileId]),
+        updatedAt: fsApi.serverTimestamp()
+      });
+    }).then(function(){
+      setSyncStatus("Profil in Cloud gesichert ✓");
+      if(onDone) onDone(true);
+    }).catch(function(err){
+      var msg = err && err.message ? err.message : "Unbekannt";
+      setSyncStatus("Sichern fehlgeschlagen: " + msg, true);
+      if(onDone) onDone(false, msg);
+    });
+  }
+
+  function deleteProfileFromCloud(profileId, onDone){
+    if(!fbUser){ if(onDone) onDone(false, "Nicht angemeldet."); return; }
+    fbDbReady.then(function(db){
+      if(!db || !fsApi) throw new Error("Cloud-Datenbank nicht verfügbar");
+      return fsApi.deleteDoc(fsApi.doc(db, "users", fbUser.uid, "profiles", profileId));
+    }).then(function(){
+      setSyncStatus("Cloud-Kopie gelöscht ✓");
+      if(onDone) onDone(true);
+    }).catch(function(err){
+      var msg = err && err.message ? err.message : "Unbekannt";
+      setSyncStatus("Löschen fehlgeschlagen: " + msg, true);
+      if(onDone) onDone(false, msg);
+    });
+  }
+
   var justSignedIn = false;
   try{ if(sessionStorage.getItem("vf_just_signed_in") === "1"){ justSignedIn = true; sessionStorage.removeItem("vf_just_signed_in"); } }catch(e){}
 
@@ -1881,6 +1915,35 @@
       });
       actions.appendChild(renameBtn);
 
+      if(fbUser){
+        var cloudUpBtn = document.createElement("div");
+        cloudUpBtn.className = "iconbtn"; cloudUpBtn.textContent = "☁⬆"; cloudUpBtn.title = "In Cloud sichern";
+        cloudUpBtn.style.fontSize = "10px";
+        cloudUpBtn.addEventListener("click", function(){
+          cloudUpBtn.textContent = "…";
+          pushProfileToCloud(id, function(ok){ cloudUpBtn.textContent = ok ? "✓" : "✕"; setTimeout(function(){ cloudUpBtn.textContent = "☁⬆"; }, 2000); });
+        });
+        actions.appendChild(cloudUpBtn);
+
+        var cloudDelBtn = document.createElement("div");
+        cloudDelBtn.className = "iconbtn"; cloudDelBtn.textContent = "☁🗑"; cloudDelBtn.title = "Cloud-Kopie löschen";
+        cloudDelBtn.style.fontSize = "10px";
+        var cloudConfirming = false;
+        cloudDelBtn.addEventListener("click", function(){
+          if(!cloudConfirming){
+            cloudConfirming = true;
+            cloudDelBtn.textContent = "Sicher?"; cloudDelBtn.style.color = "var(--warn)";
+            setTimeout(function(){ cloudConfirming = false; cloudDelBtn.textContent = "☁🗑"; cloudDelBtn.style.color = ""; }, 2500);
+            return;
+          }
+          cloudConfirming = false;
+          cloudDelBtn.style.color = "";
+          cloudDelBtn.textContent = "…";
+          deleteProfileFromCloud(id, function(ok){ cloudDelBtn.textContent = ok ? "✓" : "✕"; setTimeout(function(){ cloudDelBtn.textContent = "☁🗑"; }, 2000); });
+        });
+        actions.appendChild(cloudDelBtn);
+      }
+
       var delBtn = document.createElement("div");
       delBtn.className = "iconbtn"; delBtn.textContent = "🗑"; delBtn.title = "Löschen";
       var confirming = false;
@@ -1896,6 +1959,7 @@
         delete state.profiles[id];
         if(state.activeProfileId === id){ state.activeProfileId = Object.keys(state.profiles)[0]; }
         save();
+        if(fbUser) deleteProfileFromCloud(id);
         renderSettings();
       });
       actions.appendChild(delBtn);
@@ -2339,7 +2403,6 @@
       if(wizIndex>0){ wizIndex--; showWizardStep(wizIndex); }
     });
     document.getElementById("wizNext").addEventListener("click", function(){
-      if(wizMode === "onboarding" && wizIndex === 0){ wizOnFinish(wizDraft); return; }
       if(wizIndex < WIZ_STEPS-1){ wizIndex++; showWizardStep(wizIndex); }
       else { wizOnFinish(wizDraft); }
     });
