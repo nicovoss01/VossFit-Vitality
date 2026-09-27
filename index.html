@@ -500,11 +500,34 @@
 
       <!-- ---------- FITNESS TAB ---------- -->
       <div id="tab-fitness" hidden>
+
+        <div id="fitnessEmpty" hidden style="padding:32px 8px;text-align:center">
+          <p class="hint" style="font-size:15px">Kein Profil vorhanden.<br>Leg eins an, um dein Training zu loggen.</p>
+        </div>
+
+        <div id="fitnessContent">
+
         <section>
-          <div class="eyebrow">Fitness</div>
-          <h2>Trainings-Modul folgt als nächstes</h2>
-          <p class="hint">Die Ernährungs-Engine steht — das PPL-System (5x5, Autoregulation, Dropset-Finisher) kommt im nächsten Schritt dazu.</p>
+          <div class="day-strip">
+            <div class="arrow" id="fitDayPrev">‹</div>
+            <div class="days" id="fitDayDays"></div>
+            <div class="arrow" id="fitDayNext">›</div>
+            <div class="arrow" id="fitDayExpand">📅</div>
+          </div>
         </section>
+
+        <section>
+          <div class="meal-toolbar">
+            <div class="eyebrow" style="margin:0">Übungen</div>
+            <span class="count" id="exCount">0</span>
+          </div>
+          <div class="meal-list" id="exList"></div>
+          <button class="add-meal-btn" id="addExBtn">+ Übung</button>
+          <p class="hint" id="exEmptyHint" hidden style="margin-top:10px">Noch keine Übungen für diesen Tag geloggt. Freies Logging — kein fester Trainingsplan, du trägst ein, was du wirklich gemacht hast.</p>
+        </section>
+
+        </div>
+
       </div>
 
       <!-- ---------- SETTINGS TAB ---------- -->
@@ -651,6 +674,26 @@
         <section class="editor-actions">
           <button class="primary-btn" id="me-confirm">Bestätigen</button>
           <button class="danger-btn" id="me-delete">Mahlzeit löschen</button>
+        </section>
+      </div>
+
+      <!-- ---------- TRAINING EDITOR ---------- -->
+      <div id="tab-trainingeditor" hidden>
+        <section>
+          <div class="eyebrow" id="texEditorStatus">Entwurf</div>
+          <div class="editor-field"><label for="tex-name">Übung</label><input type="text" id="tex-name" placeholder="z.B. Kniebeuge" list="texNameList" autocomplete="off"></div>
+          <datalist id="texNameList"></datalist>
+          <div class="editor-field"><label for="tex-sets">Sätze</label><input type="number" id="tex-sets" min="1" step="1" value="3"></div>
+          <div class="editor-field"><label for="tex-reps">Wdh./Satz</label><input type="number" id="tex-reps" min="1" step="1" value="8"></div>
+          <div class="editor-field"><label for="tex-weight">Gewicht (kg)</label><input type="number" id="tex-weight" min="0" step="0.5" value="0"></div>
+          <label style="display:flex;align-items:center;gap:8px;margin-top:12px;font-size:13.5px;color:var(--text-dim)">
+            <input type="checkbox" id="tex-success" style="width:18px;height:18px;flex-shrink:0">
+            Alle Sätze &amp; Wiederholungen geschafft
+          </label>
+          <p class="hint" id="texSuggestHint" style="margin-top:10px"></p>
+        </section>
+        <section class="editor-actions">
+          <button class="danger-btn" id="tex-delete">Übung löschen</button>
         </section>
       </div>
 
@@ -1149,7 +1192,9 @@
       gender: "mann", age: 27, height: 182, weight: weight,
       kfaIdx: kfaIdx, zielgewicht: suggestZielgewicht(weight, kfaIdx), pal: 1.65, ziel: 1.6,
       mealSettings: { count: 4, mode: "plan", times: ["07:00","12:30","16:00","20:00"] },
-      days: {}
+      days: {},
+      trainingDays: {},
+      exerciseHistory: {}
     };
   }
 
@@ -1169,6 +1214,7 @@
       activeList: { kh: 0, fett: 0, protein: 0 },
       bausteinChoice: { kh: "l0_i0", fett: "l0_i0", protein: "l0_i0" },
       editing: null,
+      trainingEditing: null,
       calYear: new Date().getFullYear(), calMonth: new Date().getMonth(),
       chats: {},
       activeChatId: null,
@@ -1221,6 +1267,36 @@
     if(!profile.days[key]){ profile.days[key] = { entries: generateEntries(profile) }; }
     if(!profile.days[key].entries) profile.days[key].entries = [];
     return profile.days[key];
+  }
+
+  // ---------- Training (freies Logging, keine feste Übungsliste/Split) ----------
+  function getTrainingDay(profile, key){
+    if(!profile.trainingDays) profile.trainingDays = {};
+    if(!profile.trainingDays[key]){ profile.trainingDays[key] = { exercises: [] }; }
+    if(!profile.trainingDays[key].exercises) profile.trainingDays[key].exercises = [];
+    return profile.trainingDays[key];
+  }
+  function normEx(name){ return (name || "").trim().toLowerCase(); }
+  function fmtWeight(n){
+    n = Math.round(n * 10) / 10;
+    return (n % 1 === 0) ? n.toFixed(0) : n.toFixed(1);
+  }
+  // Reine Progression nach Erfolg: wurden alle Sätze/Wiederholungen geschafft,
+  // schlagen wir fürs nächste Mal etwas mehr Gewicht vor (2.5kg im Hantel-Bereich,
+  // 1kg bei leichteren/isolierten Übungen, unverändert bei Körpergewicht). Wurde
+  // das Pensum nicht komplett geschafft, bleibt der Vorschlag beim selben Gewicht.
+  function applyProgressionOnSave(profile, entry){
+    if(!entry || !entry.name) return;
+    if(!profile.exerciseHistory) profile.exerciseHistory = {};
+    var key = normEx(entry.name);
+    var w = parseFloat(entry.weight) || 0;
+    var step = w >= 20 ? 2.5 : (w > 0 ? 1 : 0);
+    var suggested = entry.success ? Math.round((w + step) * 2) / 2 : w;
+    profile.exerciseHistory[key] = {
+      displayName: entry.name.trim(),
+      lastWeight: w, lastSets: entry.sets, lastReps: entry.reps,
+      lastSuccess: !!entry.success, suggestedWeight: suggested
+    };
   }
 
   function kfaIcon(rx){ return '<svg viewBox="0 0 64 64"><circle cx="32" cy="13" r="8"></circle><ellipse cx="32" cy="42" rx="'+rx+'" ry="19"></ellipse></svg>'; }
@@ -1291,8 +1367,8 @@
   }
 
   // ================= HOME (Ernährung) =================
-  function renderDayStrip(){
-    var el = document.getElementById("dayDays");
+  function renderDayStrip(elId){
+    var el = document.getElementById(elId || "dayDays");
     el.innerHTML = "";
     var wd = ["So","Mo","Di","Mi","Do","Fr","Sa"];
     for(var i=-3;i<=3;i++){
@@ -1301,7 +1377,10 @@
       var chip = document.createElement("div");
       chip.className = "day-chip" + (key===state.selectedDate ? " active" : "");
       chip.innerHTML = '<span class="wd">'+wd[d.getDay()]+'</span><span class="dn">'+d.getDate()+'</span>';
-      chip.addEventListener("click", function(k){ return function(){ state.selectedDate = k; renderHome(); }; }(key));
+      chip.addEventListener("click", function(k){ return function(){
+        state.selectedDate = k;
+        if(state.activeTab === "fitness") renderFitness(); else renderHome();
+      }; }(key));
       el.appendChild(chip);
     }
   }
@@ -1460,6 +1539,50 @@
     save();
   }
 
+  // ================= FITNESS (freies Training) =================
+  function renderFitness(){
+    var profile = activeProfile();
+    var emptyEl = document.getElementById("fitnessEmpty");
+    var contentEl = document.getElementById("fitnessContent");
+    if(!profile){
+      if(emptyEl) emptyEl.hidden = false;
+      if(contentEl) contentEl.hidden = true;
+      return;
+    }
+    if(emptyEl) emptyEl.hidden = true;
+    if(contentEl) contentEl.hidden = false;
+    renderDayStrip("fitDayDays");
+    var day = getTrainingDay(profile, state.selectedDate);
+    renderExerciseList(profile, day);
+    save();
+  }
+  function renderExerciseList(profile, day){
+    var list = document.getElementById("exList");
+    list.innerHTML = "";
+    day.exercises.forEach(function(entry, idx){
+      var card = document.createElement("div");
+      card.className = "meal-card" + (entry.name ? "" : " draft");
+      var badgeCls = !entry.name ? " draft" : (entry.success ? "" : " draft");
+      var badgeTxt = !entry.name ? "ENTWURF" : (entry.success ? "GESCHAFFT" : "NICHT VOLL GESCHAFFT");
+      var top = '<div class="mc-top"><span class="mc-name">'+(entry.name || "Übung "+(idx+1))+'</span><span class="mc-badge'+badgeCls+'">'+badgeTxt+'</span></div>';
+      var detail;
+      if(entry.name){
+        var weightTxt = (parseFloat(entry.weight) > 0) ? (fmtWeight(entry.weight)+" kg") : "Körpergewicht";
+        detail = '<div class="mc-foods"><div class="mc-food-row"><span class="n">'+(entry.sets||0)+' × '+(entry.reps||0)+'</span><b>'+weightTxt+'</b></div></div>';
+      } else {
+        detail = '<div class="mc-empty">Noch keine Angaben</div>';
+      }
+      var hist = profile.exerciseHistory && profile.exerciseHistory[normEx(entry.name)];
+      var sugg = (entry.name && hist) ? '<div class="mc-totals"><span>Vorschlag nächstes Mal: '+fmtWeight(hist.suggestedWeight)+' kg</span></div>' : '';
+      card.innerHTML = top + detail + sugg;
+      card.addEventListener("click", function(){ openTrainingEditor(idx); });
+      list.appendChild(card);
+    });
+    document.getElementById("exCount").textContent = day.exercises.length + "";
+    var emptyHint = document.getElementById("exEmptyHint");
+    if(emptyHint) emptyHint.hidden = day.exercises.length > 0;
+  }
+
   // ================= MEAL EDITOR =================
   function openMealEditor(entryIndex){
     state.editing = { dateKey: state.selectedDate, entryIndex: entryIndex };
@@ -1524,6 +1647,51 @@
     var fett = parseFloat(document.getElementById("af-fett").value)||0;
     var protein = parseFloat(document.getElementById("af-protein").value)||0;
     document.getElementById("af-kcal").textContent = fmtInt(foodKcal(kh,fett,protein));
+  }
+
+  // ================= TRAINING EDITOR (freies Logging) =================
+  function openTrainingEditor(entryIndex){
+    state.trainingEditing = { dateKey: state.selectedDate, entryIndex: entryIndex };
+    state.view = "trainingeditor";
+    hidePanels();
+    document.getElementById("tab-trainingeditor").hidden = false;
+    setTopbar("trainingeditor");
+    document.querySelector("nav.tabbar").hidden = true;
+    document.getElementById("pageTitle").textContent = "Übung bearbeiten";
+    renderTrainingEditor();
+    save();
+  }
+  function currentTrainingEntry(){
+    var profile = activeProfile();
+    var day = getTrainingDay(profile, state.trainingEditing.dateKey);
+    return day.exercises[state.trainingEditing.entryIndex];
+  }
+  function renderTrainingEditor(){
+    var profile = activeProfile();
+    var entry = currentTrainingEntry();
+    document.getElementById("texEditorStatus").textContent = entry.name ? (entry.success ? "Geschafft" : "Nicht voll geschafft") : "Entwurf — noch keine Übung eingetragen";
+    document.getElementById("tex-name").value = entry.name || "";
+    document.getElementById("tex-sets").value = entry.sets || 3;
+    document.getElementById("tex-reps").value = entry.reps || 8;
+    document.getElementById("tex-weight").value = (entry.weight != null) ? entry.weight : 0;
+    document.getElementById("tex-success").checked = !!entry.success;
+
+    var dl = document.getElementById("texNameList");
+    dl.innerHTML = "";
+    if(profile.exerciseHistory){
+      Object.keys(profile.exerciseHistory).forEach(function(k){
+        var opt = document.createElement("option");
+        opt.value = profile.exerciseHistory[k].displayName;
+        dl.appendChild(opt);
+      });
+    }
+    updateTexSuggestHint(profile, entry);
+  }
+  function updateTexSuggestHint(profile, entry){
+    var hint = document.getElementById("texSuggestHint");
+    var hist = profile.exerciseHistory && entry.name ? profile.exerciseHistory[normEx(entry.name)] : null;
+    if(!hist){ hint.textContent = "Noch keine Historie für diese Übung — trag dein Ergebnis ein, danach gibt's einen Gewichtsvorschlag fürs nächste Mal."; return; }
+    hint.textContent = "Letztes Mal: " + hist.lastSets + " × " + hist.lastReps + " @ " + fmtWeight(hist.lastWeight) + " kg (" + (hist.lastSuccess ? "geschafft" : "nicht voll geschafft") + ") — Vorschlag für heute: " + fmtWeight(hist.suggestedWeight) + " kg.";
   }
 
   // ================= MONTH CALENDAR =================
@@ -2827,6 +2995,7 @@
     document.getElementById("tab-fitness").hidden = true;
     document.getElementById("tab-einstellungen").hidden = true;
     document.getElementById("tab-mealeditor").hidden = true;
+    document.getElementById("tab-trainingeditor").hidden = true;
     document.getElementById("tab-monthcal").hidden = true;
     document.getElementById("tab-chatlist").hidden = true;
     document.getElementById("tab-chat").hidden = true;
@@ -2857,6 +3026,16 @@
       }
       state.editing = null;
     }
+    if(state.view === "trainingeditor"){
+      var texEntry = currentTrainingEntry();
+      if(!texEntry.name){
+        var texProfile = activeProfile();
+        var texDay = getTrainingDay(texProfile, state.trainingEditing.dateKey);
+        var texIdx = texDay.exercises.indexOf(texEntry);
+        if(texIdx > -1) texDay.exercises.splice(texIdx,1);
+      }
+      state.trainingEditing = null;
+    }
     if(state.view === "chatconv"){
       showTab("chat");
       return;
@@ -2878,6 +3057,7 @@
     Array.prototype.forEach.call(document.querySelectorAll(".tab-btn"), function(btn){ btn.classList.toggle("active", btn.getAttribute("data-tab") === tab); });
     document.querySelector("nav.tabbar").hidden = false;
     if(tab === "ernaehrung") renderHome();
+    if(tab === "fitness") renderFitness();
     if(tab === "einstellungen"){ showSettingsTab(state.settingsTab); renderSettings(); }
     if(tab === "chat") renderChatList();
     save();
@@ -3048,6 +3228,82 @@
       state.editing = null;
       meDelConfirming = false;
       btn.textContent = "Mahlzeit löschen";
+      save();
+      showTab(state.activeTab || "ernaehrung");
+    });
+
+    // ---------- Fitness / Training wiring ----------
+    document.getElementById("fitDayPrev").addEventListener("click", function(){ state.selectedDate = addDays(state.selectedDate,-7); renderFitness(); });
+    document.getElementById("fitDayNext").addEventListener("click", function(){ state.selectedDate = addDays(state.selectedDate,7); renderFitness(); });
+    document.getElementById("fitDayExpand").addEventListener("click", openMonthCal);
+
+    document.getElementById("addExBtn").addEventListener("click", function(){
+      var profile = activeProfile();
+      var day = getTrainingDay(profile, state.selectedDate);
+      day.exercises.push({ id: newId("x"), name: "", sets: 3, reps: 8, weight: 0, success: false });
+      save();
+      openTrainingEditor(day.exercises.length - 1);
+    });
+
+    document.getElementById("tex-name").addEventListener("input", function(e){
+      var entry = currentTrainingEntry();
+      entry.name = e.target.value;
+      var profile = activeProfile();
+      var hist = profile.exerciseHistory && profile.exerciseHistory[normEx(entry.name)];
+      if(hist && (!entry.weight || parseFloat(entry.weight) === 0)){
+        entry.weight = hist.suggestedWeight;
+        document.getElementById("tex-weight").value = entry.weight;
+      }
+      if(hist){
+        entry.sets = entry.sets || hist.lastSets;
+        entry.reps = entry.reps || hist.lastReps;
+      }
+      updateTexSuggestHint(profile, entry);
+      save();
+    });
+    document.getElementById("tex-sets").addEventListener("input", function(e){
+      var entry = currentTrainingEntry();
+      entry.sets = parseInt(e.target.value,10) || 0;
+      if(entry.name && entry.success) applyProgressionOnSave(activeProfile(), entry);
+      save();
+    });
+    document.getElementById("tex-reps").addEventListener("input", function(e){
+      var entry = currentTrainingEntry();
+      entry.reps = parseInt(e.target.value,10) || 0;
+      if(entry.name && entry.success) applyProgressionOnSave(activeProfile(), entry);
+      save();
+    });
+    document.getElementById("tex-weight").addEventListener("input", function(e){
+      var entry = currentTrainingEntry();
+      entry.weight = parseFloat(e.target.value) || 0;
+      if(entry.name && entry.success) applyProgressionOnSave(activeProfile(), entry);
+      save();
+    });
+    document.getElementById("tex-success").addEventListener("change", function(e){
+      var entry = currentTrainingEntry();
+      entry.success = !!e.target.checked;
+      var profile = activeProfile();
+      applyProgressionOnSave(profile, entry);
+      updateTexSuggestHint(profile, entry);
+      save();
+    });
+
+    var texDelConfirming = false;
+    document.getElementById("tex-delete").addEventListener("click", function(){
+      var btn = document.getElementById("tex-delete");
+      if(!texDelConfirming){
+        texDelConfirming = true;
+        btn.textContent = "Wirklich löschen?";
+        setTimeout(function(){ texDelConfirming = false; btn.textContent = "Übung löschen"; }, 2500);
+        return;
+      }
+      var profile = activeProfile();
+      var day = getTrainingDay(profile, state.trainingEditing.dateKey);
+      var idx = day.exercises.indexOf(currentTrainingEntry());
+      if(idx > -1) day.exercises.splice(idx,1);
+      state.trainingEditing = null;
+      texDelConfirming = false;
+      btn.textContent = "Übung löschen";
       save();
       showTab(state.activeTab || "ernaehrung");
     });
