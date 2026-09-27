@@ -1837,12 +1837,12 @@
         });
         return;
       }
-      runProxyChat(systemInstruction, contextBlock, text, pendingBubble, finishOk, function(){
-        runLocalChat(systemInstruction, contextBlock, text, pendingBubble, finishOk, finishError);
+      runProxyChat(systemInstruction, contextBlock, text, pendingBubble, finishOk, function(proxyErr){
+        runLocalChat(systemInstruction, contextBlock, text, pendingBubble, finishOk, finishError, proxyErr);
       });
     }).catch(function(){
-      runProxyChat(systemInstruction, contextBlock, text, pendingBubble, finishOk, function(){
-        runLocalChat(systemInstruction, contextBlock, text, pendingBubble, finishOk, finishError);
+      runProxyChat(systemInstruction, contextBlock, text, pendingBubble, finishOk, function(proxyErr){
+        runLocalChat(systemInstruction, contextBlock, text, pendingBubble, finishOk, finishError, proxyErr);
       });
     });
   }
@@ -1897,8 +1897,9 @@
       }
       finishOk(data.text || "…");
     }).catch(function(err){
+      var msg = (err && err.message) ? err.message : String(err);
       console.warn("Gemini-Proxy fehlgeschlagen, weiche auf lokales Modell aus:", err);
-      onFail();
+      onFail(msg);
     });
   }
 
@@ -1975,7 +1976,7 @@
     });
   }
 
-  function runLocalChat(systemInstruction, contextBlock, text, pendingBubble, finishOk, finishError){
+  function runLocalChat(systemInstruction, contextBlock, text, pendingBubble, finishOk, finishError, proxyErr){
     pendingBubble.className = "chat-bubble pending";
     pendingBubble.textContent = "KI-Modell wird geladen… 0%";
     var lastUpdate = Date.now();
@@ -2009,7 +2010,8 @@
       finishOk(finalText);
     }).catch(function(err){
       clearInterval(stallTimer);
-      finishError("Lokales KI-Modell nicht verfügbar: " + (err && err.message ? err.message : "Unbekannter Fehler") + ". Benötigt einen aktuellen Browser (z.B. Chrome/Edge) und beim ersten Mal Internet zum einmaligen Herunterladen des Modells.");
+      var proxyPart = proxyErr ? ("Cloud-KI fehlgeschlagen: " + proxyErr + ". ") : "";
+      finishError(proxyPart + "Lokales KI-Modell nicht verfügbar: " + (err && err.message ? err.message : "Unbekannter Fehler") + ". Benötigt einen aktuellen Browser (z.B. Chrome/Edge) und beim ersten Mal Internet zum einmaligen Herunterladen des Modells.");
     });
   }
   function renderMonthCal(){
