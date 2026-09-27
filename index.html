@@ -723,6 +723,31 @@
   "use strict";
 
   var LS_KEY = "vossfit_prototype_v6";
+  // Schnappschuss des Geräts, bevor ein Google-Login etwas überschreibt — wird beim
+  // Logout zurückgespielt, damit lokale (noch nicht ans Konto gebundene) Profile
+  // nach dem Ausloggen wieder da sind, statt dass die Konto-Profile auf dem Gerät
+  // hängen bleiben.
+  var GUEST_LS_KEY = "vossfit_prototype_v6_guest_snapshot";
+
+  function snapshotGuestState(){
+    try{
+      var raw = localStorage.getItem(LS_KEY);
+      if(raw) localStorage.setItem(GUEST_LS_KEY, raw);
+    }catch(e){}
+  }
+
+  function restoreGuestStateAndReload(){
+    try{
+      var guest = localStorage.getItem(GUEST_LS_KEY);
+      if(guest){
+        localStorage.setItem(LS_KEY, guest);
+      } else {
+        localStorage.removeItem(LS_KEY);
+      }
+      localStorage.removeItem(GUEST_LS_KEY);
+    }catch(e){}
+    location.reload();
+  }
 
   // ================= FIREBASE (Google-Login + Cloud-Sync) =================
   // Wir laden ausschließlich das moderne MODULARE SDK (kein *-compat Bundle mehr).
@@ -968,6 +993,7 @@
         setDiagStatus("Google-Anmeldung nicht verfügbar (Firebase konnte nicht geladen werden" + (fsLoadError ? (": " + fsLoadError) : " — Internetverbindung prüfen oder Seite neu laden") + ").", true);
         return;
       }
+      snapshotGuestState();
       justSignedIn = true;
       setDiagStatus("Anmeldung wird geöffnet…");
       var provider = new authApi.GoogleAuthProvider();
@@ -1001,7 +1027,11 @@
   function signOutGoogle(){
     fbReady.then(function(r){
       if(!r || !fbAuth || !authApi) return;
-      authApi.signOut(fbAuth);
+      authApi.signOut(fbAuth).then(function(){
+        restoreGuestStateAndReload();
+      }).catch(function(){
+        restoreGuestStateAndReload();
+      });
     });
   }
 
@@ -1886,13 +1916,16 @@
   // Browser-Modell zurück.
   var AI_PROXY_URL = "https://vossfitvitality.nico-voss01.workers.dev/";
 
-  function runProxyChat(systemInstruction, contextBlock, text, pendingBubble, finishOk, onFail){
-    pendingBubble.className = "chat-bubble pending";
-    pendingBubble.textContent = "…";
+  // Ein einzelner Versuch gegen den Proxy, mit Zeitlimit (verhindert ewiges "…"-Hängen
+  // bei einer toten/langsamen Verbindung).
+  function tryProxyChatOnce(systemInstruction, contextBlock, text, timeoutMs){
     var toolHint = " Wenn der Nutzer eine konkrete Anpassung der heutigen Mahlzeiten möchte (z.B. ein Lebensmittel hinzufügen), nutze das Werkzeug add_food_to_day, statt es nur zu beschreiben.";
-    fetch(AI_PROXY_URL, {
+    var controller = (typeof AbortController !== "undefined") ? new AbortController() : null;
+    var timer = controller ? setTimeout(function(){ controller.abort(); }, timeoutMs) : null;
+    return fetch(AI_PROXY_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      signal: controller ? controller.signal : undefined,
       body: JSON.stringify({
         system: systemInstruction + toolHint + "\n\n" + NUTRITION_KNOWLEDGE,
         message: contextBlock + "\n\nNutzer: " + text,
@@ -1913,9 +1946,26 @@
         }]
       })
     }).then(function(res){
+      if(timer) clearTimeout(timer);
       return res.json().catch(function(){ return null; }).then(function(data){
         if(!res.ok || !data || data.error){ throw new Error((data && data.error) || ("HTTP " + res.status)); }
         return data;
+      });
+    }, function(err){
+      if(timer) clearTimeout(timer);
+      throw err;
+    });
+  }
+
+  function runProxyChat(systemInstruction, contextBlock, text, pendingBubble, finishOk, onFail){
+    pendingBubble.className = "chat-bubble pending";
+    pendingBubble.textContent = "…";
+    // Der Gratis-Gemini-Server ist manchmal kurz überlastet — ein zweiter Versuch
+    // direkt vom Client aus (nach kurzer Pause) fängt viele dieser Fälle ab, bevor
+    // überhaupt auf den Offline-Assistenten umgeschaltet wird.
+    tryProxyChatOnce(systemInstruction, contextBlock, text, 12000).catch(function(firstErr){
+      return new Promise(function(resolve){ setTimeout(resolve, 700); }).then(function(){
+        return tryProxyChatOnce(systemInstruction, contextBlock, text, 12000);
       });
     }).then(function(data){
       if(data.functionCall && data.functionCall.name === "add_food_to_day"){
@@ -1927,7 +1977,7 @@
       }
       finishOk(data.text || "…");
     }).catch(function(err){
-      var msg = (err && err.message) ? err.message : String(err);
+      var msg = (err && err.name === "AbortError") ? "Zeitüberschreitung" : ((err && err.message) ? err.message : String(err));
       console.warn("Gemini-Proxy fehlgeschlagen, weiche auf lokales Modell aus:", err);
       onFail(msg);
     });
@@ -2053,23 +2103,24 @@
   // Sucht Lebensmittel-Namen als eigenständiges Wort, nicht als beliebigen
   // Textbestandteil — sonst würde z.B. "Ei" auch in "einen", "meinen", "sein"
   // fälschlich erkannt werden.
+  // Findet den zuletzt erwähnten Treffer im (ggf. mehrere Nachrichten
+  // umfassenden) Text — bei mehreren Erwähnungen zählt die neueste, damit ältere
+  // Chat-Themen nicht die aktuelle Anfrage überschreiben.
   function findFoodMatch(lower){
     var best = null;
     FOOD_MACROS_DB.forEach(function(f){
       f.keys.forEach(function(k){
-        var searchFrom = 0;
+        var searchFrom = 0, lastIdx = -1;
         while(true){
           var idx = lower.indexOf(k, searchFrom);
           if(idx === -1) break;
           var beforeOk = !isWordChar(lower[idx - 1]);
           var afterOk = !isWordChar(lower[idx + k.length]);
-          if(beforeOk && afterOk){
-            if(!best || k.length > best.key.length){
-              best = { food: f, key: k, idx: idx };
-            }
-            break;
-          }
+          if(beforeOk && afterOk) lastIdx = idx;
           searchFrom = idx + 1;
+        }
+        if(lastIdx > -1 && (!best || lastIdx > best.idx || (lastIdx === best.idx && k.length > best.key.length))){
+          best = { food: f, key: k, idx: lastIdx };
         }
       });
     });
@@ -2150,11 +2201,12 @@
   ];
 
   function findRecipeMatch(lower){
-    var best = null;
+    var best = null, bestIdx = -1;
     RECIPE_DB.forEach(function(r){
       var rn = r.name.toLowerCase();
-      if(lower.indexOf(rn) > -1 && (!best || rn.length > best.name.length)){
-        best = r;
+      var idx = lower.lastIndexOf(rn);
+      if(idx > -1 && (idx > bestIdx || (idx === bestIdx && rn.length > best.name.length))){
+        best = r; bestIdx = idx;
       }
     });
     return best;
@@ -2190,7 +2242,7 @@
         // kombinierten Text; nur die Kurz-Bestätigung ("Ja") bezieht sich bewusst
         // ausschließlich auf die aktuelle Nachricht.
         var recentUserTexts = (chat && chat.messages)
-          ? chat.messages.filter(function(m){ return m.role === "user"; }).slice(-5).map(function(m){ return m.text; })
+          ? chat.messages.filter(function(m){ return m.role === "user"; }).map(function(m){ return m.text; })
           : [text];
         var lower = recentUserTexts.join(" ").toLowerCase();
 
