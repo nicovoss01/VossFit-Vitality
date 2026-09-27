@@ -1448,10 +1448,13 @@
         state.profiles = {};
         state.profiles[cloudId] = cloudProfileIndex[cloudId];
         state.activeProfileId = cloudId;
+        state.onboarded = true;
         save({skipCloud:true});
         setSyncStatus("Synchronisiert ✓");
-        renderSettings();
-        renderHome();
+        // Nach dem Login geht's ohne Zurück-Taste direkt auf die
+        // VoßBot-Startseite — die ist jetzt die Homepage der App, nicht
+        // mehr Ernährung oder Einstellungen.
+        showTab("chat");
         return;
       }
       // Account ist noch leer — hat der Gast lokal schon ein Profil, wird das
@@ -1490,8 +1493,9 @@
         refreshCloudProfileIndex(function(){
           setSyncStatus("Synchronisiert ✓");
           pruneLocalToActiveOnly();
+          state.onboarded = true;
           save({skipCloud:true});
-          renderSettings();
+          showTab("chat");
         });
       });
     });
