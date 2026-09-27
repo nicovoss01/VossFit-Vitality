@@ -271,8 +271,10 @@
   .cov-donut .lbl{ position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
   .cov-donut .lbl b{ font-family: var(--mono); font-size: 10.5px; color: var(--text); }
   .cov-legend{ display: flex; gap: 10px; font-size: 11px; color: var(--text-dim); flex-wrap: wrap; }
-  .cov-legend .it{ display: flex; align-items: center; gap: 4px; }
+  .cov-legend .it{ display: flex; align-items: center; gap: 4px; cursor: pointer; }
+  .cov-legend .it.active{ color: var(--turquoise); font-weight: 600; }
   .cov-legend .dot{ width: 7px; height: 7px; border-radius: 50%; }
+  .cov-nutri-opts{ display: flex; flex-direction: column; gap: 6px; }
   .cov-ex-row{ display: flex; align-items: center; gap: 10px; border: 1px solid rgba(18,203,238,.3); border-radius: 14px; padding: 10px 12px; cursor: pointer; }
   .cov-ex-row .n{ flex: 1; min-width: 0; font-size: 13px; font-weight: 600; }
   .cov-ex-row .m{ font-size: 11px; color: var(--text-faint); font-family: var(--mono); }
@@ -2758,7 +2760,32 @@
   // der echten Tagesdaten.
   // Kleines Donut-Diagramm (KH/Fett/Protein) im Stil des großen aus dem
   // Cook-Tab, aber kompakt für die Tagesübersicht-Seite.
-  function buildCovDonut(cook, idPrefix){
+  // Nährstoff-Details antippbar: statt sofort zu fragen, zeigt ein Tap auf
+  // KH/Fett/Protein erst ein paar passende Vorschläge, die (durch Antippen
+  // oder freies Dazutippen) in der Nachrichtenzeile gesammelt werden, bis
+  // man selbst manuell absendet.
+  var NUTRI_CHAT_OPTS = {
+    kh: [
+      "Kohlenhydrate zur nächsten Mahlzeit hinzufügen",
+      "Kohlenhydratreiche Mahlzeit empfehlen",
+      "Kohlenhydrate mit anderen Nährstoffen kombinieren"
+    ],
+    fett: [
+      "Fett zur nächsten Mahlzeit hinzufügen",
+      "Fettreiche Mahlzeit empfehlen",
+      "Fett mit anderen Nährstoffen kombinieren"
+    ],
+    protein: [
+      "Protein zur nächsten Mahlzeit hinzufügen",
+      "Proteinreiche Mahlzeit empfehlen",
+      "Protein mit anderen Nährstoffen kombinieren"
+    ]
+  };
+
+  function buildCovDonut(cook){
+    var outer = document.createElement("div");
+    outer.style.cssText = "display:flex;flex-direction:column;gap:10px;";
+
     var wrap = document.createElement("div");
     wrap.style.cssText = "display:flex;align-items:center;gap:14px;";
     var totalG = Math.max(1, cook.kh.ziel + cook.fett.ziel + cook.protein.ziel);
@@ -2773,17 +2800,56 @@
       '<circle cx="50" cy="50" r="42" stroke="var(--fett)" fill="none" pathLength="100" stroke-dasharray="' + pctF.toFixed(2) + ' ' + (100 - pctF).toFixed(2) + '" stroke-dashoffset="' + (-pctK).toFixed(2) + '"></circle>' +
       '<circle cx="50" cy="50" r="42" stroke="var(--protein)" fill="none" pathLength="100" stroke-dasharray="' + pctP.toFixed(2) + ' ' + (100 - pctP).toFixed(2) + '" stroke-dashoffset="' + (-(pctK + pctF)).toFixed(2) + '"></circle>' +
       '</svg><div class="lbl"><b>' + cook.kcalIst + '</b></div>';
+
     var legend = document.createElement("div");
     legend.className = "cov-legend";
     legend.style.flexDirection = "column";
     legend.style.gap = "4px";
-    legend.innerHTML =
-      '<div class="it"><span class="dot" style="background:var(--kh)"></span>KH ' + cook.kh.ist + ' / ' + cook.kh.ziel + 'g</div>' +
-      '<div class="it"><span class="dot" style="background:var(--fett)"></span>Fett ' + cook.fett.ist + ' / ' + cook.fett.ziel + 'g</div>' +
-      '<div class="it"><span class="dot" style="background:var(--protein)"></span>Protein ' + cook.protein.ist + ' / ' + cook.protein.ziel + 'g</div>';
+
+    var optRow = document.createElement("div");
+    optRow.className = "cov-nutri-opts";
+    optRow.hidden = true;
+    var activeKey = null;
+
+    function showOptsFor(key, itemEl){
+      Array.prototype.forEach.call(legend.children, function(el){ el.classList.remove("active"); });
+      optRow.innerHTML = "";
+      if(activeKey === key){
+        activeKey = null;
+        optRow.hidden = true;
+        return;
+      }
+      activeKey = key;
+      itemEl.classList.add("active");
+      NUTRI_CHAT_OPTS[key].forEach(function(text){
+        var chip = document.createElement("div");
+        chip.className = "cov-chip";
+        chip.style.cssText = "width:100%;box-sizing:border-box;white-space:normal;";
+        chip.textContent = text;
+        chip.addEventListener("click", function(){ fillMainChatInput(text); });
+        optRow.appendChild(chip);
+      });
+      optRow.hidden = false;
+    }
+
+    [
+      ["kh", "KH " + cook.kh.ist + " / " + cook.kh.ziel + "g"],
+      ["fett", "Fett " + cook.fett.ist + " / " + cook.fett.ziel + "g"],
+      ["protein", "Protein " + cook.protein.ist + " / " + cook.protein.ziel + "g"]
+    ].forEach(function(pair){
+      var key = pair[0], label = pair[1];
+      var it = document.createElement("div");
+      it.className = "it";
+      it.innerHTML = '<span class="dot" style="background:var(--' + key + ')"></span>' + label;
+      it.addEventListener("click", function(){ showOptsFor(key, it); });
+      legend.appendChild(it);
+    });
+
     wrap.appendChild(donut);
     wrap.appendChild(legend);
-    return wrap;
+    outer.appendChild(wrap);
+    outer.appendChild(optRow);
+    return outer;
   }
 
   function buildCovExList(exercises){
@@ -2827,7 +2893,7 @@
     cookHead.innerHTML = '<span class="cov-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 2v7a2 2 0 0 0 4 0V2M9 9v13"/><path d="M17 2c-1.6 0-3 1.7-3 4.5S15.4 11 17 11v11"/></svg></span>' +
       '<div class="cov-card-title"><div class="t">Ernährung</div><div class="s">' + (cook.kcalRest > 0 ? "noch " + cook.kcalRest + " kcal offen" : "Tagesziel erreicht") + '</div></div>' +
       '<div class="cov-card-stat">' + cook.kcalIst + '<small> / ' + cook.kcalZiel + '</small></div>';
-    cookHead.addEventListener("click", function(){ askViaChatOverview("Wie sieht mein Tagesbedarf aus?"); });
+    cookHead.addEventListener("click", function(){ fillMainChatInput("Wie sieht mein Tagesbedarf aus?"); });
     cookPage.appendChild(cookHead);
     cookPage.appendChild(buildCovDonut(cook));
     cookPage.appendChild(buildCovChipRow(cook.entries, "meal"));
@@ -2841,7 +2907,7 @@
     gymHead.innerHTML = '<span class="cov-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 7v10M17.5 7v10M4 9.5v5M20 9.5v5M8 12h8"/></svg></span>' +
       '<div class="cov-card-title"><div class="t">Fitness</div><div class="s">Heutiges Training</div></div>' +
       '<div class="cov-card-stat">' + gym.done + '<small> / ' + gym.count + '</small></div>';
-    gymHead.addEventListener("click", function(){ askViaChatOverview("Was steht heute im Training an?"); });
+    gymHead.addEventListener("click", function(){ fillMainChatInput("Was steht heute im Training an?"); });
     gymPage.appendChild(gymHead);
     if(gym.count === 0){
       var gymEmpty = document.createElement("div");
@@ -2909,11 +2975,9 @@
     buildOverviewCardDOM("Home", cook, gym, mixedText);
   }
 
-  // Ein neuer Chat wird erst geöffnet/angelegt, wenn hier wirklich eine
-  // konkrete Frage ausgewählt wurde (Chip-Klick) oder der Nutzer selbst
-  // etwas eintippt — nicht schon durch bloßes Antippen der Übersichtskarte.
-  function askViaChatOverview(text){
-    if(chatBusy || chatOnboarding) return;
+  // Stellt sicher, dass der Hauptchat (VoßBot-Startpunkt) geöffnet ist —
+  // wird von allen Vorschlags-Optionen benutzt, die dort etwas eintragen.
+  function openMainChatConversation(){
     var mc = mainChat();
     if(mc){
       if(state.activeChatId !== mc.id || state.view !== "chatconv") openChatConversation(mc.id);
@@ -2923,6 +2987,37 @@
     } else if(state.view !== "chatconv"){
       openChatConversation(currentChat().id);
     }
+  }
+
+  // Trägt Text in die Nachrichtenzeile des GERADE offenen Chats ein, ohne
+  // zu senden — mehrere angeklickte Optionen stapeln sich dort, bis der
+  // Nutzer selbst manuell absendet oder noch was dazutippt.
+  function fillChatInputOnly(text){
+    var input = document.getElementById("chatInput");
+    if(!input) return;
+    var existing = input.value.trim();
+    input.value = existing ? (existing + " + " + text) : text;
+    input.style.height = "auto";
+    input.style.height = Math.min(110, input.scrollHeight) + "px";
+    input.focus();
+  }
+
+  // Wie fillChatInputOnly, wechselt aber vorher in den Hauptchat (falls
+  // man z.B. gerade auf der Startseite/Chatliste ist).
+  function fillMainChatInput(text){
+    if(chatBusy || chatOnboarding) return;
+    openMainChatConversation();
+    fillChatInputOnly(text);
+  }
+
+  // Ein neuer Chat wird erst geöffnet/angelegt, wenn hier wirklich eine
+  // konkrete Frage ausgewählt wurde (Chip-Klick) oder der Nutzer selbst
+  // etwas eintippt — nicht schon durch bloßes Antippen der Übersichtskarte.
+  // Wird für Aktionen benutzt, die schon ein bewusstes "Absenden" sind
+  // (z.B. der Bestätigen-Button nach einer Kombi-Auswahl).
+  function askViaChatOverview(text){
+    if(chatBusy || chatOnboarding) return;
+    openMainChatConversation();
     var input = document.getElementById("chatInput");
     input.value = text;
     sendChatMessage();
@@ -2994,7 +3089,7 @@
           }
         } else {
           b.textContent = msg.text;
-          if(msg.suggestChips && msg.suggestChips.length && !msg.suggestUsed){
+          if(msg.suggestChips && msg.suggestChips.length){
             var swrap = document.createElement("div");
             swrap.className = "cac-choices cac-choices-suggest";
             msg.suggestChips.forEach(function(ct){
@@ -3002,13 +3097,10 @@
               sb.type = "button";
               sb.className = "cac-choice-btn";
               sb.textContent = ct;
-              sb.addEventListener("click", function(){
-                if(msg.suggestUsed || chatBusy) return;
-                msg.suggestUsed = true;
-                var input = document.getElementById("chatInput");
-                input.value = ct;
-                sendChatMessage();
-              });
+              // Nur eintragen, nicht senden — mehrfach angeklickte Optionen
+              // stapeln sich in der Nachrichtenzeile, abgeschickt wird erst
+              // manuell.
+              sb.addEventListener("click", function(){ fillChatInputOnly(ct); });
               swrap.appendChild(sb);
             });
             b.appendChild(swrap);
