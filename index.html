@@ -57,9 +57,9 @@
   .topbar h1{ font-family: var(--display); font-weight: 600; font-size: 21px; letter-spacing: .2px; margin: 0; color: var(--text); text-shadow: var(--glow-text); }
   .topbar .sub{ font-size: 12px; color: var(--text-dim); margin-top: 2px; }
   .iconbtn{ width: 34px; height: 34px; border-radius: 10px; background: #000; border: 1px solid var(--turquoise); display: grid; place-items: center; color: var(--turquoise); cursor: pointer; flex-shrink: 0; font-size: 16px; box-shadow: var(--glow-border); }
-  .sync-icon{ width: 38px; height: 38px; border-radius: 50%; background: #000; display: grid; place-items: center; flex-shrink: 0; cursor: pointer; font-size: 18px; font-weight: 700; user-select: none; transition: transform .12s; border: 1.5px solid var(--ok, #1a9d5c); color: var(--ok, #1a9d5c); box-shadow: 0 0 10px rgba(18,203,238,.18); }
-  .sync-icon:active{ transform: scale(.9); }
+  .sync-icon{ width: 30px; height: 30px; border-radius: 50%; background: #000; display: grid; place-items: center; flex-shrink: 0; cursor: default; font-size: 14px; font-weight: 700; user-select: none; border: 1.5px solid var(--ok, #1a9d5c); color: var(--ok, #1a9d5c); box-shadow: 0 0 10px rgba(18,203,238,.18); }
   .sync-icon.spin{ animation: sync-spin 1s linear infinite; }
+  .ghost-btn.sync-now-btn{ padding: 6px 10px; font-size: 12px; white-space: nowrap; box-shadow: none; }
   @keyframes sync-spin{ from{ transform: rotate(0deg); } to{ transform: rotate(360deg); } }
 
   main{ flex: 1; padding: 4px 18px 104px; display: flex; flex-direction: column; gap: 20px; }
@@ -600,7 +600,8 @@
                 <div style="flex:1;min-width:0">
                   <div id="authName" style="font-weight:600;font-size:14px"></div>
                 </div>
-                <div id="syncIcon" class="sync-icon" title="Tippen zum Synchronisieren">✓</div>
+                <button class="ghost-btn sync-now-btn" id="syncNowBtn" title="Jetzt synchronisieren">🔄 Sync</button>
+                <div id="syncIcon" class="sync-icon" title="Sync-Status">✓</div>
                 <button class="ghost-btn" id="googleSignOutBtn">Abmelden</button>
               </div>
             </div>
@@ -614,9 +615,11 @@
             </div>
             <div style="display:flex;gap:8px;margin-top:6px">
               <button class="primary-btn" id="newProfileBtn" style="flex:1">+ Neues Profil</button>
-              <button class="ghost-btn" id="importProfileBtn" style="flex:1">⬆ Datei importieren</button>
+              <button class="ghost-btn" id="importProfileBtn" title="Datei importieren" style="width:46px;padding:0;font-size:16px">📥</button>
+              <button class="ghost-btn" id="exportProfileBtn" title="Exportieren" style="width:46px;padding:0;font-size:16px">📤</button>
             </div>
-            <p class="hint" style="margin-top:2px">⬇ = als Datei sichern (lokal). Angemeldet: automatischer Cloud-Sync.</p>
+            <div id="exportPicker" hidden style="margin-top:8px"></div>
+            <p class="hint" style="margin-top:2px">Angemeldet: automatischer Cloud-Sync im Hintergrund.</p>
             <input type="file" id="importFileInput" accept="application/json" hidden>
             <div id="exportFallback"></div>
           </section>
@@ -919,7 +922,7 @@
     if(el){ el.textContent = text; el.style.color = isError ? "var(--warn)" : ""; }
     var icon = document.getElementById("syncIcon");
     if(icon){
-      icon.title = text + " · Tippen zum Synchronisieren";
+      icon.title = text;
       var color = isError ? "var(--warn, #ff5c5c)" : (isPending ? "#e8c547" : "var(--ok, #1a9d5c)");
       icon.style.color = color;
       icon.style.borderColor = color;
@@ -3056,11 +3059,6 @@
         actions.appendChild(selBtn);
       }
 
-      var dlBtn = document.createElement("div");
-      dlBtn.className = "iconbtn"; dlBtn.textContent = "⬇"; dlBtn.title = "Herunterladen";
-      dlBtn.addEventListener("click", function(){ exportProfile(p); });
-      actions.appendChild(dlBtn);
-
       var renameBtn = document.createElement("div");
       renameBtn.className = "iconbtn"; renameBtn.textContent = "✎"; renameBtn.title = "Umbenennen";
       renameBtn.addEventListener("click", function(){
@@ -3075,15 +3073,6 @@
       actions.appendChild(renameBtn);
 
       if(fbUser){
-        var cloudUpBtn = document.createElement("div");
-        cloudUpBtn.className = "iconbtn"; cloudUpBtn.textContent = "☁⬆"; cloudUpBtn.title = "In Cloud sichern";
-        cloudUpBtn.style.fontSize = "10px";
-        cloudUpBtn.addEventListener("click", function(){
-          cloudUpBtn.textContent = "…";
-          pushProfileToCloud(id, function(ok){ cloudUpBtn.textContent = ok ? "✓" : "✕"; setTimeout(function(){ cloudUpBtn.textContent = "☁⬆"; }, 2000); });
-        });
-        actions.appendChild(cloudUpBtn);
-
         // Angemeldete Nutzer haben nur diesen einen Löschbutton — er räumt Cloud UND
         // lokalen Stand in einem Schritt auf (kein separater "lokaler" Löschbutton).
         var cloudDelBtn = document.createElement("div");
@@ -3547,6 +3536,36 @@
       e.target.value = "";
     });
 
+    // Export: erst das Profil auswählen (lokales aktives + alle Cloud-Profile),
+    // dann als Datei herunterladen — nur EIN globaler Button statt eines pro Karte.
+    document.getElementById("exportProfileBtn").addEventListener("click", function(){
+      var picker = document.getElementById("exportPicker");
+      var candidates = {};
+      if(state.activeProfileId && state.profiles[state.activeProfileId]) candidates[state.activeProfileId] = state.profiles[state.activeProfileId];
+      if(fbUser && cloudProfileIndex){
+        Object.keys(cloudProfileIndex).forEach(function(cid){ if(!candidates[cid]) candidates[cid] = cloudProfileIndex[cid]; });
+      }
+      var ids = Object.keys(candidates);
+      if(ids.length <= 1){
+        picker.hidden = true; picker.innerHTML = "";
+        if(ids.length === 1) exportProfile(candidates[ids[0]]);
+        return;
+      }
+      picker.hidden = false;
+      picker.innerHTML = '<p class="hint" style="margin:0 0 6px">Welches Profil exportieren?</p>';
+      ids.forEach(function(cid){
+        var b = document.createElement("button");
+        b.className = "ghost-btn";
+        b.style.cssText = "display:block;width:100%;text-align:left;margin-bottom:6px";
+        b.textContent = candidates[cid].name || "Profil";
+        b.addEventListener("click", function(){
+          exportProfile(candidates[cid]);
+          picker.hidden = true; picker.innerHTML = "";
+        });
+        picker.appendChild(b);
+      });
+    });
+
     document.getElementById("dayPrev").addEventListener("click", function(){ state.selectedDate = addDays(state.selectedDate,-7); renderHome(); });
     document.getElementById("dayNext").addEventListener("click", function(){ state.selectedDate = addDays(state.selectedDate,7); renderHome(); });
     document.getElementById("dayExpand").addEventListener("click", openMonthCal);
@@ -3555,8 +3574,8 @@
     document.getElementById("chatSendBtn").addEventListener("click", sendChatMessage);
     var gsi = document.getElementById("googleSignInBtn"); if(gsi) gsi.addEventListener("click", signInGoogle);
     var gso = document.getElementById("googleSignOutBtn"); if(gso) gso.addEventListener("click", signOutGoogle);
-    var syncIconBtn = document.getElementById("syncIcon");
-    if(syncIconBtn) syncIconBtn.addEventListener("click", function(){ manualSyncNow(); });
+    var syncNowBtn = document.getElementById("syncNowBtn");
+    if(syncNowBtn) syncNowBtn.addEventListener("click", function(){ manualSyncNow(); });
 
 
     updateAuthUI();
