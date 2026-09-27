@@ -1820,9 +1820,45 @@
         });
         return;
       }
-      runLocalChat(systemInstruction, contextBlock, text, pendingBubble, finishOk, finishError);
+      runProxyChat(systemInstruction, contextBlock, text, pendingBubble, finishOk, function(){
+        runLocalChat(systemInstruction, contextBlock, text, pendingBubble, finishOk, finishError);
+      });
     }).catch(function(){
-      runLocalChat(systemInstruction, contextBlock, text, pendingBubble, finishOk, finishError);
+      runProxyChat(systemInstruction, contextBlock, text, pendingBubble, finishOk, function(){
+        runLocalChat(systemInstruction, contextBlock, text, pendingBubble, finishOk, finishError);
+      });
+    });
+  }
+
+  // ---------- Öffentlicher Fallback: kostenloser Gemini-Proxy (Cloudflare Worker) ----------
+  // Läuft für JEDEN Besucher der öffentlichen Seite ohne eigenen Key — der Worker
+  // hält den Gemini-Key serverseitig versteckt. Wird genutzt, wenn diese Seite nicht
+  // als Claude-Artifact läuft (dort greift oben schon die kostenlose sample()-Fähigkeit)
+  // und kein eigener OpenAI-Key eingetragen ist. Schlägt der Proxy fehl (z.B. nicht
+  // erreichbar, Gratis-Kontingent von Gemini aufgebraucht), fällt onFail auf das lokale
+  // Browser-Modell zurück.
+  var AI_PROXY_URL = "https://vossfitvitality.nico-voss01.workers.dev/";
+
+  function runProxyChat(systemInstruction, contextBlock, text, pendingBubble, finishOk, onFail){
+    pendingBubble.className = "chat-bubble pending";
+    pendingBubble.textContent = "…";
+    fetch(AI_PROXY_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        system: systemInstruction + "\n\n" + NUTRITION_KNOWLEDGE,
+        message: contextBlock + "\n\nNutzer: " + text
+      })
+    }).then(function(res){
+      return res.json().catch(function(){ return null; }).then(function(data){
+        if(!res.ok || !data || data.error){ throw new Error((data && data.error) || ("HTTP " + res.status)); }
+        return data;
+      });
+    }).then(function(data){
+      finishOk(data.text || "…");
+    }).catch(function(err){
+      console.warn("Gemini-Proxy fehlgeschlagen, weiche auf lokales Modell aus:", err);
+      onFail();
     });
   }
 
