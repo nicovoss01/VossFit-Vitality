@@ -328,11 +328,14 @@
      Sprechblase (chatFab) erreichbar, ohne den aktuell offenen Tab zu
      verlassen. Nutzt dieselbe #tab-chat-Instanz wie der VoßBot-Reiter — der
      Chatverlauf bleibt also exakt derselbe, nur schwebend dargestellt. */
+  /* Klein und oben links, direkt an der unteren rechten Ecke des
+     App-Icons in der Topbar — "in der Nähe des oberen Seiten-Icons",
+     klein aber noch gut antippbar. */
   .chat-fab{
-    position: fixed; right: 16px; bottom: calc(78px + env(safe-area-inset-bottom, 0px));
-    width: 54px; height: 54px; border-radius: 50%; background: var(--turquoise);
-    color: #000; display: grid; place-items: center; font-size: 23px;
-    box-shadow: 0 6px 20px rgba(0,0,0,.55); z-index: 40; cursor: pointer;
+    position: fixed; left: 44px; top: calc(42px + env(safe-area-inset-top, 0px));
+    width: 32px; height: 32px; border-radius: 50%; background: var(--turquoise);
+    border: 2px solid #000; color: #000; display: grid; place-items: center;
+    font-size: 15px; box-shadow: 0 4px 14px rgba(0,0,0,.55); z-index: 45; cursor: pointer;
   }
   .chat-fab-backdrop{ position: fixed; inset: 0; background: rgba(0,0,0,.65); z-index: 59; }
   .chat-float-header{
