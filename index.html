@@ -4,7 +4,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>VossFit Ernährung</title>
-<!-- build: force-redeploy -->
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap');
 
@@ -700,8 +699,7 @@
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/firebase@10.14.1/firebase-app-compat.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/firebase@10.14.1/firebase-auth-compat.js"></script><script>
+<script>
   window.addEventListener("error", function(e){
     if(e && e.target && e.target.tagName === "SCRIPT"){
       console.error("Script konnte nicht geladen werden:", e.target.src);
@@ -715,34 +713,43 @@
   var LS_KEY = "vossfit_prototype_v6";
 
   // ================= FIREBASE (Google-Login + Cloud-Sync) =================
-  var fbApp = null, fbAuth = null, fbDb = null, fbUser = null, fsApi = null;
+  // Wir laden ausschließlich das moderne MODULARE SDK (kein *-compat Bundle mehr).
+  // Grund: Firestore läuft über eine BENANNTE Datenbank ("vossfitvitality", nicht
+  // "(default)"), die nur das modulare SDK zuverlässig ansprechen kann. Compat-App
+  // + modulares Firestore gemischt ergab "Service firestore is not available", weil
+  // beide SDK-Bundles ihre eigene, inkompatible interne Registry für die App-Instanz
+  // führen — jetzt kommen App, Auth und Firestore aus demselben modularen Bundle.
+  var fbApp = null, fbAuth = null, fbDb = null, fbUser = null, fsApi = null, authApi = null;
   var cloudSaveTimer = null;
-  try{
-    if(window.firebase){
-      fbApp = firebase.initializeApp({
-        apiKey: "AIzaSyC5NcHUMPawsIf8dZE4EUOrkZooqziCVKY",
-        authDomain: "vossfit-vitality.firebaseapp.com",
-        projectId: "vossfit-vitality",
-        storageBucket: "vossfit-vitality.firebasestorage.app",
-        messagingSenderId: "939253982636",
-        appId: "1:939253982636:web:e22370002c8eb9b2934609"
-      });
-      fbAuth = firebase.auth();
-    }
-  }catch(e){ console.warn("Firebase init fehlgeschlagen:", e); }
-
-  // Firestore läuft über eine benannte Datenbank ("vossfitvitality", nicht "(default)"),
-  // das unterstützt nur das moderne modulare SDK zuverlässig — daher separater dynamischer Import.
   var fsLoadError = null;
-  var fbDbReady = fbApp ? import(/* webpackIgnore: true */ "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js").then(function(mod){
-    fsApi = mod;
-    fbDb = mod.getFirestore(fbApp, "vossfitvitality");
-    return fbDb;
+
+  var FB_BASE = "https://www.gstatic.com/firebasejs/10.14.1/";
+  var fbReady = Promise.all([
+    import(/* webpackIgnore: true */ FB_BASE + "firebase-app.js"),
+    import(/* webpackIgnore: true */ FB_BASE + "firebase-auth.js"),
+    import(/* webpackIgnore: true */ FB_BASE + "firebase-firestore.js")
+  ]).then(function(mods){
+    var appApi = mods[0];
+    authApi = mods[1];
+    fsApi = mods[2];
+    fbApp = appApi.initializeApp({
+      apiKey: "AIzaSyC5NcHUMPawsIf8dZE4EUOrkZooqziCVKY",
+      authDomain: "vossfit-vitality.firebaseapp.com",
+      projectId: "vossfit-vitality",
+      storageBucket: "vossfit-vitality.firebasestorage.app",
+      messagingSenderId: "939253982636",
+      appId: "1:939253982636:web:e22370002c8eb9b2934609"
+    });
+    fbAuth = authApi.getAuth(fbApp);
+    fbDb = fsApi.getFirestore(fbApp, "vossfitvitality");
+    return { app: fbApp, auth: fbAuth, db: fbDb };
   }).catch(function(e){
     fsLoadError = (e && e.message) ? e.message : String(e);
-    console.warn("Firestore-Modul konnte nicht geladen werden:", e);
+    console.warn("Firebase-Module konnten nicht geladen werden:", e);
     return null;
-  }) : Promise.resolve(null);
+  });
+
+  var fbDbReady = fbReady.then(function(r){ return r ? r.db : null; });
 
   function updateAuthUI(){
     var out = document.getElementById("authSignedOut");
@@ -773,11 +780,14 @@
     });
   }
 
-  if(window.firebase && fbAuth){
-    setDiagStatus("Firebase geladen ✓");
-  } else {
-    setDiagStatus("Firebase konnte nicht geladen werden (Skript blockiert oder kein Internet).", true);
-  }
+  setDiagStatus("Firebase wird geladen…");
+  fbReady.then(function(r){
+    if(r && r.auth){
+      setDiagStatus("Firebase geladen ✓");
+    } else {
+      setDiagStatus("Firebase konnte nicht geladen werden" + (fsLoadError ? (": " + fsLoadError) : " (Skript blockiert oder kein Internet)") + ".", true);
+    }
+  });
 
   function loadCloudState(uid){
     setSyncStatus("Lade Cloud-Daten…");
@@ -856,55 +866,63 @@
   try{ if(sessionStorage.getItem("vf_just_signed_in") === "1"){ justSignedIn = true; sessionStorage.removeItem("vf_just_signed_in"); } }catch(e){}
 
   function signInGoogle(){
-    if(!fbAuth){
-      setDiagStatus("Google-Anmeldung nicht verfügbar (Firebase konnte nicht geladen werden — Internetverbindung prüfen oder Seite neu laden).", true);
-      return;
-    }
-    justSignedIn = true;
-    setDiagStatus("Anmeldung wird geöffnet…");
-    var provider = new firebase.auth.GoogleAuthProvider();
-    fbAuth.signInWithPopup(provider).then(function(){
-      setDiagStatus("Angemeldet ✓");
-    }).catch(function(err){
-      justSignedIn = false;
-      var code = err && err.code;
-      if(code === "auth/popup-blocked"){
-        setDiagStatus("Popup wurde blockiert — versuche es über die andere Anmeldemethode (siehe unten) oder erlaube Popups für diese Seite.", true);
-        signInGoogleRedirect();
-      } else {
-        setDiagStatus("Anmeldung fehlgeschlagen: " + (code || (err && err.message) || "Unbekannter Fehler"), true);
+    fbReady.then(function(r){
+      if(!r || !fbAuth || !authApi){
+        setDiagStatus("Google-Anmeldung nicht verfügbar (Firebase konnte nicht geladen werden" + (fsLoadError ? (": " + fsLoadError) : " — Internetverbindung prüfen oder Seite neu laden") + ").", true);
+        return;
       }
+      justSignedIn = true;
+      setDiagStatus("Anmeldung wird geöffnet…");
+      var provider = new authApi.GoogleAuthProvider();
+      authApi.signInWithPopup(fbAuth, provider).then(function(){
+        setDiagStatus("Angemeldet ✓");
+      }).catch(function(err){
+        justSignedIn = false;
+        var code = err && err.code;
+        if(code === "auth/popup-blocked"){
+          setDiagStatus("Popup wurde blockiert — versuche es über die andere Anmeldemethode (siehe unten) oder erlaube Popups für diese Seite.", true);
+          signInGoogleRedirect();
+        } else {
+          setDiagStatus("Anmeldung fehlgeschlagen: " + (code || (err && err.message) || "Unbekannter Fehler"), true);
+        }
+      });
     });
   }
 
   function signInGoogleRedirect(){
-    if(!fbAuth) return;
-    try{ sessionStorage.setItem("vf_just_signed_in", "1"); }catch(e){}
-    var provider = new firebase.auth.GoogleAuthProvider();
-    fbAuth.signInWithRedirect(provider).catch(function(err){
-      try{ sessionStorage.removeItem("vf_just_signed_in"); }catch(e){}
-      setDiagStatus("Anmeldung fehlgeschlagen: " + ((err && err.code) || (err && err.message) || "Unbekannter Fehler"), true);
+    fbReady.then(function(r){
+      if(!r || !fbAuth || !authApi) return;
+      try{ sessionStorage.setItem("vf_just_signed_in", "1"); }catch(e){}
+      var provider = new authApi.GoogleAuthProvider();
+      authApi.signInWithRedirect(fbAuth, provider).catch(function(err){
+        try{ sessionStorage.removeItem("vf_just_signed_in"); }catch(e){}
+        setDiagStatus("Anmeldung fehlgeschlagen: " + ((err && err.code) || (err && err.message) || "Unbekannter Fehler"), true);
+      });
     });
   }
 
   function signOutGoogle(){
-    if(!fbAuth) return;
-    fbAuth.signOut();
-  }
-
-  if(fbAuth){
-    fbAuth.onAuthStateChanged(function(user){
-      fbUser = user;
-      updateAuthUI();
-      if(user && justSignedIn){
-        justSignedIn = false;
-        loadCloudState(user.uid);
-      } else if(user){
-        setSyncStatus("Angemeldet — Änderungen werden synchronisiert.");
-        finishOnboardingIfWaiting();
-      }
+    fbReady.then(function(r){
+      if(!r || !fbAuth || !authApi) return;
+      authApi.signOut(fbAuth);
     });
   }
+
+  fbReady.then(function(r){
+    if(r && r.auth && authApi){
+      authApi.onAuthStateChanged(fbAuth, function(user){
+        fbUser = user;
+        updateAuthUI();
+        if(user && justSignedIn){
+          justSignedIn = false;
+          loadCloudState(user.uid);
+        } else if(user){
+          setSyncStatus("Angemeldet — Änderungen werden synchronisiert.");
+          finishOnboardingIfWaiting();
+        }
+      });
+    }
+  });
 
   function makeLists(raw){
     return raw.map(function(entry, li){
