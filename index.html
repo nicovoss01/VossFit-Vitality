@@ -328,38 +328,47 @@
      Sprechblase (chatFab) erreichbar, ohne den aktuell offenen Tab zu
      verlassen. Nutzt dieselbe #tab-chat-Instanz wie der VoßBot-Reiter — der
      Chatverlauf bleibt also exakt derselbe, nur schwebend dargestellt. */
-  /* Klein und oben links, direkt an der unteren rechten Ecke des
-     App-Icons in der Topbar — "in der Nähe des oberen Seiten-Icons",
-     klein aber noch gut antippbar. */
+  /* Klein, etwas unterhalb + links vom App-Icon, statt es zu überdecken —
+     das Icon selbst soll gut sichtbar bleiben. */
   .chat-fab{
-    position: fixed; left: 44px; top: calc(42px + env(safe-area-inset-top, 0px));
-    width: 32px; height: 32px; border-radius: 50%; background: var(--turquoise);
+    position: fixed; left: 30px; top: calc(58px + env(safe-area-inset-top, 0px));
+    width: 24px; height: 24px; border-radius: 50%; background: var(--turquoise);
     border: 2px solid #000; color: #000; display: grid; place-items: center;
-    font-size: 15px; box-shadow: 0 4px 14px rgba(0,0,0,.55); z-index: 45; cursor: pointer;
+    font-size: 11px; box-shadow: 0 4px 14px rgba(0,0,0,.55); z-index: 45; cursor: pointer;
   }
   .chat-fab-backdrop{ position: fixed; inset: 0; background: rgba(0,0,0,.65); z-index: 59; }
   .chat-float-header{
     display: flex; align-items: center; justify-content: space-between;
-    padding: 12px 14px; border-bottom: 1px solid var(--border);
-    font-family: var(--display); font-weight: 600; font-size: 14px; flex-shrink: 0;
+    padding: 9px 11px; border-bottom: 1px solid var(--border);
+    font-family: var(--display); font-weight: 600; font-size: 12.5px; flex-shrink: 0;
   }
-  .chat-float-close{ cursor: pointer; font-size: 15px; color: var(--text-dim); padding: 4px 10px; }
+  .chat-float-close{ cursor: pointer; font-size: 12.5px; color: var(--text-dim); padding: 3px 8px; }
+  /* Nur ein kleines, stark minimiertes Fenster — ca. ein Viertel der
+     Bildschirmfläche, nicht fast der ganze Bildschirm — poppt direkt
+     unterhalb der Sprechblase auf, wie ein echtes Floating-Window. */
   #tab-chat.chat-float-mode{
-    position: fixed; z-index: 60; left: 50%; top: 8vh; transform: translateX(-50%);
-    width: min(92vw, 440px); height: min(78vh, 640px);
-    background: #050505; border: 1px solid var(--turquoise); border-radius: 20px;
+    position: fixed; z-index: 60; left: 10px; top: calc(88px + env(safe-area-inset-top, 0px));
+    width: min(52vw, 250px); height: min(46vh, 380px);
+    background: #050505; border: 1px solid var(--turquoise); border-radius: 16px;
     overflow: hidden; display: flex; flex-direction: column;
     box-shadow: 0 20px 60px rgba(0,0,0,.6);
   }
   #tab-chat.chat-float-mode .chat-wrap{
     position: relative; flex: 1; min-height: 0; overflow-y: auto;
-    padding-bottom: 70px !important;
+    padding-bottom: 52px !important;
   }
   #tab-chat.chat-float-mode #chatInputRow{
     position: absolute !important; left: 0 !important; right: 0 !important;
     bottom: 0 !important; transform: none !important; width: 100% !important;
-    max-width: none !important;
+    max-width: none !important; padding: 7px 8px calc(9px + env(safe-area-inset-bottom, 0px)) !important;
+    gap: 5px !important;
   }
+  #tab-chat.chat-float-mode #chatInputRow .chat-sendbtn,
+  #tab-chat.chat-float-mode #chatInputRow .chat-listbtn{
+    width: 32px !important; height: 32px !important; font-size: 13px !important;
+  }
+  #tab-chat.chat-float-mode #chatInputRow textarea{ font-size: 12.5px !important; padding: 7px 9px !important; }
+  #tab-chat.chat-float-mode .chat-hint{ font-size: 9.5px; padding: 1px 4px 4px; }
 
   /* ---------- Shared form bits ---------- */
   .field{ display: flex; flex-direction: column; gap: 6px; }
