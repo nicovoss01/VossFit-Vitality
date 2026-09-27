@@ -319,10 +319,10 @@
   .chat-sendbtn{ width: 44px; height: 44px; border-radius: 50%; background: var(--turquoise); color: #000; display: grid; place-items: center; font-size: 18px; cursor: pointer; flex-shrink: 0; }
   .chat-sendbtn.disabled{ opacity: .4; pointer-events: none; }
   .chat-listbtn{ width: 44px; height: 44px; border-radius: 50%; background: #000; border: 1px solid var(--turquoise); color: var(--turquoise); display: grid; place-items: center; font-size: 17px; cursor: pointer; flex-shrink: 0; }
-  /* Wird zum Zwilling des Senden-Buttons, sobald im Eingabefeld Text steht
-     (dann sendet er genauso wie der rechte Button, statt "Alle Chats" zu
-     öffnen). */
-  .chat-listbtn.sendmode{ background: var(--turquoise); border-color: var(--turquoise); color: #000; }
+  /* Menü links vom Eingabefeld: klappt statt einer Direktaktion ein kleines
+     Auswahlmenü ("Reiter") auf — poppt nach OBEN auf, da der Button unten
+     am Bildschirmrand sitzt. */
+  .chat-left-dropdown{ top: auto; right: auto; bottom: 100%; left: 18px; margin-top: 0; margin-bottom: 8px; }
 
   /* VoßBot als schwebendes Fenster: von überall in der App über die
      Sprechblase (chatFab) erreichbar, ohne den aktuell offenen Tab zu
@@ -1093,7 +1093,11 @@
           <div class="chat-messages" id="chatMessages"></div>
           <p class="chat-hint">VoßBot redet locker mit dir, ersetzt aber keinen Arzt &amp; keine medizinische Beratung.</p>
           <div class="chat-inputrow" id="chatInputRow">
-            <div class="chat-listbtn" id="chatAllChatsBtn" title="Alle Chats">☰</div>
+            <div class="chat-listbtn" id="chatAllChatsBtn" title="Chat-Optionen">☰</div>
+            <div class="chat-menu-dropdown chat-left-dropdown" id="chatLeftDropdown" hidden>
+              <button type="button" id="chatLeftAllChatsBtn">Alle Chats</button>
+              <button type="button" id="chatLeftNewMainBtn">Neuen Hauptchat starten</button>
+            </div>
             <textarea id="chatInput" rows="1" placeholder="Schreib VoßBot einfach, was los ist…"></textarea>
             <div class="chat-sendbtn" id="chatSendBtn">➤</div>
           </div>
@@ -3239,20 +3243,22 @@
     var tabbarH = (tabbar && !tabbar.hidden) ? tabbar.offsetHeight : 0;
     if(row) row.style.bottom = tabbarH + "px";
     if(wrap) wrap.style.paddingBottom = (tabbarH + 150) + "px";
-    updateChatAllChatsBtnMode();
   }
 
-  // Der Button links vom Eingabefeld ist ein Zwilling des Senden-Buttons:
-  // Bei leerem Feld öffnet er "Alle Chats" (Icon ☰), sobald Text im Feld
-  // steht, wird er optisch + funktional zu einem zweiten Senden-Pfeil.
-  function updateChatAllChatsBtnMode(){
-    var btn = document.getElementById("chatAllChatsBtn");
-    var input = document.getElementById("chatInput");
-    if(!btn || !input) return;
-    var hasText = !!input.value.trim();
-    btn.textContent = hasText ? "➤" : "☰";
-    btn.title = hasText ? "Senden" : "Alle Chats";
-    btn.classList.toggle("sendmode", hasText);
+  // Startet einen komplett neuen Hauptchat: der bisherige Hauptchat verliert
+  // seinen isMain-Status und taucht dadurch sofort ganz normal in "Alle
+  // Chats" auf (mit seinem kompletten Verlauf), während der neue Chat ab
+  // jetzt der feste Startpunkt auf dem VoßBot-Reiter ist.
+  function startNewMainChat(){
+    var oldMain = mainChat();
+    if(oldMain) oldMain.isMain = false;
+    var id = createNewChat("VoßBot");
+    state.chats[id].isMain = true;
+    var welcome = randomChatWelcome();
+    state.chats[id].messages.push({ role: "assistant", text: welcome.text, suggestChips: welcome.chips });
+    state.activeChatId = id;
+    save();
+    showTab("chat");
   }
 
   function openMainChatConversation(){
@@ -3735,7 +3741,6 @@
     }
     input.value = "";
     input.style.height = "auto";
-    updateChatAllChatsBtnMode();
 
     var chat = currentChat();
     if(!chat){ createNewChat(); chat = currentChat(); }
@@ -5252,6 +5257,8 @@
     document.getElementById("tab-chat").classList.remove("chat-float-mode");
     document.getElementById("chatFloatHeader").hidden = true;
     document.getElementById("chatFabBackdrop").hidden = true;
+    var leftDd = document.getElementById("chatLeftDropdown");
+    if(leftDd) leftDd.hidden = true;
     state.activeTab = tab;
     state.view = "home";
     setTopbar("home");
@@ -5456,14 +5463,27 @@
       openChatConversation(id);
     });
     document.getElementById("chatSendBtn").addEventListener("click", sendChatMessage);
-    // Button links vom Eingabefeld (gegenüber vom Senden-Button) — löst
-    // NIE einen neuen Chat aus: bei leerem Feld öffnet er "Alle Chats",
-    // bei gefülltem Feld sendet er genau wie der rechte Pfeil (und sieht
-    // dann auch wie er aus — siehe updateChatAllChatsBtnMode).
-    document.getElementById("chatAllChatsBtn").addEventListener("click", function(){
-      var text = document.getElementById("chatInput").value.trim();
-      if(text){ sendChatMessage(); return; }
+    // Button links vom Eingabefeld (gegenüber vom Senden-Button) klappt ein
+    // kleines Auswahlmenü auf ("Alle Chats" / "Neuen Hauptchat starten"),
+    // statt selbst zu senden oder direkt zu navigieren.
+    document.getElementById("chatAllChatsBtn").addEventListener("click", function(e){
+      e.stopPropagation();
+      var dd = document.getElementById("chatLeftDropdown");
+      dd.hidden = !dd.hidden;
+    });
+    document.addEventListener("click", function(e){
+      var dd = document.getElementById("chatLeftDropdown");
+      if(!dd || dd.hidden) return;
+      if(e.target.id === "chatAllChatsBtn" || dd.contains(e.target)) return;
+      dd.hidden = true;
+    });
+    document.getElementById("chatLeftAllChatsBtn").addEventListener("click", function(){
+      document.getElementById("chatLeftDropdown").hidden = true;
       openChatListScreen();
+    });
+    document.getElementById("chatLeftNewMainBtn").addEventListener("click", function(){
+      document.getElementById("chatLeftDropdown").hidden = true;
+      startNewMainChat();
     });
     document.getElementById("chatFab").addEventListener("click", openFloatingChat);
     document.getElementById("chatFloatCloseBtn").addEventListener("click", closeFloatingChat);
