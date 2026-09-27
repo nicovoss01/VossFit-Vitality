@@ -295,6 +295,14 @@
     <div class="progress-dots" id="wizDots"></div>
 
     <div class="wizard-step" id="wstep-0">
+      <div style="display:flex;flex-direction:column;gap:14px;align-items:stretch">
+        <button class="primary-btn" id="wizGoogleSignInBtn" style="width:100%">Mit Google anmelden</button>
+        <p class="hint" style="margin:0">Deine Daten werden dann zusätzlich in der Cloud gespeichert — verfügbar auf jedem Gerät, auf dem du dich mit demselben Google-Konto anmeldest. Du kannst das auch später noch in den Einstellungen nachholen.</p>
+        <p class="hint" id="wizAuthStatus" style="margin:0"></p>
+      </div>
+    </div>
+
+    <div class="wizard-step" id="wstep-1" hidden>
       <div class="field"><label for="w-name">Name des Datensatzes</label><input type="text" id="w-name" placeholder="z.B. Nico – Aufbau"></div>
       <div>
         <div class="step-label">Geschlecht <span>beeinflusst deinen Kalorienbedarf</span></div>
@@ -302,7 +310,7 @@
       </div>
     </div>
 
-    <div class="wizard-step" id="wstep-1" hidden>
+    <div class="wizard-step" id="wstep-2" hidden>
       <div class="field-row">
         <div class="field"><label for="w-age">Alter (Jahre)</label><input type="number" id="w-age" inputmode="numeric"></div>
         <div class="field"><label for="w-height">Größe (cm)</label><input type="number" id="w-height" inputmode="numeric"></div>
@@ -311,24 +319,24 @@
       <p class="hint">Alter &amp; Größe fließen aktuell noch nicht in die Berechnung ein — wir fragen sie nur schon mal mit ab.</p>
     </div>
 
-    <div class="wizard-step" id="wstep-2" hidden>
+    <div class="wizard-step" id="wstep-3" hidden>
       <div class="step-label">Körperfettanteil</div>
       <div class="kfa-grid" id="w-kfaChips"></div>
       <div class="field"><label for="w-zielgewicht">Zielgewicht (kg)</label><input type="number" id="w-zielgewicht" inputmode="decimal"></div>
       <p class="hint">Wird aus deinem Körperfettanteil vorgeschlagen — du kannst ihn hier direkt anpassen.</p>
     </div>
 
-    <div class="wizard-step" id="wstep-3" hidden>
+    <div class="wizard-step" id="wstep-4" hidden>
       <div class="step-label">Tagesbetätigung</div>
       <div class="option-list" id="w-palChips"></div>
     </div>
 
-    <div class="wizard-step" id="wstep-4" hidden>
+    <div class="wizard-step" id="wstep-5" hidden>
       <div class="step-label">Ziel <span>Protein-Faktor</span></div>
       <div class="option-list" id="w-zielChips"></div>
     </div>
 
-    <div class="wizard-step" id="wstep-5" hidden>
+    <div class="wizard-step" id="wstep-6" hidden>
       <div class="step-label">Mahlzeiten pro Tag</div>
       <div class="stepper">
         <button type="button" id="w-countMinus">–</button>
@@ -744,10 +752,11 @@
   }
 
   function setDiagStatus(text, isError){
-    var el = document.getElementById("authDiagStatus");
-    if(!el) return;
-    el.textContent = text;
-    el.style.color = isError ? "var(--warn)" : "";
+    [document.getElementById("authDiagStatus"), document.getElementById("wizAuthStatus")].forEach(function(el){
+      if(!el) return;
+      el.textContent = text;
+      el.style.color = isError ? "var(--warn)" : "";
+    });
   }
 
   if(window.firebase && fbAuth){
@@ -837,6 +846,12 @@
         loadCloudState(user.uid);
       } else if(user){
         setSyncStatus("Angemeldet — Änderungen werden synchronisiert.");
+      }
+      if(user){
+        var wiz = document.getElementById("wizard");
+        if(wiz && !wiz.hidden && wizIndex === 0){
+          setTimeout(function(){ wizIndex = 1; showWizardStep(wizIndex); }, 600);
+        }
       }
     });
   }
@@ -2259,7 +2274,7 @@
   }
 
   // ================= WIZARD =================
-  var WIZ_STEPS = 6;
+  var WIZ_STEPS = 7;
   var wizIndex = 0;
   var wizDraft = null;
   var wizOnFinish = null;
@@ -2293,6 +2308,9 @@
       wizDraft.mealSettings.mode = chip.getAttribute("data-val");
       refreshWizardMeals();
     });
+
+    var wgsi = document.getElementById("wizGoogleSignInBtn");
+    if(wgsi) wgsi.addEventListener("click", signInGoogle);
 
     document.getElementById("wizBack").addEventListener("click", function(){ if(wizIndex>0){ wizIndex--; showWizardStep(wizIndex); } });
     document.getElementById("wizNext").addEventListener("click", function(){
@@ -2331,6 +2349,7 @@
   }
 
   var WIZ_TITLES = [
+    { k:"Anmelden", t:"Melde dich an,<br>bevor es losgeht.", l:"Optional, aber empfohlen — so gehen deine Daten nie verloren und sind auf jedem Gerät verfügbar." },
     { k:"Einstieg", t:"Dein Plan passt<br>sich dir an.", l:"Erst der Name deines Datensatzes und dein Geschlecht." },
     { k:"Körperwerte", t:"Ein paar Basiszahlen.", l:"Alter &amp; Größe speichern wir schon mal, gerechnet wird aktuell nur mit dem Gewicht." },
     { k:"Körperfett", t:"Wie viel Körperfett<br>schätzt du?", l:"Daraus schlagen wir dein Zielgewicht vor — anpassbar." },
