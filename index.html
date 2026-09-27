@@ -377,6 +377,13 @@
       <!-- ---------- ERNÄHRUNG TAB ---------- -->
       <div id="tab-ernaehrung">
 
+        <div id="ernaehrungEmpty" hidden style="padding:32px 8px;text-align:center">
+          <p class="hint" style="font-size:15px">Kein Profil vorhanden.<br>Leg eins an, um deinen Tagesbedarf zu sehen.</p>
+          <button class="primary-btn" id="ernaehrungEmptyNewProfileBtn" style="margin-top:12px">+ Neues Profil</button>
+        </div>
+
+        <div id="ernaehrungContent">
+
         <section>
           <div class="day-strip">
             <div class="arrow" id="dayPrev">‹</div>
@@ -486,6 +493,8 @@
           </div>
         </section>
 
+        </div>
+
       </div>
 
       <!-- ---------- FITNESS TAB ---------- -->
@@ -534,10 +543,6 @@
             </div>
             <input type="file" id="importFileInput" accept="application/json" hidden>
             <div id="exportFallback"></div>
-          </section>
-          <section style="margin-top:20px">
-            <div class="eyebrow">Gefahrenzone</div>
-            <button class="danger-btn" id="resetAllBtn">Alle Daten zurücksetzen</button>
           </section>
         </div>
 
@@ -762,6 +767,11 @@
     } else {
       out.hidden = false; inn.hidden = true;
     }
+    // Login-Status ändert, ob die Cloud-Buttons in der Profilliste auftauchen —
+    // die Liste war bereits gerendert, bevor Firebase (async) fertig geladen hatte.
+    if(typeof renderProfileList === "function" && document.getElementById("profileList")){
+      renderProfileList();
+    }
   }
 
   function setSyncStatus(text, isError){
@@ -792,7 +802,7 @@
   function loadCloudState(uid){
     setSyncStatus("Lade Cloud-Daten…");
     fbDbReady.then(function(db){
-      if(!db || !fsApi){ setSyncStatus("Cloud-Datenbank nicht verfügbar" + (fsLoadError ? (": " + fsLoadError) : "") + ".", true); finishOnboardingIfWaiting(); return; }
+      if(!db || !fsApi){ setSyncStatus("Cloud-Datenbank nicht verfügbar" + (fsLoadError ? (": " + fsLoadError) : "") + ".", true); finishOnboardingEmpty(); return; }
       return fsApi.getDoc(fsApi.doc(db, "users", uid)).then(function(snap){
         if(snap.exists() && snap.data() && snap.data().state){
           try{
@@ -800,16 +810,18 @@
             try{ localStorage.setItem(LS_KEY, JSON.stringify(cloudState)); }catch(e){}
             location.reload();
             return;
-          }catch(e){ setSyncStatus("Cloud-Daten konnten nicht gelesen werden.", true); finishOnboardingIfWaiting(); }
+          }catch(e){ setSyncStatus("Cloud-Daten konnten nicht gelesen werden.", true); finishOnboardingEmpty(); }
         } else {
-          setSyncStatus("Noch keine Cloud-Daten — wird beim nächsten Speichern angelegt.");
-          saveCloudState();
-          finishOnboardingIfWaiting();
+          // Neues Google-Konto, noch keine Cloud-Daten: KEIN Platzhalter-Profil anlegen
+          // oder automatisch sichern — der Nutzer legt sein erstes Profil selbst an,
+          // und erst dieser manuelle Schritt erzeugt/speichert etwas.
+          setSyncStatus("Angemeldet — noch keine Cloud-Daten. Leg dein erstes Profil an.");
+          finishOnboardingEmpty();
         }
       });
     }).catch(function(err){
       setSyncStatus("Cloud-Sync fehlgeschlagen: " + (err && err.message ? err.message : "Unbekannt"), true);
-      finishOnboardingIfWaiting();
+      finishOnboardingEmpty();
     });
   }
 
@@ -1052,7 +1064,10 @@
     try{ var raw = localStorage.getItem(LS_KEY); if(raw) return JSON.parse(raw); }catch(e){}
     return defaultState();
   }
-  function save(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(state)); }catch(e){} if(fbUser) saveCloudState(); }
+  function save(opts){
+    try{ localStorage.setItem(LS_KEY, JSON.stringify(state)); }catch(e){}
+    if(fbUser && !(opts && opts.skipCloud)) saveCloudState();
+  }
   function activeProfile(){ return state.profiles[state.activeProfileId]; }
 
   function calcEngine(p){
@@ -1307,6 +1322,16 @@
 
   function renderHome(){
     var profile = activeProfile();
+    var emptyEl = document.getElementById("ernaehrungEmpty");
+    var contentEl = document.getElementById("ernaehrungContent");
+    if(!profile){
+      if(emptyEl) emptyEl.hidden = false;
+      if(contentEl) contentEl.hidden = true;
+      document.getElementById("profileNameLabel").textContent = "";
+      return;
+    }
+    if(emptyEl) emptyEl.hidden = true;
+    if(contentEl) contentEl.hidden = false;
     document.getElementById("profileNameLabel").textContent = profile.name;
     renderDayStrip();
     renderComposition(profile);
@@ -1895,7 +1920,15 @@
   function renderProfileList(){
     var el = document.getElementById("profileList");
     el.innerHTML = "";
-    Object.keys(state.profiles).forEach(function(id){
+    var ids0 = Object.keys(state.profiles);
+    if(ids0.length === 0){
+      var empty = document.createElement("p");
+      empty.className = "hint";
+      empty.textContent = "Noch kein Profil vorhanden — leg unten eins an.";
+      el.appendChild(empty);
+      return;
+    }
+    ids0.forEach(function(id){
       var p = state.profiles[id];
       var isActive = id === state.activeProfileId;
       var card = document.createElement("div");
@@ -1946,8 +1979,10 @@
         });
         actions.appendChild(cloudUpBtn);
 
+        // Angemeldete Nutzer haben nur diesen einen Löschbutton — er räumt Cloud UND
+        // lokalen Stand in einem Schritt auf (kein separater "lokaler" Löschbutton).
         var cloudDelBtn = document.createElement("div");
-        cloudDelBtn.className = "iconbtn"; cloudDelBtn.textContent = "☁🗑"; cloudDelBtn.title = "Cloud-Kopie löschen";
+        cloudDelBtn.className = "iconbtn"; cloudDelBtn.textContent = "☁🗑"; cloudDelBtn.title = "Profil löschen (Cloud & Gerät)";
         cloudDelBtn.style.fontSize = "10px";
         var cloudConfirming = false;
         cloudDelBtn.addEventListener("click", function(){
@@ -1961,29 +1996,32 @@
           cloudDelBtn.style.color = "";
           cloudDelBtn.textContent = "…";
           deleteProfileFromCloud(id, function(ok){ cloudDelBtn.textContent = ok ? "✓" : "✕"; setTimeout(function(){ cloudDelBtn.textContent = "☁🗑"; }, 2000); });
+          delete state.profiles[id];
+          if(state.activeProfileId === id){ var rest = Object.keys(state.profiles); state.activeProfileId = rest.length ? rest[0] : null; }
+          save();
+          renderSettings();
+          renderHome();
         });
         actions.appendChild(cloudDelBtn);
+      } else {
+        var delBtn = document.createElement("div");
+        delBtn.className = "iconbtn"; delBtn.textContent = "🗑"; delBtn.title = "Löschen";
+        var confirming = false;
+        delBtn.addEventListener("click", function(){
+          if(!confirming){
+            confirming = true;
+            delBtn.textContent = "Sicher?"; delBtn.style.color = "var(--warn)";
+            setTimeout(function(){ confirming = false; delBtn.textContent = "🗑"; delBtn.style.color = ""; }, 2500);
+            return;
+          }
+          delete state.profiles[id];
+          if(state.activeProfileId === id){ var rest = Object.keys(state.profiles); state.activeProfileId = rest.length ? rest[0] : null; }
+          save();
+          renderSettings();
+          renderHome();
+        });
+        actions.appendChild(delBtn);
       }
-
-      var delBtn = document.createElement("div");
-      delBtn.className = "iconbtn"; delBtn.textContent = "🗑"; delBtn.title = "Löschen";
-      var confirming = false;
-      delBtn.addEventListener("click", function(){
-        var ids = Object.keys(state.profiles);
-        if(ids.length <= 1) return;
-        if(!confirming){
-          confirming = true;
-          delBtn.textContent = "Sicher?"; delBtn.style.color = "var(--warn)";
-          setTimeout(function(){ confirming = false; delBtn.textContent = "🗑"; delBtn.style.color = ""; }, 2500);
-          return;
-        }
-        delete state.profiles[id];
-        if(state.activeProfileId === id){ state.activeProfileId = Object.keys(state.profiles)[0]; }
-        save();
-        if(fbUser) deleteProfileFromCloud(id);
-        renderSettings();
-      });
-      actions.appendChild(delBtn);
 
       card.appendChild(info);
       card.appendChild(actions);
@@ -2150,9 +2188,11 @@
 
   function renderSettings(){
     renderProfileList();
-    renderSettingsKoerperdaten();
-    renderSettingsZiele();
-    renderSettingsRohdaten();
+    if(activeProfile()){
+      renderSettingsKoerperdaten();
+      renderSettingsZiele();
+      renderSettingsRohdaten();
+    }
   }
 
   function showSettingsTab(tab){
@@ -2228,35 +2268,26 @@
       btn.addEventListener("click", function(){ showSettingsTab(btn.getAttribute("data-tab")); renderSettings(); });
     });
 
-    document.getElementById("newProfileBtn").addEventListener("click", function(){
+    function startNewProfileWizard(){
       startWizard(newProfile("Profil "+(Object.keys(state.profiles).length+1)), function(draft){
         var id = "p"+Date.now();
         state.profiles[id] = draft;
         state.activeProfileId = id;
         save();
+        if(fbUser) pushProfileToCloud(id);
         document.getElementById("wizard").hidden = true;
         document.getElementById("mainApp").hidden = false;
         showTab("einstellungen");
       }, "newProfile");
-    });
+    }
+    document.getElementById("newProfileBtn").addEventListener("click", startNewProfileWizard);
+    var emptyNewBtn = document.getElementById("ernaehrungEmptyNewProfileBtn");
+    if(emptyNewBtn) emptyNewBtn.addEventListener("click", startNewProfileWizard);
 
     document.getElementById("importProfileBtn").addEventListener("click", function(){ document.getElementById("importFileInput").click(); });
     document.getElementById("importFileInput").addEventListener("change", function(e){
       if(e.target.files && e.target.files[0]){ importProfileFromFile(e.target.files[0]); }
       e.target.value = "";
-    });
-
-    document.getElementById("resetAllBtn").addEventListener("click", function(){
-      var btn = document.getElementById("resetAllBtn");
-      if(btn.getAttribute("data-confirm") !== "1"){
-        btn.setAttribute("data-confirm","1");
-        btn.textContent = "Wirklich alles löschen?";
-        setTimeout(function(){ btn.removeAttribute("data-confirm"); btn.textContent = "Alle Daten zurücksetzen"; }, 3000);
-        return;
-      }
-      state = defaultState();
-      save();
-      location.reload();
     });
 
     document.getElementById("dayPrev").addEventListener("click", function(){ state.selectedDate = addDays(state.selectedDate,-7); renderHome(); });
@@ -2386,6 +2417,16 @@
     }
   }
 
+  // Wie finishOnboardingIfWaiting, aber startet ohne Profil (statt mit dem
+  // unangetasteten Platzhalter-Datensatz) — für den Google-Login-Fall, in dem
+  // noch keine echten Daten existieren.
+  function finishOnboardingEmpty(){
+    var wiz = document.getElementById("wizard");
+    if(wiz && !wiz.hidden && wizMode === "onboarding" && wizIndex === 0 && wizOnFinish){
+      wizOnFinish(null);
+    }
+  }
+
   function startWizard(draft, onFinish, mode){
     wizDraft = draft;
     wizOnFinish = onFinish;
@@ -2500,9 +2541,16 @@
       initApp();
     } else {
       startWizard(activeProfile(), function(draft){
-        state.profiles[state.activeProfileId] = draft;
+        if(draft){
+          state.profiles[state.activeProfileId] = draft;
+        } else {
+          // Google-Login ohne vorhandene Cloud-Daten: ohne Profil starten,
+          // statt den unbearbeiteten Platzhalter als "echtes" Profil zu übernehmen.
+          state.profiles = {};
+          state.activeProfileId = null;
+        }
         state.onboarded = true;
-        save();
+        save({skipCloud: !draft});
         initApp();
       }, "onboarding");
     }
