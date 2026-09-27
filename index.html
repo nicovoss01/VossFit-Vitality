@@ -2998,7 +2998,13 @@
 
       var info = document.createElement("div");
       info.className = "info";
-      info.innerHTML = '<div class="n">'+p.name+'</div><div class="m">'+profileSummaryLine(p)+'</div>';
+      var cloudTag = "";
+      if(fbUser){
+        if(cloudProfileIndex && cloudProfileIndex[id]) cloudTag = ' <span style="color:var(--ok,#1a9d5c)">· ☁ in der Cloud</span>';
+        else if(cloudProfileIndex) cloudTag = ' <span style="color:#e8c547">· nur lokal, noch nicht in der Cloud</span>';
+        else cloudTag = ' <span style="color:var(--text-faint)">· Cloud-Status wird geprüft…</span>';
+      }
+      info.innerHTML = '<div class="n">'+p.name+'</div><div class="m">'+profileSummaryLine(p)+cloudTag+'</div>';
 
       var actions = document.createElement("div");
       actions.className = "profile-actions";
