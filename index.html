@@ -583,10 +583,10 @@
 
         <div id="settings-profile">
           <section>
-            <div class="eyebrow">Konto & Geräteübergreifende Synchronisierung</div>
+            <div class="eyebrow">Konto & Cloud-Sync</div>
             <div id="authSignedOut">
               <button class="primary-btn" id="googleSignInBtn" style="width:100%">Mit Google anmelden</button>
-              <p class="hint" style="margin-top:6px">Meldet dich an und speichert deine Daten zusätzlich in der Cloud — dann verfügbar auf jedem Gerät, auf dem du dich mit demselben Google-Konto anmeldest.</p>
+              <p class="hint" style="margin-top:6px">Sichert deine Profile automatisch in der Cloud, geräteübergreifend.</p>
               <p class="hint" id="authDiagStatus" style="margin-top:6px"></p>
             </div>
             <div id="authSignedIn" hidden>
@@ -594,24 +594,28 @@
                 <img id="authAvatar" src="" alt="" style="width:36px;height:36px;border-radius:50%;flex-shrink:0">
                 <div style="flex:1;min-width:0">
                   <div id="authName" style="font-weight:600;font-size:14px"></div>
-                  <div id="authSyncStatus" class="hint" style="margin:0"></div>
+                  <div style="display:flex;align-items:center;gap:5px;margin-top:2px">
+                    <span id="syncDot" style="width:6px;height:6px;border-radius:50%;background:var(--ok,#1a9d5c);flex-shrink:0"></span>
+                    <span id="authSyncStatus" class="hint" style="margin:0"></span>
+                  </div>
                 </div>
                 <button class="ghost-btn" id="googleSignOutBtn">Abmelden</button>
               </div>
-              <div style="display:flex;gap:8px;margin-top:10px">
-                <button class="ghost-btn" id="syncUploadBtn" style="flex:1">☁⬆ Hochladen</button>
-                <button class="ghost-btn" id="syncDownloadBtn" style="flex:1">☁⬇ Herunterladen</button>
-              </div>
-              <p class="hint" style="margin-top:4px">Hochladen ersetzt deinen Cloud-Stand mit diesem Gerät, Herunterladen ersetzt diesen Gerätestand mit der Cloud.</p>
+              <button class="ghost-btn" id="syncNowBtn" style="width:100%;margin-top:10px">🔄 Synchronisieren</button>
             </div>
           </section>
           <section>
             <div class="eyebrow">Gespeicherte Profile</div>
             <div id="profileList" style="display:flex;flex-direction:column;gap:8px"></div>
+            <div id="cloudProfileListWrap" hidden>
+              <div class="eyebrow" style="margin-top:14px">Weitere Profile in der Cloud</div>
+              <div id="cloudProfileList" style="display:flex;flex-direction:column;gap:8px"></div>
+            </div>
             <div style="display:flex;gap:8px;margin-top:6px">
               <button class="primary-btn" id="newProfileBtn" style="flex:1">+ Neues Profil</button>
-              <button class="ghost-btn" id="importProfileBtn" style="flex:1">⬆ Hochladen</button>
+              <button class="ghost-btn" id="importProfileBtn" style="flex:1">⬆ Datei importieren</button>
             </div>
+            <p class="hint" style="margin-top:2px">⬇ = als Datei sichern (lokal). Angemeldet: automatischer Cloud-Sync.</p>
             <input type="file" id="importFileInput" accept="application/json" hidden>
             <div id="exportFallback"></div>
           </section>
@@ -767,7 +771,7 @@
       <div id="tab-chat" hidden>
         <div class="chat-wrap">
           <div class="chat-messages" id="chatMessages"></div>
-          <p class="chat-hint">VoßBot labert locker mit dir, ersetzt aber keinen Arzt — keine medizinische Beratung.</p>
+          <p class="chat-hint">VoßBot redet locker mit dir, ersetzt aber keinen Arzt &amp; keine medizinische Beratung.</p>
           <div class="chat-inputrow">
             <textarea id="chatInput" rows="1" placeholder="Schreib VoßBot einfach, was los ist…"></textarea>
             <div class="chat-sendbtn" id="chatSendBtn">➤</div>
@@ -874,11 +878,16 @@
       document.getElementById("authName").textContent = fbUser.displayName || fbUser.email || "Angemeldet";
     } else {
       out.hidden = false; inn.hidden = true;
+      cloudProfileIndex = null;
     }
     // Login-Status ändert, ob die Cloud-Buttons in der Profilliste auftauchen —
     // die Liste war bereits gerendert, bevor Firebase (async) fertig geladen hatte.
     if(typeof renderProfileList === "function" && document.getElementById("profileList")){
-      renderProfileList();
+      if(fbUser){
+        refreshCloudProfileIndex(renderProfileList);
+      } else {
+        renderProfileList();
+      }
     }
   }
 
@@ -888,6 +897,8 @@
       el.textContent = text;
       el.style.color = isError ? "var(--warn)" : "";
     });
+    var dot = document.getElementById("syncDot");
+    if(dot) dot.style.background = isError ? "var(--warn)" : "var(--ok, #1a9d5c)";
   }
 
   function setDiagStatus(text, isError){
@@ -907,122 +918,115 @@
     }
   });
 
-  // Fragt nach, ob bereits vorhandene lokale (noch nicht mit diesem Konto
-  // verknüpfte) Profile beim Einloggen übernommen werden sollen, statt sie
-  // stillschweigend durch den Cloud-Stand zu ersetzen. Gibt den (ggf. um die
-  // lokalen Profile ergänzten) Cloud-Stand zurück.
-  function maybeMergeLocalProfiles(cloudState){
-    var localIds = Object.keys(state.profiles || {});
-    if(!localIds.length) return cloudState;
-    var wantsMerge = confirm(
-      "Auf diesem Gerät gibt es " + localIds.length + " lokale(s) Profil(e), die noch nicht mit diesem Konto verknüpft sind.\n\n" +
-      "OK = lokale Profile übernehmen und zum Konto hinzufügen.\n" +
-      "Abbrechen = stattdessen nur den Cloud-Stand dieses Kontos laden (die lokalen Profile gehen dann verloren, falls sie nirgends anders gesichert sind)."
-    );
-    if(!wantsMerge) return cloudState;
-    cloudState.profiles = cloudState.profiles || {};
-    localIds.forEach(function(id){ cloudState.profiles[id] = state.profiles[id]; });
-    if(state.activeProfileId && state.profiles[state.activeProfileId]){
-      cloudState.activeProfileId = state.activeProfileId;
-    }
-    return cloudState;
-  }
+  // ---------- Cloud-Profile: jedes Profil ist sein EIGENES Firestore-Dokument ----------
+  // (users/{uid}/profiles/{profileId}) statt eines gemeinsamen Gesamt-Blobs. So
+  // überschreibt ein Gerät nie die Profile, die auf einem anderen Gerät liegen —
+  // jedes Profil synchronisiert für sich, permanent im Hintergrund.
+  var cloudProfileIndex = null; // {id: profilObjekt}, gefüllt sobald angemeldet
 
-  function loadCloudState(uid){
-    setSyncStatus("Lade Cloud-Daten…");
-    fbDbReady.then(function(db){
-      if(!db || !fsApi){ setSyncStatus("Cloud-Datenbank nicht verfügbar" + (fsLoadError ? (": " + fsLoadError) : "") + ".", true); finishOnboardingEmpty(); return; }
-      return fsApi.getDoc(fsApi.doc(db, "users", uid)).then(function(snap){
-        if(snap.exists() && snap.data() && snap.data().state){
-          try{
-            var cloudState = JSON.parse(snap.data().state);
-            cloudState = maybeMergeLocalProfiles(cloudState);
-            try{ localStorage.setItem(LS_KEY, JSON.stringify(cloudState)); }catch(e){}
-            // Übernommene lokale Profile gleich in die Cloud zurückschreiben, damit
-            // sie nicht verloren gehen, falls dieses Gerät danach nicht mehr benutzt wird.
-            return fsApi.setDoc(fsApi.doc(db, "users", uid), {
-              state: JSON.stringify(cloudState),
-              updatedAt: fsApi.serverTimestamp()
-            }).catch(function(){}).then(function(){
-              location.reload();
-            });
-          }catch(e){ setSyncStatus("Cloud-Daten konnten nicht gelesen werden.", true); finishOnboardingEmpty(); }
-        } else {
-          // Neues Google-Konto, noch keine Cloud-Daten: KEIN Platzhalter-Profil anlegen
-          // oder automatisch sichern — der Nutzer legt sein erstes Profil selbst an,
-          // und erst dieser manuelle Schritt erzeugt/speichert etwas. Vorhandene lokale
-          // Profile bleiben unangetastet (kein Cloud-Stand zum Ersetzen vorhanden).
-          setSyncStatus("Angemeldet — noch keine Cloud-Daten. Leg dein erstes Profil an.");
-          finishOnboardingEmpty();
-        }
+  function fetchCloudProfiles(){
+    return fbDbReady.then(function(db){
+      if(!db || !fsApi) throw new Error("Cloud-Datenbank nicht verfügbar" + (fsLoadError ? (": " + fsLoadError) : ""));
+      return fsApi.getDocs(fsApi.collection(db, "users", fbUser.uid, "profiles"));
+    }).then(function(snap){
+      var out = {};
+      snap.forEach(function(docSnap){
+        try{ out[docSnap.id] = JSON.parse(docSnap.data().profile); }catch(e){}
       });
-    }).catch(function(err){
-      setSyncStatus("Cloud-Sync fehlgeschlagen: " + (err && err.message ? err.message : "Unbekannt"), true);
-      finishOnboardingEmpty();
+      return out;
     });
   }
 
+  // Holt die Liste aller Cloud-Profile (auch die, die auf diesem Gerät noch gar
+  // nicht liegen — z.B. von einem anderen Gerät angelegt) neu.
+  function refreshCloudProfileIndex(cb){
+    if(!fbUser){ cloudProfileIndex = null; if(cb) cb(); return; }
+    fetchCloudProfiles().then(function(map){
+      cloudProfileIndex = map;
+      if(cb) cb();
+    }).catch(function(){
+      if(!cloudProfileIndex) cloudProfileIndex = {};
+      if(cb) cb();
+    });
+  }
+
+  // Permanenter Hintergrund-Sync: läuft automatisch bei jedem save(), solange
+  // angemeldet — pusht jedes lokale Profil als eigenes Dokument (debounced).
   function saveCloudState(){
     if(!fbUser) return;
     clearTimeout(cloudSaveTimer);
     cloudSaveTimer = setTimeout(function(){
-      fbDbReady.then(function(db){
-        if(!db || !fsApi) throw new Error("Cloud-Datenbank nicht verfügbar" + (fsLoadError ? (": " + fsLoadError) : ""));
-        return fsApi.setDoc(fsApi.doc(db, "users", fbUser.uid), {
-          state: JSON.stringify(state),
-          updatedAt: fsApi.serverTimestamp()
+      var ids = Object.keys(state.profiles || {});
+      if(!ids.length) return;
+      setSyncStatus("Synchronisiere…");
+      Promise.all(ids.map(function(id){
+        return fbDbReady.then(function(db){
+          if(!db || !fsApi) throw new Error("Cloud-Datenbank nicht verfügbar" + (fsLoadError ? (": " + fsLoadError) : ""));
+          return fsApi.setDoc(fsApi.doc(db, "users", fbUser.uid, "profiles", id), {
+            profile: JSON.stringify(state.profiles[id]),
+            updatedAt: fsApi.serverTimestamp()
+          });
         });
-      }).then(function(){ setSyncStatus("Synchronisiert ✓"); })
-      .catch(function(err){ setSyncStatus("Cloud-Sync fehlgeschlagen: " + (err && err.message ? err.message : "Unbekannt"), true); });
+      })).then(function(){
+        setSyncStatus("Synchronisiert ✓");
+        if(cloudProfileIndex){ ids.forEach(function(id){ cloudProfileIndex[id] = state.profiles[id]; }); }
+      }).catch(function(err){
+        setSyncStatus("Sync fehlgeschlagen: " + (err && err.message ? err.message : "Unbekannt"), true);
+      });
     }, 1500);
   }
 
-  // ---------- Manuelles Ganzer-Account-Sync (mit Bestätigung, sofort statt debounced) ----------
-  function uploadAccountNow(onDone){
+  // ---------- Ein Sync-Button: pusht sofort (statt zu warten) und holt danach ----------
+  // weitere Cloud-Profile von anderen Geräten neu.
+  function syncNow(onDone){
     if(!fbUser){ if(onDone) onDone(false, "Nicht angemeldet."); return; }
     clearTimeout(cloudSaveTimer);
-    fbDbReady.then(function(db){
-      if(!db || !fsApi) throw new Error("Cloud-Datenbank nicht verfügbar" + (fsLoadError ? (": " + fsLoadError) : ""));
-      return fsApi.setDoc(fsApi.doc(db, "users", fbUser.uid), {
-        state: JSON.stringify(state),
-        updatedAt: fsApi.serverTimestamp()
+    var ids = Object.keys(state.profiles || {});
+    setSyncStatus("Synchronisiere…");
+    Promise.all(ids.map(function(id){
+      return fbDbReady.then(function(db){
+        if(!db || !fsApi) throw new Error("Cloud-Datenbank nicht verfügbar" + (fsLoadError ? (": " + fsLoadError) : ""));
+        return fsApi.setDoc(fsApi.doc(db, "users", fbUser.uid, "profiles", id), {
+          profile: JSON.stringify(state.profiles[id]),
+          updatedAt: fsApi.serverTimestamp()
+        });
       });
+    })).then(function(){
+      return new Promise(function(resolve){ refreshCloudProfileIndex(resolve); });
     }).then(function(){
-      setSyncStatus("Hochgeladen ✓ — Cloud-Stand entspricht jetzt diesem Gerät.");
+      setSyncStatus("Synchronisiert ✓");
+      renderSettings();
       if(onDone) onDone(true);
     }).catch(function(err){
       var msg = err && err.message ? err.message : "Unbekannt";
-      setSyncStatus("Hochladen fehlgeschlagen: " + msg, true);
+      setSyncStatus("Sync fehlgeschlagen: " + msg, true);
       if(onDone) onDone(false, msg);
     });
   }
 
-  function downloadAccountNow(onDone){
-    if(!fbUser){ if(onDone) onDone(false, "Nicht angemeldet."); return; }
-    fbDbReady.then(function(db){
-      if(!db || !fsApi) throw new Error("Cloud-Datenbank nicht verfügbar" + (fsLoadError ? (": " + fsLoadError) : ""));
-      return fsApi.getDoc(fsApi.doc(db, "users", fbUser.uid));
-    }).then(function(snap){
-      if(snap && snap.exists() && snap.data() && snap.data().state){
-        try{
-          var cloudState = JSON.parse(snap.data().state);
-          cloudState = maybeMergeLocalProfiles(cloudState);
-          try{ localStorage.setItem(LS_KEY, JSON.stringify(cloudState)); }catch(e){}
-          setSyncStatus("Heruntergeladen ✓ — lade neu…");
-          if(onDone) onDone(true);
-          location.reload();
-        }catch(e){
-          setSyncStatus("Cloud-Daten konnten nicht gelesen werden.", true);
-          if(onDone) onDone(false, "Cloud-Daten konnten nicht gelesen werden.");
-        }
-      } else {
-        setSyncStatus("Keine Cloud-Daten für dieses Konto gefunden.", true);
-        if(onDone) onDone(false, "Keine Cloud-Daten gefunden.");
-      }
-    }).catch(function(err){
-      var msg = err && err.message ? err.message : "Unbekannt";
-      setSyncStatus("Herunterladen fehlgeschlagen: " + msg, true);
-      if(onDone) onDone(false, msg);
+  // Frischer Login: alle bereits vorhandenen lokalen Profile automatisch als
+  // eigene Cloud-Dokumente sichern (kein Überschreiben anderer Geräte, da jedes
+  // Profil sein eigenes Dokument ist), danach weitere Cloud-Profile (von anderen
+  // Geräten) nachladen, damit sie im Bereich "Weitere Profile in der Cloud"
+  // auftauchen. Gab es lokal noch gar kein Profil, direkt ins leere Onboarding.
+  function handleFreshLogin(uid){
+    var localIds = Object.keys(state.profiles || {});
+    if(!localIds.length){
+      refreshCloudProfileIndex(function(){
+        setSyncStatus("Angemeldet — noch keine Cloud-Daten. Leg dein erstes Profil an.");
+        finishOnboardingEmpty();
+        renderSettings();
+      });
+      return;
+    }
+    setSyncStatus("Übernehme deine Profile in die Cloud…");
+    Promise.all(localIds.map(function(id){
+      return new Promise(function(resolve){ pushProfileToCloud(id, resolve); });
+    })).then(function(){
+      refreshCloudProfileIndex(function(){
+        setSyncStatus("Synchronisiert ✓");
+        renderSettings();
+      });
     });
   }
 
@@ -1037,6 +1041,7 @@
       });
     }).then(function(){
       setSyncStatus("Profil in Cloud gesichert ✓");
+      if(cloudProfileIndex) cloudProfileIndex[profileId] = state.profiles[profileId];
       if(onDone) onDone(true);
     }).catch(function(err){
       var msg = err && err.message ? err.message : "Unbekannt";
@@ -1052,6 +1057,7 @@
       return fsApi.deleteDoc(fsApi.doc(db, "users", fbUser.uid, "profiles", profileId));
     }).then(function(){
       setSyncStatus("Cloud-Kopie gelöscht ✓");
+      if(cloudProfileIndex) delete cloudProfileIndex[profileId];
       if(onDone) onDone(true);
     }).catch(function(err){
       var msg = err && err.message ? err.message : "Unbekannt";
@@ -1118,7 +1124,7 @@
         updateAuthUI();
         if(user && justSignedIn){
           justSignedIn = false;
-          loadCloudState(user.uid);
+          handleFreshLogin(user.uid);
         } else if(user){
           setSyncStatus("Angemeldet — Änderungen werden synchronisiert.");
           finishOnboardingIfWaiting();
@@ -2004,7 +2010,7 @@
     return function(msgText){
       if(chat && !chat.offlineNoticeShown){
         chat.offlineNoticeShown = true;
-        finishOk("Kein Internet gerade — bin also die Offline-Version von mir: der originale VoßBot, nur ohne Google-KI im Hintergrund. Kann trotzdem einiges: Status, Plan, Essen eintragen/ändern, Bestätigen, Profil, Sync. Schreib einfach normal, ich versteh das schon.\n\n" + msgText);
+        finishOk("Kein Internet gerade — bin also die Offline-Version von mir: der originale VoßBot, nur ohne Google-KI im Hintergrund.\n\n" + buildCapabilitiesAnswer() + "\n\n" + msgText);
       } else {
         finishOk(msgText);
       }
@@ -2518,26 +2524,64 @@
     return netOk && hasAiChannel;
   }
 
-  function buildCapabilitiesAnswer(){
-    var lines = [];
-    lines.push("Hey! Hier ist, wobei ich dir helfen kann — läuft auch komplett offline:");
-    lines.push("");
-    lines.push("🍽️ Essen eintragen: sag einfach \"150g Reis zum Mittagessen\" oder \"hab gerade 2 Eier gegessen\" — ich pack's rein.");
-    lines.push("✏️ Was ändern: \"ändere Reis auf 200g\" — Menge angepasst, fertig.");
-    lines.push("🗑️ Was rausnehmen: \"lösch den Reis\", \"entfern das Ei\" — weg damit.");
-    lines.push("📋 Tagesplan: frag \"was soll ich heute essen\" oder \"mach mir einen Vorschlag\", und ich bau dir einen kompletten Plan.");
-    lines.push("📊 Status checken: frag einfach nach deiner Übersicht oder wie viel dir heute noch bleibt.");
-    lines.push("⚙️ Profile, Bestätigen, Sync: erklär ich dir auch, sag einfach Bescheid.");
-    lines.push("");
-    lines.push("Feste Befehle brauchst du nicht — schreib's einfach so, wie du's sagen würdest, ich versteh schon, was du meinst.");
-    if(isLikelyOnline()){
-      lines.push("");
-      lines.push("Und weil gerade online: bei allem anderen, was dir noch durch den Kopf geht, kannst du mich auch einfach frei drauflos fragen.");
-    } else {
-      lines.push("");
-      lines.push("Bin gerade nicht online, kann also nicht auf Google zugreifen.");
+  // Mehrere unterschiedlich formulierte Varianten der Funktionsübersicht — bei
+  // jeder Anfrage wird zufällig eine ausgewählt, damit VoßBot nicht jedes Mal
+  // wortgleich mit derselben Liste antwortet ("mal so, mal so").
+  var CAPABILITIES_VARIANTS = [
+    function(){
+      return [
+        "Hey! Hier ist, wobei ich dir helfen kann — läuft auch komplett offline:",
+        "",
+        "🍽️ Essen eintragen: sag einfach \"150g Reis zum Mittagessen\" oder \"hab gerade 2 Eier gegessen\" — ich pack's rein.",
+        "✏️ Was ändern: \"ändere Reis auf 200g\" — Menge angepasst, fertig.",
+        "🗑️ Was rausnehmen: \"lösch den Reis\", \"entfern das Ei\" — weg damit.",
+        "📋 Tagesplan: frag \"was soll ich heute essen\" oder \"mach mir einen Vorschlag\", und ich bau dir einen kompletten Plan.",
+        "📊 Status checken: frag einfach nach deiner Übersicht oder wie viel dir heute noch bleibt.",
+        "⚙️ Profile, Bestätigen, Sync: erklär ich dir auch, sag einfach Bescheid.",
+        "",
+        "Feste Befehle brauchst du nicht — schreib's einfach so, wie du's sagen würdest, ich versteh schon, was du meinst."
+      ].join("\n");
+    },
+    function(){
+      return [
+        "Jo, kurz und knapp — das geht alles mit mir:",
+        "",
+        "→ Status: \"wie steht's bei mir?\", \"was hab ich noch offen?\"",
+        "→ Plan: \"was soll ich heute essen?\", \"mach mir 'nen Vorschlag\"",
+        "→ Essen eintragen: \"150g Reis zum Mittag\", \"hab 2 Eier gegessen\"",
+        "→ Ändern: \"ändere Reis auf 200g\"",
+        "→ Löschen: \"lösch den Reis\", \"entfern das Ei\"",
+        "→ Bestätigen: \"Mittagessen passt, häng den Haken dran\"",
+        "→ Profil & Sync: frag einfach danach",
+        "",
+        "Keine festen Kommandos nötig — schreib's wie du willst, ich versteh's schon."
+      ].join("\n");
+    },
+    function(){
+      return [
+        "Ich kann einiges für dich übernehmen:",
+        "",
+        "• Essen loggen (\"100g Hähnchen zum Abendessen\")",
+        "• Mengen anpassen (\"Reis auf 200g ändern\")",
+        "• Sachen rauswerfen (\"lösch das Ei\")",
+        "• Kompletten Tagesplan zusammenstellen (\"was soll ich heute essen?\")",
+        "• Deinen aktuellen Stand checken (\"was hab ich noch übrig?\")",
+        "• Mahlzeiten bestätigen, Profil wechseln, Sync erklären",
+        "",
+        "Du musst dabei nichts auswendig lernen — sag's einfach in deinen eigenen Worten, mehrere Formulierungen erkenn ich sowieso."
+      ].join("\n");
     }
-    return lines.join("\n");
+  ];
+
+  function buildCapabilitiesAnswer(){
+    var variant = CAPABILITIES_VARIANTS[Math.floor(Math.random() * CAPABILITIES_VARIANTS.length)];
+    var text = variant();
+    if(isLikelyOnline()){
+      text += "\n\nUnd weil gerade online: bei allem anderen, was dir noch durch den Kopf geht, kannst du mich auch einfach frei drauflos fragen.";
+    } else {
+      text += "\n\nBin gerade nicht online, kann also nicht auf Google zugreifen.";
+    }
+    return text;
   }
 
   // ---------- Offline-Intent-Erkennung ----------
@@ -2919,7 +2963,6 @@
       empty.className = "hint";
       empty.textContent = "Noch kein Profil vorhanden — leg unten eins an.";
       el.appendChild(empty);
-      return;
     }
     ids0.forEach(function(id){
       var p = state.profiles[id];
@@ -3019,6 +3062,65 @@
       card.appendChild(info);
       card.appendChild(actions);
       el.appendChild(card);
+    });
+
+    // ---------- Weitere Profile in der Cloud (auf diesem Gerät noch nicht da) ----------
+    // Direktes Herunterladen einzelner Profile aus der Cloud, ohne Umweg über
+    // einen kompletten Datei-Export/Import.
+    var cloudWrap = document.getElementById("cloudProfileListWrap");
+    var cloudEl = document.getElementById("cloudProfileList");
+    if(!cloudWrap || !cloudEl) return;
+    var extraIds = (fbUser && cloudProfileIndex)
+      ? Object.keys(cloudProfileIndex).filter(function(id){ return !state.profiles[id]; })
+      : [];
+    if(!extraIds.length){
+      cloudWrap.hidden = true;
+      cloudEl.innerHTML = "";
+      return;
+    }
+    cloudWrap.hidden = false;
+    cloudEl.innerHTML = "";
+    extraIds.forEach(function(id){
+      var cp = cloudProfileIndex[id];
+      var card = document.createElement("div");
+      card.className = "profile-card";
+
+      var info = document.createElement("div");
+      info.className = "info";
+      info.innerHTML = '<div class="n">'+(cp.name||"Profil")+'</div><div class="m">'+cp.weight+'kg · '+KFA_STAGES[cp.kfaIdx].range+' KFA · nur in der Cloud</div>';
+
+      var actions = document.createElement("div");
+      actions.className = "profile-actions";
+
+      var dlBtn = document.createElement("div");
+      dlBtn.className = "iconbtn"; dlBtn.textContent = "⬇"; dlBtn.title = "Auf dieses Gerät laden";
+      dlBtn.addEventListener("click", function(){
+        state.profiles[id] = cp;
+        if(!state.activeProfileId) state.activeProfileId = id;
+        save();
+        renderSettings();
+        renderHome();
+      });
+      actions.appendChild(dlBtn);
+
+      var delBtn = document.createElement("div");
+      delBtn.className = "iconbtn"; delBtn.textContent = "🗑"; delBtn.title = "Aus Cloud löschen";
+      var confirming = false;
+      delBtn.addEventListener("click", function(){
+        if(!confirming){
+          confirming = true;
+          delBtn.textContent = "Sicher?"; delBtn.style.color = "var(--warn)";
+          setTimeout(function(){ confirming = false; delBtn.textContent = "🗑"; delBtn.style.color = ""; }, 2500);
+          return;
+        }
+        delBtn.textContent = "…";
+        deleteProfileFromCloud(id, function(){ renderSettings(); });
+      });
+      actions.appendChild(delBtn);
+
+      card.appendChild(info);
+      card.appendChild(actions);
+      cloudEl.appendChild(card);
     });
   }
 
@@ -3333,28 +3435,15 @@
     var gsi = document.getElementById("googleSignInBtn"); if(gsi) gsi.addEventListener("click", signInGoogle);
     var gso = document.getElementById("googleSignOutBtn"); if(gso) gso.addEventListener("click", signOutGoogle);
 
-    function wireConfirmButton(btn, confirmLabel, action){
-      if(!btn) return;
-      var origLabel = btn.textContent;
-      var confirming = false;
-      btn.addEventListener("click", function(){
-        if(!confirming){
-          confirming = true;
-          btn.textContent = confirmLabel;
-          setTimeout(function(){ confirming = false; btn.textContent = origLabel; }, 3000);
-          return;
-        }
-        confirming = false;
-        btn.textContent = "…";
-        action(function(){ btn.textContent = origLabel; });
+    var syncNowBtn = document.getElementById("syncNowBtn");
+    if(syncNowBtn){
+      syncNowBtn.addEventListener("click", function(){
+        var orig = syncNowBtn.textContent;
+        syncNowBtn.textContent = "… synchronisiere";
+        syncNowBtn.disabled = true;
+        syncNow(function(){ syncNowBtn.textContent = orig; syncNowBtn.disabled = false; });
       });
     }
-    wireConfirmButton(document.getElementById("syncUploadBtn"), "Wirklich hochladen? (überschreibt Cloud)", function(done){
-      uploadAccountNow(function(){ done(); });
-    });
-    wireConfirmButton(document.getElementById("syncDownloadBtn"), "Wirklich herunterladen? (überschreibt Gerät)", function(done){
-      downloadAccountNow(function(ok){ if(!ok) done(); });
-    });
 
     updateAuthUI();
     document.getElementById("openaiKeyInput").addEventListener("input", function(e){
