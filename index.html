@@ -968,6 +968,7 @@
   // überschreibt ein Gerät nie die Profile, die auf einem anderen Gerät liegen —
   // jedes Profil synchronisiert für sich, permanent im Hintergrund.
   var cloudProfileIndex = null; // {id: profilObjekt}, gefüllt sobald angemeldet
+  var cloudProfileUpdatedAt = {}; // {id: millis}, um beim Login das zuletzt bearbeitete Profil zu erkennen
 
   // Räumt lokal alles außer dem aktiven Profil weg — aber NUR nachdem der
   // Cloud-Stand bestätigt ist, damit dabei nie Daten verloren gehen. So wird
@@ -989,10 +990,23 @@
     }).then(function(snap){
       var out = {};
       snap.forEach(function(docSnap){
-        try{ out[docSnap.id] = JSON.parse(docSnap.data().profile); }catch(e){}
+        try{
+          out[docSnap.id] = JSON.parse(docSnap.data().profile);
+          var ts = docSnap.data().updatedAt;
+          cloudProfileUpdatedAt[docSnap.id] = ts && ts.toMillis ? ts.toMillis() : (ts && ts.seconds ? ts.seconds * 1000 : 0);
+        }catch(e){}
       });
       return out;
     });
+  }
+
+  // Von allen Cloud-Profilen dieses Accounts das zuletzt bearbeitete finden —
+  // das wird beim Login auf ein (neues) Gerät automatisch heruntergeladen.
+  function mostRecentCloudProfileId(){
+    var ids = Object.keys(cloudProfileIndex || {});
+    if(!ids.length) return null;
+    ids.sort(function(a, b){ return (cloudProfileUpdatedAt[b] || 0) - (cloudProfileUpdatedAt[a] || 0); });
+    return ids[0];
   }
 
   // Holt die Liste aller Cloud-Profile (auch die, die auf diesem Gerät noch gar
@@ -1037,30 +1051,46 @@
     }, 1500);
   }
 
-  // Frischer Login: alle bereits vorhandenen lokalen Profile automatisch als
-  // eigene Cloud-Dokumente sichern (kein Überschreiben anderer Geräte, da jedes
-  // Profil sein eigenes Dokument ist), danach weitere Cloud-Profile (von anderen
-  // Geräten) nachladen, damit sie im Bereich "Weitere Profile in der Cloud"
-  // auftauchen. Gab es lokal noch gar kein Profil, direkt ins leere Onboarding.
+  // Frischer Login: das Konto in der Cloud ist die Wahrheit. Gibt es dort schon
+  // Profile (von diesem oder einem anderen Gerät), wird das zuletzt bearbeitete
+  // automatisch HERUNTERgeladen und lokal aktiv — das lokale (Gast-)Profil, das
+  // vor dem Login da war, wird dabei nicht mit hochgeladen (es bleibt über den
+  // Gast-Schnappschuss erhalten und kommt beim Logout unverändert zurück). Gibt
+  // es noch KEINE Cloud-Profile (erster Login überhaupt), wird stattdessen das
+  // lokale Profil als erstes Cloud-Profil hochgeladen, um das Konto zu befüllen.
   function handleFreshLogin(uid){
-    var localIds = Object.keys(state.profiles || {});
-    if(!localIds.length){
-      refreshCloudProfileIndex(function(){
+    setSyncStatus("Lade deine Cloud-Profile…", "pending");
+    refreshCloudProfileIndex(function(){
+      var cloudId = mostRecentCloudProfileId();
+      if(cloudId){
+        state.profiles = {};
+        state.profiles[cloudId] = cloudProfileIndex[cloudId];
+        state.activeProfileId = cloudId;
+        save({skipCloud:true});
+        setSyncStatus("Synchronisiert ✓");
+        renderSettings();
+        renderHome();
+        return;
+      }
+      // Account ist noch leer — hat der Gast lokal schon ein Profil, wird das
+      // zum ersten Cloud-Profil; sonst direkt ins leere Onboarding.
+      var localIds = Object.keys(state.profiles || {});
+      if(!localIds.length){
         setSyncStatus("Angemeldet — noch keine Cloud-Daten. Leg dein erstes Profil an.", "pending");
         finishOnboardingEmpty();
         renderSettings();
-      });
-      return;
-    }
-    setSyncStatus("Übernehme deine Profile in die Cloud…", "pending");
-    Promise.all(localIds.map(function(id){
-      return new Promise(function(resolve){ pushProfileToCloud(id, resolve); });
-    })).then(function(){
-      refreshCloudProfileIndex(function(){
-        setSyncStatus("Synchronisiert ✓");
-        pruneLocalToActiveOnly();
-        save({skipCloud:true});
-        renderSettings();
+        return;
+      }
+      setSyncStatus("Übernehme dein Profil in die Cloud…", "pending");
+      Promise.all(localIds.map(function(id){
+        return new Promise(function(resolve){ pushProfileToCloud(id, resolve); });
+      })).then(function(){
+        refreshCloudProfileIndex(function(){
+          setSyncStatus("Synchronisiert ✓");
+          pruneLocalToActiveOnly();
+          save({skipCloud:true});
+          renderSettings();
+        });
       });
     });
   }
