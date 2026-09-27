@@ -732,11 +732,13 @@
 
   // Firestore läuft über eine benannte Datenbank ("vossfitvitality", nicht "(default)"),
   // das unterstützt nur das moderne modulare SDK zuverlässig — daher separater dynamischer Import.
-  var fbDbReady = fbApp ? import(/* webpackIgnore: true */ "https://cdn.jsdelivr.net/npm/firebase@10.14.1/firebase-firestore.js").then(function(mod){
+  var fsLoadError = null;
+  var fbDbReady = fbApp ? import(/* webpackIgnore: true */ "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js").then(function(mod){
     fsApi = mod;
     fbDb = mod.getFirestore(fbApp, "vossfitvitality");
     return fbDb;
   }).catch(function(e){
+    fsLoadError = (e && e.message) ? e.message : String(e);
     console.warn("Firestore-Modul konnte nicht geladen werden:", e);
     return null;
   }) : Promise.resolve(null);
@@ -779,7 +781,7 @@
   function loadCloudState(uid){
     setSyncStatus("Lade Cloud-Daten…");
     fbDbReady.then(function(db){
-      if(!db || !fsApi){ setSyncStatus("Cloud-Datenbank nicht verfügbar.", true); finishOnboardingIfWaiting(); return; }
+      if(!db || !fsApi){ setSyncStatus("Cloud-Datenbank nicht verfügbar" + (fsLoadError ? (": " + fsLoadError) : "") + ".", true); finishOnboardingIfWaiting(); return; }
       return fsApi.getDoc(fsApi.doc(db, "users", uid)).then(function(snap){
         if(snap.exists() && snap.data() && snap.data().state){
           try{
@@ -805,7 +807,7 @@
     clearTimeout(cloudSaveTimer);
     cloudSaveTimer = setTimeout(function(){
       fbDbReady.then(function(db){
-        if(!db || !fsApi) throw new Error("Cloud-Datenbank nicht verfügbar");
+        if(!db || !fsApi) throw new Error("Cloud-Datenbank nicht verfügbar" + (fsLoadError ? (": " + fsLoadError) : ""));
         return fsApi.setDoc(fsApi.doc(db, "users", fbUser.uid), {
           state: JSON.stringify(state),
           updatedAt: fsApi.serverTimestamp()
@@ -819,7 +821,7 @@
   function pushProfileToCloud(profileId, onDone){
     if(!fbUser){ if(onDone) onDone(false, "Nicht angemeldet."); return; }
     fbDbReady.then(function(db){
-      if(!db || !fsApi) throw new Error("Cloud-Datenbank nicht verfügbar");
+      if(!db || !fsApi) throw new Error("Cloud-Datenbank nicht verfügbar" + (fsLoadError ? (": " + fsLoadError) : ""));
       return fsApi.setDoc(fsApi.doc(db, "users", fbUser.uid, "profiles", profileId), {
         profile: JSON.stringify(state.profiles[profileId]),
         updatedAt: fsApi.serverTimestamp()
@@ -837,7 +839,7 @@
   function deleteProfileFromCloud(profileId, onDone){
     if(!fbUser){ if(onDone) onDone(false, "Nicht angemeldet."); return; }
     fbDbReady.then(function(db){
-      if(!db || !fsApi) throw new Error("Cloud-Datenbank nicht verfügbar");
+      if(!db || !fsApi) throw new Error("Cloud-Datenbank nicht verfügbar" + (fsLoadError ? (": " + fsLoadError) : ""));
       return fsApi.deleteDoc(fsApi.doc(db, "users", fbUser.uid, "profiles", profileId));
     }).then(function(){
       setSyncStatus("Cloud-Kopie gelöscht ✓");
