@@ -240,10 +240,15 @@
   .cac-choices-gender{ flex-direction: row; gap: 8px; }
   .cac-choice-btn{ flex: 1; background: #000; border: 1.5px solid var(--turquoise); color: var(--turquoise); border-radius: 999px; padding: 11px 14px; font-family: var(--body); font-weight: 600; font-size: 14px; cursor: pointer; box-shadow: var(--glow-border); }
   .cac-choices-kfa{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
-  /* Tagesübersicht — gestapelte Vollbreite-Karten (Ernährung / Fitness / Heute),
-     jede einzelne Mahlzeit/Übung als eigener anklickbarer Chip. */
-  .chat-overview-card{ display: flex; flex-direction: column; gap: 12px; margin-bottom: 14px; flex-shrink: 0; }
-  .cov-card{ width: 100%; box-sizing: border-box; border-radius: 20px; border: 1.5px solid var(--turquoise); background: linear-gradient(165deg, rgba(18,203,238,.16), rgba(2,6,12,.94) 65%); box-shadow: var(--glow-sm), inset 0 1px 0 rgba(255,255,255,.05); padding: 18px; display: flex; flex-direction: column; gap: 12px; }
+  /* Tagesübersicht — 3 wischbare Seiten (Ernährung / Fitness / Kombiniert),
+     wie das Wischen zwischen Homescreen-Seiten, mit Punkte-Indikator unten. */
+  .chat-overview-card{ display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; flex-shrink: 0; }
+  .cov-pager{ display: flex; overflow-x: auto; scroll-snap-type: x mandatory; gap: 0; scrollbar-width: none; -webkit-overflow-scrolling: touch; border-radius: 20px; }
+  .cov-pager::-webkit-scrollbar{ display: none; }
+  .cov-page{ flex: 0 0 100%; min-width: 0; max-width: 100%; scroll-snap-align: start; box-sizing: border-box; border-radius: 20px; border: 1.5px solid var(--turquoise); background: linear-gradient(165deg, rgba(18,203,238,.16), rgba(2,6,12,.94) 65%); box-shadow: var(--glow-sm), inset 0 1px 0 rgba(255,255,255,.05); padding: 18px; display: flex; flex-direction: column; gap: 12px; min-height: 190px; overflow: hidden; }
+  .cov-dots{ display: flex; justify-content: center; align-items: center; gap: 7px; padding-top: 2px; }
+  .cov-dot{ width: 7px; height: 7px; border-radius: 50%; background: rgba(18,203,238,.3); cursor: pointer; border: none; padding: 0; }
+  .cov-dot.active{ background: var(--turquoise); box-shadow: 0 0 6px rgba(18,203,238,.85); }
   .cov-card-head{ display: flex; align-items: center; gap: 12px; cursor: pointer; background: none; border: none; padding: 0; text-align: left; font-family: var(--body); color: var(--text); width: 100%; }
   .cov-card-icon{ width: 40px; height: 40px; border-radius: 12px; background: linear-gradient(165deg, rgba(18,203,238,.22), rgba(2,6,12,.95) 65%); border: 1px solid var(--turquoise); display: grid; place-items: center; color: var(--turquoise); flex-shrink: 0; }
   .cov-card-icon svg{ width: 20px; height: 20px; display: block; filter: drop-shadow(0 0 3px rgba(18,203,238,.65)); }
@@ -260,10 +265,23 @@
   .cov-chip.add{ border-style: dashed; color: var(--turquoise); }
   .cov-mixed-text{ font-size: 14px; line-height: 1.45; color: var(--text); }
   .cov-mixed-cta{ font-size: 12.5px; color: var(--turquoise); font-weight: 600; background: none; border: none; padding: 0; cursor: pointer; font-family: var(--body); text-align: left; }
+  .cov-donut{ position: relative; width: 64px; height: 64px; flex-shrink: 0; }
+  .cov-donut svg{ width: 100%; height: 100%; transform: rotate(-90deg); }
+  .cov-donut circle{ fill: none; stroke-width: 9; }
+  .cov-donut .lbl{ position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .cov-donut .lbl b{ font-family: var(--mono); font-size: 10.5px; color: var(--text); }
+  .cov-legend{ display: flex; gap: 10px; font-size: 11px; color: var(--text-dim); flex-wrap: wrap; }
+  .cov-legend .it{ display: flex; align-items: center; gap: 4px; }
+  .cov-legend .dot{ width: 7px; height: 7px; border-radius: 50%; }
+  .cov-ex-row{ display: flex; align-items: center; gap: 10px; border: 1px solid rgba(18,203,238,.3); border-radius: 14px; padding: 10px 12px; cursor: pointer; }
+  .cov-ex-row .n{ flex: 1; min-width: 0; font-size: 13px; font-weight: 600; }
+  .cov-ex-row .m{ font-size: 11px; color: var(--text-faint); font-family: var(--mono); }
+  .cov-ex-row.done{ border-color: var(--turquoise); background: rgba(18,203,238,.08); }
+  .cov-exlist{ display: flex; flex-direction: column; gap: 7px; }
+  .cov-combo-row{ display: flex; flex-direction: column; gap: 8px; }
 
   /* Größere Variante auf dem VoßBot-Startbildschirm (Chatliste) */
-  .cov-lg{ margin-bottom: 18px; gap: 14px; }
-  .cov-lg .cov-card{ padding: 22px; border-radius: 22px; }
+  .cov-lg .cov-page{ padding: 22px; border-radius: 22px; min-height: 220px; }
   .cov-lg .cov-card-icon{ width: 46px; height: 46px; }
   .cov-lg .cov-card-icon svg{ width: 23px; height: 23px; }
   .cov-lg .cov-card-title .t{ font-size: 17px; }
@@ -272,6 +290,7 @@
   .cov-lg .cov-chip{ font-size: 13.5px; padding: 9px 13px; }
   .cov-lg .cov-mixed-text{ font-size: 15px; }
   .cov-lg .cov-mixed-cta{ font-size: 13.5px; }
+  .cov-lg .cov-donut{ width: 78px; height: 78px; }
   .chat-empty{ color: var(--text-dim); font-size: 13px; text-align: center; padding: 30px 10px; }
   .chat-hint{ font-size: 11px; color: var(--text-dim); text-align: center; padding: 2px 4px 8px; }
   .chat-inputrow{ display: flex; gap: 8px; align-items: flex-end; padding-top: 8px; border-top: 1px solid var(--border); }
@@ -963,6 +982,7 @@
           <div class="editor-field"><label for="tex-sets">Sätze</label><input type="number" id="tex-sets" min="1" step="1" value="3"></div>
           <div class="editor-field"><label for="tex-reps">Wdh./Satz</label><input type="number" id="tex-reps" min="1" step="1" value="8"></div>
           <div class="editor-field"><label for="tex-weight">Gewicht (kg)</label><input type="number" id="tex-weight" min="0" step="0.5" value="0"></div>
+          <div class="editor-field"><label for="tex-rest">Pause zw. Sätzen (Sek.)</label><input type="number" id="tex-rest" min="0" step="5" value="90"></div>
           <label style="display:flex;align-items:center;gap:8px;margin-top:12px;font-size:13.5px;color:var(--text-dim)">
             <input type="checkbox" id="tex-success" style="width:18px;height:18px;flex-shrink:0">
             Alle Sätze &amp; Wiederholungen geschafft
@@ -996,8 +1016,8 @@
           <div class="meal-toolbar">
             <div class="eyebrow" style="margin:0">Deine Chats mit VoßBot</div>
           </div>
-          <div id="chatListWrap" style="display:flex;flex-direction:column;gap:8px"></div>
           <button class="add-meal-btn" id="newChatBtn">+ Neuer Chat</button>
+          <div id="chatListWrap" style="display:flex;flex-direction:column;gap:8px;margin-top:10px"></div>
         </section>
       </div>
 
@@ -1450,7 +1470,9 @@
             beginQuestionnaireAfterAuthChoice();
           } else {
             showTab("chat");
-            openChatConversation(createNewChat("VoßBot"));
+            var mcId1 = createNewChat("VoßBot");
+            state.chats[mcId1].isMain = true;
+            openChatConversation(mcId1);
             startChatOnboarding();
           }
         }
@@ -2189,6 +2211,7 @@
     document.getElementById("tex-sets").value = entry.sets || 3;
     document.getElementById("tex-reps").value = entry.reps || 8;
     document.getElementById("tex-weight").value = (entry.weight != null) ? entry.weight : 0;
+    document.getElementById("tex-rest").value = (entry.restSec != null) ? entry.restSec : 90;
     document.getElementById("tex-success").checked = !!entry.success;
 
     var dl = document.getElementById("texNameList");
@@ -2332,6 +2355,37 @@
     return state.chats[state.activeChatId];
   }
 
+  // Der Hauptchat ("VoßBot") ist die Startseite der App — er zeigt immer
+  // die Tagesübersicht-Kästen und bleibt frei von normalem Geplauder.
+  // Jede frei getippte Nachricht dort wandert automatisch in einen neuen,
+  // separaten Chat, damit der Hauptchat immer aufgeräumt bleibt.
+  function mainChat(){
+    var ids = Object.keys(state.chats);
+    for(var i=0;i<ids.length;i++){ if(state.chats[ids[i]].isMain) return state.chats[ids[i]]; }
+    return null;
+  }
+
+  // Vorschläge für die Begrüßungsnachricht in frisch angelegten Chats
+  // (abseits vom Hauptchat) — wechseln zufällig, damit es nicht immer
+  // dieselbe Nachricht ist.
+  function randomChatWelcome(){
+    var openers = [
+      "Hey! Worüber reden wir? Ein paar Ideen zum Start:",
+      "Neuer Chat, neue Fragen — hier ein paar Vorschläge:",
+      "Womit kann ich helfen? Zum Beispiel:",
+      "Alles klar, ich hör zu. Falls du Inspiration brauchst:"
+    ];
+    var chipSets = [
+      ["Was soll ich heute essen?", "Trainingsplan für diese Woche", "Wie viele Kalorien hab ich noch?", "Rezeptidee für heute Abend"],
+      ["Übung gegen Rückenschmerzen", "Proteinreiche Snacks", "Meinen Fortschritt zeigen", "Mein Ziel anpassen"],
+      ["Wie war mein Training gestern?", "Mahlzeit nachtragen", "Tipps für mehr Energie", "Ruhetag sinnvoll nutzen"],
+      ["Kalorienbedarf neu berechnen", "Was fehlt mir heute noch?", "Neuen Übungsplan erstellen", "Frag mich einfach was du willst"]
+    ];
+    var oi = Math.floor(Math.random() * openers.length);
+    var ci = Math.floor(Math.random() * chipSets.length);
+    return { text: openers[oi], chips: chipSets[ci] };
+  }
+
   function renderOpenaiKeyStatus(){
     var input = document.getElementById("openaiKeyInput");
     var status = document.getElementById("openaiKeyStatus");
@@ -2415,7 +2469,10 @@
     var sums = confirmedSums(day);
     var kcalIst = Math.round(foodKcal(sums.kh, sums.fett, sums.protein));
     var kcalZiel = Math.round(m.kcal);
-    return { kcalIst: kcalIst, kcalZiel: kcalZiel, kcalRest: Math.max(0, kcalZiel - kcalIst), entries: day.entries };
+    return {
+      kcalIst: kcalIst, kcalZiel: kcalZiel, kcalRest: Math.max(0, kcalZiel - kcalIst), entries: day.entries,
+      kh: { ist: fmtInt(sums.kh), ziel: m.kh }, fett: { ist: fmtInt(sums.fett), ziel: m.fett }, protein: { ist: fmtInt(sums.protein), ziel: m.protein }
+    };
   }
 
   function computeGymSummary(profile){
@@ -2447,7 +2504,7 @@
   function addExerciseFromOverview(){
     var profile = activeProfile();
     var day = getTrainingDay(profile, state.selectedDate);
-    day.exercises.push({ id: newId("x"), name: "", sets: 3, reps: 8, weight: 0, success: false });
+    day.exercises.push({ id: newId("x"), name: "", sets: 3, reps: 8, weight: 0, restSec: 90, success: false });
     save();
     openTrainingEditor(day.exercises.length - 1);
   }
@@ -2480,15 +2537,71 @@
   // zweimal: einmal im offenen Chat, einmal größer auf dem VoßBot-Startbildschirm/
   // der Chatliste) — drei gestapelte Vollbreite-Karten mit je einer Chip-Reihe
   // der echten Tagesdaten.
+  // Kleines Donut-Diagramm (KH/Fett/Protein) im Stil des großen aus dem
+  // Cook-Tab, aber kompakt für die Tagesübersicht-Seite.
+  function buildCovDonut(cook, idPrefix){
+    var wrap = document.createElement("div");
+    wrap.style.cssText = "display:flex;align-items:center;gap:14px;";
+    var totalG = Math.max(1, cook.kh.ziel + cook.fett.ziel + cook.protein.ziel);
+    var pctK = cook.kh.ziel / totalG * 100;
+    var pctF = cook.fett.ziel / totalG * 100;
+    var pctP = cook.protein.ziel / totalG * 100;
+    var donut = document.createElement("div");
+    donut.className = "cov-donut";
+    donut.innerHTML = '<svg viewBox="0 0 100 100">' +
+      '<circle cx="50" cy="50" r="42" stroke="#111" stroke-width="9" fill="none"></circle>' +
+      '<circle cx="50" cy="50" r="42" stroke="var(--kh)" fill="none" pathLength="100" stroke-dasharray="' + pctK.toFixed(2) + ' ' + (100 - pctK).toFixed(2) + '" stroke-dashoffset="0"></circle>' +
+      '<circle cx="50" cy="50" r="42" stroke="var(--fett)" fill="none" pathLength="100" stroke-dasharray="' + pctF.toFixed(2) + ' ' + (100 - pctF).toFixed(2) + '" stroke-dashoffset="' + (-pctK).toFixed(2) + '"></circle>' +
+      '<circle cx="50" cy="50" r="42" stroke="var(--protein)" fill="none" pathLength="100" stroke-dasharray="' + pctP.toFixed(2) + ' ' + (100 - pctP).toFixed(2) + '" stroke-dashoffset="' + (-(pctK + pctF)).toFixed(2) + '"></circle>' +
+      '</svg><div class="lbl"><b>' + cook.kcalIst + '</b></div>';
+    var legend = document.createElement("div");
+    legend.className = "cov-legend";
+    legend.style.flexDirection = "column";
+    legend.style.gap = "4px";
+    legend.innerHTML =
+      '<div class="it"><span class="dot" style="background:var(--kh)"></span>KH ' + cook.kh.ist + ' / ' + cook.kh.ziel + 'g</div>' +
+      '<div class="it"><span class="dot" style="background:var(--fett)"></span>Fett ' + cook.fett.ist + ' / ' + cook.fett.ziel + 'g</div>' +
+      '<div class="it"><span class="dot" style="background:var(--protein)"></span>Protein ' + cook.protein.ist + ' / ' + cook.protein.ziel + 'g</div>';
+    wrap.appendChild(donut);
+    wrap.appendChild(legend);
+    return wrap;
+  }
+
+  function buildCovExList(exercises){
+    var list = document.createElement("div");
+    list.className = "cov-exlist";
+    exercises.forEach(function(ex, idx){
+      var row = document.createElement("div");
+      row.className = "cov-ex-row" + (ex.success ? " done" : "");
+      var meta = (ex.sets || 3) + "×" + (ex.reps || 8) + (ex.weight ? " · " + fmtWeight(ex.weight) + "kg" : "") + " · " + (ex.restSec != null ? ex.restSec : 90) + "s Pause";
+      row.innerHTML = '<span class="n">' + (ex.success ? "✓ " : "") + (ex.name || "Übung " + (idx + 1)) + '</span><span class="m">' + meta + '</span>';
+      row.addEventListener("click", function(){ openExerciseFromOverview(idx); });
+      list.appendChild(row);
+    });
+    var addRow = document.createElement("div");
+    addRow.className = "cov-chip add";
+    addRow.style.alignSelf = "flex-start";
+    addRow.textContent = "+ Übung";
+    addRow.addEventListener("click", addExerciseFromOverview);
+    list.appendChild(addRow);
+    return list;
+  }
+
+  // Baut eine Instanz der Tagesübersicht als 3 wischbare Seiten (Ernährung /
+  // Fitness / Kombiniert) mit Punkte-Indikator, ähnlich dem Wischen zwischen
+  // Homescreen-Seiten.
   function buildOverviewCardDOM(suffix, cook, gym, mixedText){
     var card = document.getElementById("chatOverviewCard" + suffix);
     if(!card) return;
     card.innerHTML = "";
     card.hidden = false;
 
-    // Ernährung
-    var cookCard = document.createElement("div");
-    cookCard.className = "cov-card";
+    var pager = document.createElement("div");
+    pager.className = "cov-pager";
+
+    // Seite 1 — Ernährung: Nährstoff-Diagramm + Mahlzeiten
+    var cookPage = document.createElement("div");
+    cookPage.className = "cov-page";
     var cookHead = document.createElement("button");
     cookHead.type = "button";
     cookHead.className = "cov-card-head";
@@ -2496,62 +2609,67 @@
       '<div class="cov-card-title"><div class="t">Ernährung</div><div class="s">' + (cook.kcalRest > 0 ? "noch " + cook.kcalRest + " kcal offen" : "Tagesziel erreicht") + '</div></div>' +
       '<div class="cov-card-stat">' + cook.kcalIst + '<small> / ' + cook.kcalZiel + '</small></div>';
     cookHead.addEventListener("click", function(){ askViaChatOverview("Wie sieht mein Tagesbedarf aus?"); });
-    var cookBar = document.createElement("div");
-    cookBar.className = "cov-barwrap";
-    cookBar.innerHTML = '<div class="cov-bar" style="width:' + Math.min(100, cook.kcalZiel ? (cook.kcalIst / cook.kcalZiel * 100) : 0) + '%"></div>';
-    cookCard.appendChild(cookHead);
-    cookCard.appendChild(cookBar);
-    cookCard.appendChild(buildCovChipRow(cook.entries, "meal"));
+    cookPage.appendChild(cookHead);
+    cookPage.appendChild(buildCovDonut(cook));
+    cookPage.appendChild(buildCovChipRow(cook.entries, "meal"));
 
-    // Fitness
-    var gymCard = document.createElement("div");
-    gymCard.className = "cov-card";
+    // Seite 2 — Fitness: Übungen mit Sätzen/Wdh./Pause
+    var gymPage = document.createElement("div");
+    gymPage.className = "cov-page";
     var gymHead = document.createElement("button");
     gymHead.type = "button";
     gymHead.className = "cov-card-head";
     gymHead.innerHTML = '<span class="cov-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 7v10M17.5 7v10M4 9.5v5M20 9.5v5M8 12h8"/></svg></span>' +
-      '<div class="cov-card-title"><div class="t">Fitness</div><div class="s">' + (gym.count ? "noch " + (gym.count - gym.done) + " offen" : "noch nichts geloggt") + '</div></div>' +
+      '<div class="cov-card-title"><div class="t">Fitness</div><div class="s">Heutiges Training</div></div>' +
       '<div class="cov-card-stat">' + gym.done + '<small> / ' + gym.count + '</small></div>';
     gymHead.addEventListener("click", function(){ askViaChatOverview("Was steht heute im Training an?"); });
-    var gymBar = document.createElement("div");
-    gymBar.className = "cov-barwrap";
-    gymBar.innerHTML = '<div class="cov-bar" style="width:' + (gym.count ? Math.min(100, gym.done / gym.count * 100) : 0) + '%"></div>';
-    gymCard.appendChild(gymHead);
-    gymCard.appendChild(gymBar);
-    gymCard.appendChild(buildCovChipRow(gym.exercises, "exercise"));
+    gymPage.appendChild(gymHead);
+    if(gym.count === 0){
+      var gymEmpty = document.createElement("div");
+      gymEmpty.style.cssText = "font-size:13px;color:var(--text-faint);";
+      gymEmpty.textContent = "Noch nichts geloggt heute.";
+      gymPage.appendChild(gymEmpty);
+    }
+    gymPage.appendChild(buildCovExList(gym.exercises));
 
-    // Heute (gemischt)
-    var mixedCard = document.createElement("div");
-    mixedCard.className = "cov-card";
-    var mixedTitle = document.createElement("div");
-    mixedTitle.style.cssText = "font-weight:700;font-size:15.5px;color:var(--turquoise);";
-    mixedTitle.textContent = "Heute";
-    var mixedText2 = document.createElement("div");
-    mixedText2.className = "cov-mixed-text";
-    mixedText2.textContent = mixedText;
-    mixedCard.appendChild(mixedTitle);
-    mixedCard.appendChild(mixedText2);
-    var suggestions = [
-      "Was fehlt mir noch heute?",
-      "Trainingsplan für heute zeigen",
-      "Kalorien neu berechnen"
+    // Seite 3 — Kombiniert: Ernährung + Training zusammen planen
+    var comboPage = document.createElement("div");
+    comboPage.className = "cov-page";
+    var comboTitle = document.createElement("div");
+    comboTitle.style.cssText = "font-weight:700;font-size:15.5px;color:var(--turquoise);";
+    comboTitle.textContent = "Kombiniert";
+    var comboText = document.createElement("div");
+    comboText.className = "cov-mixed-text";
+    comboText.textContent = mixedText;
+    comboPage.appendChild(comboTitle);
+    comboPage.appendChild(comboText);
+    var comboSuggestions = [
+      "Trainingsplan an meine Ernährung anpassen",
+      "Ernährung an mein Training anpassen",
+      "Übung + Mahlzeit gemeinsam planen",
+      "Heute optimal planen (Training + Essen)"
     ];
-    var mixedRow = document.createElement("div");
-    mixedRow.className = "cov-chiprow";
-    suggestions.forEach(function(q){
+    var comboRow = document.createElement("div");
+    comboRow.className = "cov-combo-row";
+    comboSuggestions.forEach(function(q){
       var chip = document.createElement("div");
       chip.className = "cov-chip";
+      chip.style.width = "100%";
+      chip.style.boxSizing = "border-box";
       chip.textContent = q;
       chip.addEventListener("click", function(){ askViaChatOverview(q); });
-      mixedRow.appendChild(chip);
+      comboRow.appendChild(chip);
     });
-    mixedCard.appendChild(mixedRow);
-    var mixedCta = document.createElement("button");
-    mixedCta.type = "button";
-    mixedCta.className = "cov-mixed-cta";
-    mixedCta.textContent = "VoßBot frei fragen ›";
-    mixedCta.addEventListener("click", function(){
-      if(!currentChat()){
+    comboPage.appendChild(comboRow);
+    var comboCta = document.createElement("button");
+    comboCta.type = "button";
+    comboCta.className = "cov-mixed-cta";
+    comboCta.textContent = "VoßBot frei fragen ›";
+    comboCta.addEventListener("click", function(){
+      var mc = mainChat();
+      if(mc){
+        if(state.activeChatId !== mc.id || state.view !== "chatconv") openChatConversation(mc.id);
+      } else if(!currentChat()){
         var ids = Object.keys(state.chats).sort(function(a,b){ return state.chats[b].updatedAt - state.chats[a].updatedAt; });
         openChatConversation(ids.length ? ids[0] : createNewChat());
       } else if(state.view !== "chatconv"){
@@ -2559,11 +2677,32 @@
       }
       document.getElementById("chatInput").focus();
     });
-    mixedCard.appendChild(mixedCta);
+    comboPage.appendChild(comboCta);
 
-    card.appendChild(cookCard);
-    card.appendChild(gymCard);
-    card.appendChild(mixedCard);
+    pager.appendChild(cookPage);
+    pager.appendChild(gymPage);
+    pager.appendChild(comboPage);
+    card.appendChild(pager);
+
+    // Punkte-Indikator zum Wischen/Antippen zwischen den 3 Seiten
+    var dots = document.createElement("div");
+    dots.className = "cov-dots";
+    var dotEls = [];
+    for(var i = 0; i < 3; i++){
+      var dot = document.createElement("button");
+      dot.type = "button";
+      dot.className = "cov-dot" + (i === 0 ? " active" : "");
+      dot.addEventListener("click", (function(idx){ return function(){
+        pager.scrollTo({ left: pager.clientWidth * idx, behavior: "smooth" });
+      }; })(i));
+      dots.appendChild(dot);
+      dotEls.push(dot);
+    }
+    card.appendChild(dots);
+    pager.addEventListener("scroll", function(){
+      var idx = Math.round(pager.scrollLeft / Math.max(1, pager.clientWidth));
+      dotEls.forEach(function(d, di){ d.classList.toggle("active", di === idx); });
+    }, { passive: true });
   }
 
   function renderChatOverviewCard(){
@@ -2582,7 +2721,14 @@
     else if(cook.kcalRest > 0) mixedText = "Noch " + cook.kcalRest + " kcal offen, " + gym.done + "/" + gym.count + " Übungen heute erledigt.";
     else if(gym.count === 0) mixedText = "Kalorienziel für heute erreicht — schon trainiert?";
     else mixedText = "Kalorienziel erreicht, " + gym.done + "/" + gym.count + " Übungen heute erledigt. Stark! 💪";
-    buildOverviewCardDOM("", cook, gym, mixedText);
+    // Die Kästen erscheinen im offenen Chat nur im Hauptchat — alle
+    // anderen (frei angelegten) Chats bleiben reines Geplauder ohne Boxen.
+    var chat = currentChat();
+    if(chat && chat.isMain){
+      buildOverviewCardDOM("", cook, gym, mixedText);
+    } else if(card1){
+      card1.hidden = true;
+    }
     buildOverviewCardDOM("Home", cook, gym, mixedText);
   }
 
@@ -2591,7 +2737,10 @@
   // etwas eintippt — nicht schon durch bloßes Antippen der Übersichtskarte.
   function askViaChatOverview(text){
     if(chatBusy || chatOnboarding) return;
-    if(!currentChat()){
+    var mc = mainChat();
+    if(mc){
+      if(state.activeChatId !== mc.id || state.view !== "chatconv") openChatConversation(mc.id);
+    } else if(!currentChat()){
       var ids = Object.keys(state.chats).sort(function(a,b){ return state.chats[b].updatedAt - state.chats[a].updatedAt; });
       openChatConversation(ids.length ? ids[0] : createNewChat());
     } else if(state.view !== "chatconv"){
@@ -2668,6 +2817,25 @@
           }
         } else {
           b.textContent = msg.text;
+          if(msg.suggestChips && msg.suggestChips.length && !msg.suggestUsed){
+            var swrap = document.createElement("div");
+            swrap.className = "cac-choices cac-choices-suggest";
+            msg.suggestChips.forEach(function(ct){
+              var sb = document.createElement("button");
+              sb.type = "button";
+              sb.className = "cac-choice-btn";
+              sb.textContent = ct;
+              sb.addEventListener("click", function(){
+                if(msg.suggestUsed || chatBusy) return;
+                msg.suggestUsed = true;
+                var input = document.getElementById("chatInput");
+                input.value = ct;
+                sendChatMessage();
+              });
+              swrap.appendChild(sb);
+            });
+            b.appendChild(swrap);
+          }
         }
         wrap.appendChild(b);
       });
@@ -2917,9 +3085,23 @@
     setTopbar(state.view);
   }
 
+  // Markiert die offene Frage im Chatverlauf als beantwortet — auch wenn
+  // die Antwort frei getippt statt per Chip angeklickt wurde, damit die
+  // Auswahl-Buttons in der Historie nicht für immer aktiv bleiben.
+  function markChoiceAnswered(chat, step, displayText){
+    for(var i = chat.messages.length - 1; i >= 0; i--){
+      var m = chat.messages[i];
+      if(m.choiceType && m.step === step){
+        if(!m.answered){ m.answered = true; m.answeredText = displayText; }
+        break;
+      }
+    }
+  }
+
   function handleOnboardingAnswer(text, chat){
     var o = chatOnboarding;
     var t = (text || "").trim();
+    var stepAtEntry = o.step;
     switch(o.step){
       case 0:
         o.answers.name = (t.toLowerCase() === "skip" || !t) ? "" : t;
@@ -2971,9 +3153,18 @@
         var zIdx = extractNumber(t);
         if(zIdx == null || zIdx < 1 || zIdx > ZIEL_STAGES.length){ chat.messages.push({ role: "assistant", text: "Bitte eine Zahl von 1 bis " + ZIEL_STAGES.length + " aus der Liste oben." }); return; }
         o.answers.zielIdx = Math.round(zIdx) - 1;
+        markChoiceAnswered(chat, stepAtEntry, ZIEL_STAGES[o.answers.zielIdx].label);
         finishChatOnboarding(chat);
         return;
       }
+    }
+    var ctAtEntry = onboardChoiceType(stepAtEntry);
+    if(ctAtEntry){
+      var displayText = t;
+      if(ctAtEntry === "gender") displayText = (o.answers.gender === "frau") ? "Frau" : "Mann";
+      else if(ctAtEntry === "kfa") displayText = o.answers.kfaPct + "%";
+      else if(ctAtEntry === "pal") displayText = PAL_STAGES[o.answers.palIdx].desc;
+      markChoiceAnswered(chat, stepAtEntry, displayText);
     }
     pushOnboardingQuestion(chat, o.step, o.answers);
   }
@@ -2988,6 +3179,21 @@
 
     var chat = currentChat();
     if(!chat){ createNewChat(); chat = currentChat(); }
+
+    // Der Hauptchat bleibt frei von normalem Geplauder — eine frei
+    // getippte Nachricht dort (außerhalb von Onboarding/Login-Fragen)
+    // landet automatisch in einem neuen, separaten Chat, der auch in
+    // der Chatliste auftaucht, damit der Hauptchat aufgeräumt bleibt.
+    if(chat.isMain && !chatOnboarding){
+      var hasPendingAuth = chat.messages.some(function(pm){ return pm.authChoice && !pm.resolved; });
+      var hasUnansweredChoice = chat.messages.some(function(pm){ return pm.choiceType && !pm.answered; });
+      if(!hasPendingAuth && !hasUnansweredChoice){
+        var freshId = createNewChat();
+        chat = state.chats[freshId];
+        openChatConversation(freshId);
+      }
+    }
+
     chat.messages.push({ role: "user", text: text });
     if(chat.messages.length === 1){ chat.title = chatTitleFromMessages(chat.messages); document.getElementById("pageTitle").textContent = chat.title; }
     chat.updatedAt = Date.now();
@@ -4616,7 +4822,13 @@
     document.getElementById("dayNext").addEventListener("click", function(){ state.selectedDate = addDays(state.selectedDate,7); renderHome(); });
     document.getElementById("dayExpand").addEventListener("click", openMonthCal);
 
-    document.getElementById("newChatBtn").addEventListener("click", function(){ openChatConversation(createNewChat()); });
+    document.getElementById("newChatBtn").addEventListener("click", function(){
+      var id = createNewChat();
+      var welcome = randomChatWelcome();
+      state.chats[id].messages.push({ role: "assistant", text: welcome.text, suggestChips: welcome.chips });
+      save();
+      openChatConversation(id);
+    });
     document.getElementById("chatSendBtn").addEventListener("click", sendChatMessage);
     var gsi = document.getElementById("googleSignInBtn"); if(gsi) gsi.addEventListener("click", signInGoogle);
     var gso = document.getElementById("googleSignOutBtn"); if(gso) gso.addEventListener("click", signOutGoogle);
@@ -4774,7 +4986,7 @@
     document.getElementById("addExBtn").addEventListener("click", function(){
       var profile = activeProfile();
       var day = getTrainingDay(profile, state.selectedDate);
-      day.exercises.push({ id: newId("x"), name: "", sets: 3, reps: 8, weight: 0, success: false });
+      day.exercises.push({ id: newId("x"), name: "", sets: 3, reps: 8, weight: 0, restSec: 90, success: false });
       save();
       openTrainingEditor(day.exercises.length - 1);
     });
@@ -4811,6 +5023,11 @@
       var entry = currentTrainingEntry();
       entry.weight = parseFloat(e.target.value) || 0;
       if(entry.name && entry.success) applyProgressionOnSave(activeProfile(), entry);
+      save();
+    });
+    document.getElementById("tex-rest").addEventListener("input", function(e){
+      var entry = currentTrainingEntry();
+      entry.restSec = parseInt(e.target.value,10) || 0;
       save();
     });
     document.getElementById("tex-success").addEventListener("change", function(e){
@@ -4981,6 +5198,26 @@
     if(state.activeChatId === undefined) state.activeChatId = null;
     if(state.openaiApiKey === undefined) state.openaiApiKey = "";
     if(!state.knownCloudIds) state.knownCloudIds = {};
+    // Migration: ältere Spielstände kennen noch keinen Hauptchat — den
+    // ältesten Chat (bzw. den mit Titel "VoßBot") nachträglich als
+    // Hauptchat markieren, damit die Tagesübersicht weiter dort erscheint.
+    (function(){
+      var ids = Object.keys(state.chats);
+      if(!ids.length) return;
+      for(var i=0;i<ids.length;i++){ if(state.chats[ids[i]].isMain) return; }
+      var pick = null;
+      ids.forEach(function(id){
+        var c = state.chats[id];
+        if(c.title === "VoßBot" && (!pick || c.updatedAt < pick.updatedAt)) pick = c;
+      });
+      if(!pick){
+        ids.forEach(function(id){
+          var c = state.chats[id];
+          if(!pick || c.updatedAt < pick.updatedAt) pick = c;
+        });
+      }
+      if(pick) pick.isMain = true;
+    })();
     if(state.onboarded){
       initApp();
     } else {
@@ -4990,7 +5227,9 @@
       // Formular-Assistenten.
       initApp();
       showTab("chat");
-      openChatConversation(createNewChat("VoßBot"));
+      var mcId0 = createNewChat("VoßBot");
+      state.chats[mcId0].isMain = true;
+      openChatConversation(mcId0);
       startChatAuthChoice();
     }
   }
