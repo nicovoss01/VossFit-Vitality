@@ -1687,6 +1687,7 @@
 
   function buildChatContext(){
     var p = activeProfile();
+    if(!p) return "Kein Profil angelegt.";
     var m = calcEngine(p);
     var day = getDay(p, state.selectedDate);
     var sums = confirmedSums(day);
@@ -1711,6 +1712,7 @@
 
   function addFoodToDayEntry(input){
     var p = activeProfile();
+    if(!p) return { ok:false, message: "Kein Profil vorhanden — leg zuerst eins an." };
     var day = getDay(p, state.selectedDate);
     var mealName = (input && input.mealName) ? String(input.mealName) : "";
     var foodName = (input && input.foodName) ? String(input.foodName) : "Lebensmittel";
@@ -1750,6 +1752,15 @@
     chat.messages.push({ role: "user", text: text });
     if(chat.messages.length === 1){ chat.title = chatTitleFromMessages(chat.messages); document.getElementById("pageTitle").textContent = chat.title; }
     chat.updatedAt = Date.now();
+
+    if(!activeProfile()){
+      chat.messages.push({ role: "assistant", text: "Ich brauche erst ein Profil mit deinen Körperdaten, um dir helfen zu können — leg unter Einstellungen → Profile eins an, dann frag mich gern nochmal." });
+      chat.updatedAt = Date.now();
+      renderChatMessages();
+      save();
+      return;
+    }
+
     renderChatMessages();
     save();
 
@@ -1777,9 +1788,15 @@
       renderChatMessages();
     }
 
-    var history = chat.messages.slice(0, -1).map(function(m){ return (m.role === "user" ? "Nutzer" : "VoßBot") + ": " + m.text; }).join("\n");
-    var contextBlock = "Aktuelle Daten:\n" + buildChatContext() + (history ? ("\n\nBisheriger Chatverlauf:\n" + history) : "");
-    var systemInstruction = "Du bist VoßBot, der Ernährungs-Coach in der App VossFit. Beantworte Fragen zu Ernährung, Körperdaten, Mahlzeiten und Anpassungen kurz, konkret und auf Deutsch. Du bist kein Arzt und gibst keine medizinische Diagnose.";
+    var history, contextBlock, systemInstruction;
+    try{
+      history = chat.messages.slice(0, -1).map(function(m){ return (m.role === "user" ? "Nutzer" : "VoßBot") + ": " + m.text; }).join("\n");
+      contextBlock = "Aktuelle Daten:\n" + buildChatContext() + (history ? ("\n\nBisheriger Chatverlauf:\n" + history) : "");
+      systemInstruction = "Du bist VoßBot, der Ernährungs-Coach in der App VossFit. Beantworte Fragen zu Ernährung, Körperdaten, Mahlzeiten und Anpassungen kurz, konkret und auf Deutsch. Du bist kein Arzt und gibst keine medizinische Diagnose.";
+    }catch(e){
+      finishError("Unerwarteter Fehler beim Vorbereiten der Antwort. Bitte erneut versuchen.");
+      return;
+    }
 
     if(state.openaiApiKey){
       runOpenAIChat(systemInstruction, contextBlock, text, pendingBubble, finishOk, finishError);
