@@ -279,6 +279,15 @@
   .cov-ex-row.done{ border-color: var(--turquoise); background: rgba(18,203,238,.08); }
   .cov-exlist{ display: flex; flex-direction: column; gap: 7px; }
   .cov-combo-row{ display: flex; flex-direction: column; gap: 8px; }
+  .cov-combo-suggest{ font-size: 12.5px; color: var(--turquoise); background: rgba(18,203,238,.1); border: 1px dashed rgba(18,203,238,.5); border-radius: 14px; padding: 10px 12px; cursor: pointer; line-height: 1.4; }
+  .cov-mode-row{ display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; -webkit-overflow-scrolling: touch; }
+  .cov-mode-btn{ flex-shrink: 0; font-size: 11.5px; font-weight: 600; color: var(--text-dim); background: rgba(0,0,0,.35); border: 1px solid rgba(18,203,238,.25); border-radius: 999px; padding: 6px 10px; cursor: pointer; font-family: var(--body); }
+  .cov-mode-btn.active{ color: #031013; background: var(--turquoise); border-color: var(--turquoise); }
+  .cov-combo-list{ display: flex; flex-direction: column; gap: 7px; max-height: 150px; overflow-y: auto; }
+  .cov-combo-item{ position: relative; }
+  .cov-combo-item.selected{ border-color: var(--turquoise) !important; box-shadow: 0 0 0 1.5px var(--turquoise) inset; }
+  .cov-combo-actions{ display: flex; flex-direction: column; gap: 6px; border-top: 1px solid rgba(18,203,238,.25); padding-top: 10px; margin-top: 2px; }
+  .cov-combo-sel-label{ font-size: 12px; color: var(--text-dim); }
 
   /* Größere Variante auf dem VoßBot-Startbildschirm (Chatliste) */
   .cov-lg .cov-page{ padding: 22px; border-radius: 22px; min-height: 220px; }
@@ -2533,6 +2542,216 @@
     return row;
   }
 
+  // Seite 3 der Tagesübersicht — "Kombiniert": zeigt einen konkreten
+  // Vorschlag aus den echten heutigen Daten, listet Mahlzeiten- und
+  // Übungs-Einträge gemeinsam als antippbare (mehrfach wählbare) Liste,
+  // und löst erst auf ausdrückliche Bestätigung hin etwas aus — Öffnen
+  // des Editors bei genau einer Auswahl, oder "Gemeinsam besprechen" im
+  // Chat bei mehreren. Ein Semi-Menü steuert, was kombiniert werden darf.
+  function buildComboPage(cook, gym, mixedText){
+    var comboPage = document.createElement("div");
+    comboPage.className = "cov-page";
+
+    var comboTitle = document.createElement("div");
+    comboTitle.style.cssText = "font-weight:700;font-size:15.5px;color:var(--turquoise);";
+    comboTitle.textContent = "Kombiniert";
+    comboPage.appendChild(comboTitle);
+
+    var comboText = document.createElement("div");
+    comboText.className = "cov-mixed-text";
+    comboText.textContent = mixedText;
+    comboPage.appendChild(comboText);
+
+    // Konkreter Vorschlag aus echten Daten: nächste offene Übung + nächste
+    // offene Mahlzeit — antippen übernimmt beides direkt in die Auswahl.
+    var nextMeal = null, nextMealIdx = -1;
+    cook.entries.forEach(function(e, i){ if(!e.confirmed && nextMeal === null){ nextMeal = e; nextMealIdx = i; } });
+    var nextEx = null, nextExIdx = -1;
+    gym.exercises.forEach(function(e, i){ if(!e.success && nextEx === null){ nextEx = e; nextExIdx = i; } });
+    var suggest = null;
+    if(nextMeal && nextEx){
+      suggest = document.createElement("div");
+      suggest.className = "cov-combo-suggest";
+      suggest.textContent = "💡 Passt gut zusammen: " + (nextEx.name || "nächste Übung") + " (" + (nextEx.sets||3) + "×" + (nextEx.reps||8) + ") + " + (nextMeal.name || "nächste Mahlzeit");
+      comboPage.appendChild(suggest);
+    }
+
+    // Semi-Menü: steuert, was zusammen ausgewählt werden darf.
+    var modes = [
+      { key: "mix", label: "Übung + Mahlzeit" },
+      { key: "gym2", label: "2× Fitness" },
+      { key: "cook2", label: "2× Ernährung" },
+      { key: "free", label: "Frei wählen" }
+    ];
+    var comboMode = "mix";
+    var modeRow = document.createElement("div");
+    modeRow.className = "cov-mode-row";
+    var modeBtns = {};
+    modes.forEach(function(m){
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "cov-mode-btn" + (m.key === comboMode ? " active" : "");
+      b.textContent = m.label;
+      b.addEventListener("click", function(){
+        comboMode = m.key;
+        selection = [];
+        Object.keys(modeBtns).forEach(function(k){ modeBtns[k].classList.toggle("active", k === comboMode); });
+        renderSelection();
+      });
+      modeBtns[m.key] = b;
+      modeRow.appendChild(b);
+    });
+    comboPage.appendChild(modeRow);
+
+    var selection = []; // [{kind:"meal"|"ex"|"macro", idx, label}]
+    function maxForMode(){ return comboMode === "free" ? 3 : 2; }
+    function allowedKind(kind){
+      if(kind === "macro") return true; // Nährstoff-Anpassung lässt sich immer dazukombinieren
+      if(comboMode === "gym2") return kind === "ex";
+      if(comboMode === "cook2") return kind === "meal";
+      return true;
+    }
+    function toggleSelect(kind, idx, label){
+      if(!allowedKind(kind)) return;
+      var existing = selection.findIndex(function(s){ return s.kind === kind && s.idx === idx; });
+      if(existing > -1){
+        selection.splice(existing, 1);
+      } else {
+        if(comboMode === "mix" || kind === "macro") selection = selection.filter(function(s){ return s.kind !== kind; });
+        if(selection.length >= maxForMode()) selection.shift();
+        selection.push({ kind: kind, idx: idx, label: label });
+      }
+      renderSelection();
+    }
+    if(suggest){
+      suggest.addEventListener("click", function(){
+        toggleSelect("ex", nextExIdx, nextEx.name || "Übung");
+        toggleSelect("meal", nextMealIdx, nextMeal.name || "Mahlzeit");
+      });
+    }
+
+    var listWrap = document.createElement("div");
+    listWrap.className = "cov-combo-list";
+    cook.entries.forEach(function(item, idx){
+      var chip = document.createElement("div");
+      chip.className = "cov-chip cov-combo-item" + (item.confirmed ? " done" : "");
+      chip.style.cssText = "width:100%;box-sizing:border-box;white-space:normal;";
+      var label = item.name || "Mahlzeit " + (idx + 1);
+      chip.textContent = (item.confirmed ? "✓ " : "") + label;
+      chip.dataset.kind = "meal"; chip.dataset.idx = idx;
+      chip.addEventListener("click", function(){ toggleSelect("meal", idx, label); });
+      listWrap.appendChild(chip);
+    });
+    gym.exercises.forEach(function(ex, idx){
+      var row = document.createElement("div");
+      row.className = "cov-ex-row cov-combo-item" + (ex.success ? " done" : "");
+      var label = ex.name || "Übung " + (idx + 1);
+      var meta = (ex.sets || 3) + "×" + (ex.reps || 8) + (ex.weight ? " · " + fmtWeight(ex.weight) + "kg" : "") + " · " + (ex.restSec != null ? ex.restSec : 90) + "s Pause";
+      row.innerHTML = '<span class="n">' + (ex.success ? "✓ " : "") + label + '</span><span class="m">' + meta + '</span>';
+      row.dataset.kind = "ex"; row.dataset.idx = idx;
+      row.addEventListener("click", function(){ toggleSelect("ex", idx, label); });
+      listWrap.appendChild(row);
+    });
+    if(!cook.entries.length && !gym.exercises.length){
+      var emptyMsg = document.createElement("div");
+      emptyMsg.style.cssText = "font-size:13px;color:var(--text-faint);";
+      emptyMsg.textContent = "Noch keine Mahlzeiten oder Übungen heute.";
+      listWrap.appendChild(emptyMsg);
+    }
+    comboPage.appendChild(listWrap);
+
+    // Nährstoffe lassen sich immer mit dazu auswählen — z.B. "Bankdrücken +
+    // mehr Protein", ohne dass dafür extra eine Mahlzeit angelegt wird.
+    var macroLabel = document.createElement("div");
+    macroLabel.style.cssText = "font-size:11px;color:var(--text-faint);margin-top:2px;";
+    macroLabel.textContent = "Nährstoff dazu kombinieren:";
+    comboPage.appendChild(macroLabel);
+    var macroRow = document.createElement("div");
+    macroRow.className = "cov-chiprow";
+    [
+      { key: "protein", label: "+ Protein" },
+      { key: "kh", label: "+ Kohlenhydrate" },
+      { key: "fett", label: "+ Fett" }
+    ].forEach(function(m){
+      var mChip = document.createElement("div");
+      mChip.className = "cov-chip cov-combo-item";
+      mChip.textContent = m.label;
+      mChip.dataset.kind = "macro"; mChip.dataset.idx = m.key;
+      mChip.addEventListener("click", function(){ toggleSelect("macro", m.key, m.label.replace("+ ", "mehr ")); });
+      macroRow.appendChild(mChip);
+    });
+    comboPage.appendChild(macroRow);
+
+    // Action-Leiste — erscheint erst, wenn wirklich etwas ausgewählt wurde.
+    var actionBar = document.createElement("div");
+    actionBar.className = "cov-combo-actions";
+    actionBar.hidden = true;
+    var selLabel = document.createElement("div");
+    selLabel.className = "cov-combo-sel-label";
+    actionBar.appendChild(selLabel);
+    var actionBtns = document.createElement("div");
+    actionBtns.style.cssText = "display:flex;gap:8px;";
+    var openBtn = document.createElement("button");
+    openBtn.type = "button";
+    openBtn.className = "cov-mixed-cta";
+    openBtn.textContent = "Öffnen";
+    openBtn.addEventListener("click", function(){
+      if(selection.length !== 1) return;
+      var s = selection[0];
+      if(s.kind === "meal") openMealFromOverview(s.idx); else openExerciseFromOverview(s.idx);
+    });
+    var chatBtn = document.createElement("button");
+    chatBtn.type = "button";
+    chatBtn.className = "cov-mixed-cta";
+    chatBtn.textContent = "Gemeinsam besprechen ›";
+    chatBtn.addEventListener("click", function(){
+      if(!selection.length) return;
+      var labels = selection.map(function(s){ return s.label; });
+      askViaChatOverview("Kombiniere für mich: " + labels.join(" + "));
+    });
+    actionBtns.appendChild(openBtn);
+    actionBtns.appendChild(chatBtn);
+    actionBar.appendChild(actionBtns);
+    comboPage.appendChild(actionBar);
+
+    function renderSelection(){
+      [listWrap, macroRow].forEach(function(container){
+        Array.prototype.forEach.call(container.children, function(el){
+          if(!el.dataset || !el.dataset.kind) return;
+          var isSel = selection.some(function(s){ return s.kind === el.dataset.kind && String(s.idx) === el.dataset.idx; });
+          el.classList.toggle("selected", isSel);
+        });
+      });
+      if(selection.length){
+        actionBar.hidden = false;
+        selLabel.textContent = "Ausgewählt: " + selection.map(function(s){ return s.label; }).join(" + ");
+        openBtn.hidden = selection.length !== 1 || selection[0].kind === "macro";
+      } else {
+        actionBar.hidden = true;
+      }
+    }
+
+    var comboCta = document.createElement("button");
+    comboCta.type = "button";
+    comboCta.className = "cov-mixed-cta";
+    comboCta.textContent = "VoßBot frei fragen ›";
+    comboCta.addEventListener("click", function(){
+      var mc = mainChat();
+      if(mc){
+        if(state.activeChatId !== mc.id || state.view !== "chatconv") openChatConversation(mc.id);
+      } else if(!currentChat()){
+        var ids = Object.keys(state.chats).sort(function(a,b){ return state.chats[b].updatedAt - state.chats[a].updatedAt; });
+        openChatConversation(ids.length ? ids[0] : createNewChat());
+      } else if(state.view !== "chatconv"){
+        openChatConversation(currentChat().id);
+      }
+      document.getElementById("chatInput").focus();
+    });
+    comboPage.appendChild(comboCta);
+
+    return comboPage;
+  }
+
   // Baut eine Instanz der Tagesübersicht-Karte komplett neu auf (es gibt sie
   // zweimal: einmal im offenen Chat, einmal größer auf dem VoßBot-Startbildschirm/
   // der Chatliste) — drei gestapelte Vollbreite-Karten mit je einer Chip-Reihe
@@ -2632,52 +2851,10 @@
     }
     gymPage.appendChild(buildCovExList(gym.exercises));
 
-    // Seite 3 — Kombiniert: Ernährung + Training zusammen planen
-    var comboPage = document.createElement("div");
-    comboPage.className = "cov-page";
-    var comboTitle = document.createElement("div");
-    comboTitle.style.cssText = "font-weight:700;font-size:15.5px;color:var(--turquoise);";
-    comboTitle.textContent = "Kombiniert";
-    var comboText = document.createElement("div");
-    comboText.className = "cov-mixed-text";
-    comboText.textContent = mixedText;
-    comboPage.appendChild(comboTitle);
-    comboPage.appendChild(comboText);
-    var comboSuggestions = [
-      "Trainingsplan an meine Ernährung anpassen",
-      "Ernährung an mein Training anpassen",
-      "Übung + Mahlzeit gemeinsam planen",
-      "Heute optimal planen (Training + Essen)"
-    ];
-    var comboRow = document.createElement("div");
-    comboRow.className = "cov-combo-row";
-    comboSuggestions.forEach(function(q){
-      var chip = document.createElement("div");
-      chip.className = "cov-chip";
-      chip.style.width = "100%";
-      chip.style.boxSizing = "border-box";
-      chip.textContent = q;
-      chip.addEventListener("click", function(){ askViaChatOverview(q); });
-      comboRow.appendChild(chip);
-    });
-    comboPage.appendChild(comboRow);
-    var comboCta = document.createElement("button");
-    comboCta.type = "button";
-    comboCta.className = "cov-mixed-cta";
-    comboCta.textContent = "VoßBot frei fragen ›";
-    comboCta.addEventListener("click", function(){
-      var mc = mainChat();
-      if(mc){
-        if(state.activeChatId !== mc.id || state.view !== "chatconv") openChatConversation(mc.id);
-      } else if(!currentChat()){
-        var ids = Object.keys(state.chats).sort(function(a,b){ return state.chats[b].updatedAt - state.chats[a].updatedAt; });
-        openChatConversation(ids.length ? ids[0] : createNewChat());
-      } else if(state.view !== "chatconv"){
-        openChatConversation(currentChat().id);
-      }
-      document.getElementById("chatInput").focus();
-    });
-    comboPage.appendChild(comboCta);
+    // Seite 3 — Kombiniert: Mahlzeiten + Übungen gemeinsam auswählen und
+    // erst auf Bestätigung hin anpassen/im Chat besprechen (kein Chat wird
+    // schon beim bloßen Antippen einzelner Einträge losgeschickt).
+    var comboPage = buildComboPage(cook, gym, mixedText);
 
     pager.appendChild(cookPage);
     pager.appendChild(gymPage);
