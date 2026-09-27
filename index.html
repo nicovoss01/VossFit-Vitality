@@ -767,9 +767,9 @@
       <div id="tab-chat" hidden>
         <div class="chat-wrap">
           <div class="chat-messages" id="chatMessages"></div>
-          <p class="chat-hint">Antworten von VoßBot sind unverbindliche Vorschläge, keine medizinische oder ärztliche Beratung.</p>
+          <p class="chat-hint">VoßBot labert locker mit dir, ersetzt aber keinen Arzt — keine medizinische Beratung.</p>
           <div class="chat-inputrow">
-            <textarea id="chatInput" rows="1" placeholder="Frag etwas zu deiner Ernährung, deinen Körperdaten oder Mahlzeiten…"></textarea>
+            <textarea id="chatInput" rows="1" placeholder="Schreib VoßBot einfach, was los ist…"></textarea>
             <div class="chat-sendbtn" id="chatSendBtn">➤</div>
           </div>
         </div>
@@ -1854,10 +1854,10 @@
     var status = document.getElementById("openaiKeyStatus");
     if(input.value !== (state.openaiApiKey || "")) input.value = state.openaiApiKey || "";
     if(state.openaiApiKey){
-      status.textContent = "✓ Key hinterlegt — VoßBot antwortet über dein eigenes OpenAI-Konto (ChatGPT). Nur lokal auf diesem Gerät gespeichert.";
+      status.textContent = "✓ Key hinterlegt — VoßBot antwortet jetzt über dein eigenes OpenAI-Konto (ChatGPT). Bleibt nur lokal auf diesem Gerät.";
       status.style.color = "var(--ok, #1a9d5c)";
     } else {
-      status.textContent = "Ohne Key nutzt VoßBot das kleinere eingebaute Modell. Mit Key: echtes ChatGPT, funktioniert überall mit Internet (auch mobile Daten).";
+      status.textContent = "Ohne Key läuft VoßBot mit dem kleineren eingebauten Modell. Mit eigenem Key: echtes ChatGPT, funktioniert überall mit Internet (auch mobile Daten).";
       status.style.color = "";
     }
   }
@@ -1870,7 +1870,7 @@
     if(ids.length === 0){
       var empty = document.createElement("div");
       empty.className = "chat-empty";
-      empty.textContent = "Noch keine Chats mit VoßBot. Starte einen neuen Chat!";
+      empty.textContent = "Noch nichts hier — schreib VoßBot einfach mal an!";
       wrap.appendChild(empty);
       return;
     }
@@ -1932,7 +1932,7 @@
     if(!chat || chat.messages.length === 0){
       var empty = document.createElement("div");
       empty.className = "chat-empty";
-      empty.textContent = "Frag VoßBot etwas zu deiner Ernährung, deinen Körperdaten oder deinen Mahlzeiten heute.";
+      empty.textContent = "Hey, ich bin VoßBot — sowas wie die digitale Version von Nico. Frag mich einfach drauf los: Essen, Training, deine Werte, was heute schon reingegangen ist.";
       wrap.appendChild(empty);
     }
     if(chat){
@@ -1973,7 +1973,7 @@
 
   function addFoodToDayEntry(input){
     var p = activeProfile();
-    if(!p) return { ok:false, message: "Kein Profil vorhanden — leg zuerst eins an." };
+    if(!p) return { ok:false, message: "Brauch erst ein Profil von dir — leg kurz eins an, dann geht's." };
     var day = getDay(p, state.selectedDate);
     var mealName = (input && input.mealName) ? String(input.mealName) : "";
     var foodName = (input && input.foodName) ? String(input.foodName) : "Lebensmittel";
@@ -1993,7 +1993,22 @@
     entry.foods.push({ id: newId("f"), name: foodName, kh: kh, fett: fett, protein: protein, kcal: kcal });
     save();
     if(state.activeTab === "ernaehrung" && state.view === "home") renderHome();
-    return { ok: true, message: "Hinzugefügt zu \"" + entry.name + "\" (noch nicht bestätigt — der Nutzer muss die Mahlzeit selbst bestätigen, damit sie in die Tagesbilanz einfließt)." };
+    return { ok: true, message: "Kommt zu \"" + entry.name + "\" rein (noch nicht bestätigt — häng den Haken dran, dann zählt's in deiner Tagesbilanz)." };
+  }
+
+  // Wird nur für den echten Fallback benutzt (Online-KI nicht erreichbar) — nennt
+  // das kurz einmal pro Chat, danach antwortet der Offline-Assistent ohne erneuten
+  // Hinweis. Der direkte Code-Wort-Aufruf nutzt dies bewusst NICHT, weil das kein
+  // Fallback ist, sondern eine gewollte Direktfunktion.
+  function offlineFallbackFinish(chat, finishOk){
+    return function(msgText){
+      if(chat && !chat.offlineNoticeShown){
+        chat.offlineNoticeShown = true;
+        finishOk("Yo 👋 kein Empfang gerade, läuft also offline — kann aber trotzdem einiges: Status, Plan, Essen eintragen/ändern, Bestätigen, Profil, Sync. Schreib einfach normal, ich versteh das schon.\n\n" + msgText);
+      } else {
+        finishOk(msgText);
+      }
+    };
   }
 
   function setChatSendEnabled(enabled){
@@ -2015,7 +2030,7 @@
     chat.updatedAt = Date.now();
 
     if(!activeProfile()){
-      chat.messages.push({ role: "assistant", text: "Ich brauche erst ein Profil mit deinen Körperdaten, um dir helfen zu können — leg unter Einstellungen → Profile eins an, dann frag mich gern nochmal." });
+      chat.messages.push({ role: "assistant", text: "Bevor ich loslegen kann, brauch ich noch ein Profil mit deinen Körperdaten. Leg das kurz unter Einstellungen → Profile an, dann quatschen wir weiter." });
       chat.updatedAt = Date.now();
       renderChatMessages();
       save();
@@ -2063,7 +2078,7 @@
     try{
       history = chat.messages.slice(0, -1).map(function(m){ return (m.role === "user" ? "Nutzer" : "VoßBot") + ": " + m.text; }).join("\n");
       contextBlock = "Aktuelle Daten:\n" + buildChatContext() + (history ? ("\n\nBisheriger Chatverlauf:\n" + history) : "");
-      systemInstruction = "Du bist VoßBot, der Ernährungs-Coach in der App VossFit. Beantworte Fragen zu Ernährung, Körperdaten, Mahlzeiten und Anpassungen kurz, konkret und auf Deutsch. Du bist kein Arzt und gibst keine medizinische Diagnose.";
+      systemInstruction = "Du bist VoßBot in der App VossFit — quasi die lockere, digitale Version von Nico, dem Macher der App. Du redest wie ein guter Kumpel, nicht wie ein steifer Assistent: locker, direkt, auf Augenhöhe, gern mit einer Prise Humor, aber nie oberflächlich. Du hilfst bei Ernährung, Training, Körperdaten, Mahlzeiten und allem, was den Alltag drumherum betrifft. Antworte kurz, konkret und auf Deutsch (Du-Form). Du bist kein Arzt und gibst keine medizinische Diagnose — sag das beiläufig, nicht wie eine Rechtsabteilung.";
     }catch(e){
       finishError("Unerwarteter Fehler beim Vorbereiten der Antwort. Bitte erneut versuchen.");
       return;
@@ -2109,11 +2124,11 @@
         return;
       }
       runProxyChat(systemInstruction, contextBlock, text, pendingBubble, finishOk, function(proxyErr){
-        runOfflineAssistant(text, chat, pendingBubble, finishOk);
+        runOfflineAssistant(text, chat, pendingBubble, offlineFallbackFinish(chat, finishOk));
       });
     }).catch(function(){
       runProxyChat(systemInstruction, contextBlock, text, pendingBubble, finishOk, function(proxyErr){
-        runOfflineAssistant(text, chat, pendingBubble, finishOk);
+        runOfflineAssistant(text, chat, pendingBubble, offlineFallbackFinish(chat, finishOk));
       });
     });
   }
@@ -2353,6 +2368,47 @@
     return { amount: num, isPieceUnit: isPieceUnit };
   }
 
+  // Findet ein bereits heute eingetragenes Lebensmittel, dessen Name den
+  // gegebenen Suchbegriff (z.B. den DB-Key "reis") enthält — genutzt zum
+  // Löschen/Anpassen per Chat.
+  function findFoodInToday(key){
+    var p = activeProfile();
+    if(!p) return null;
+    var day = getDay(p, state.selectedDate);
+    var best = null;
+    day.entries.forEach(function(entry){
+      entry.foods.forEach(function(food){
+        if(food.name && food.name.toLowerCase().indexOf(key) > -1) best = { entry: entry, food: food };
+      });
+    });
+    return best;
+  }
+
+  // Erkennt "ändere/passe <Lebensmittel> auf <Menge>g an" u.ä. und aktualisiert
+  // ein bereits heute eingetragenes Lebensmittel entsprechend neu. Gibt null
+  // zurück, wenn kein passendes Lebensmittel (DB + heutiger Eintrag) gefunden
+  // wurde, damit die Nachricht sonst normal weiterverarbeitet wird.
+  function tryEditFoodQuantity(lower){
+    var dbMatch = findFoodMatch(lower);
+    if(!dbMatch) return null;
+    var qty = parseQuantity(lower, dbMatch);
+    if(!qty || !qty.amount) return null;
+    var hit = findFoodInToday(dbMatch.key);
+    if(!hit) return null;
+    var f = dbMatch.food;
+    var grams = (qty.isPieceUnit && f.perPiece) ? qty.amount * f.g : qty.amount;
+    var factor = grams / f.g;
+    var kh = Math.round(f.kh * factor * 10) / 10;
+    var fett = Math.round(f.fett * factor * 10) / 10;
+    var protein = Math.round(f.protein * factor * 10) / 10;
+    hit.food.kh = kh; hit.food.fett = fett; hit.food.protein = protein;
+    hit.food.kcal = Math.round(foodKcal(kh, fett, protein));
+    hit.food.name = Math.round(grams) + "g " + dbMatch.key.charAt(0).toUpperCase() + dbMatch.key.slice(1);
+    save();
+    if(state.activeTab === "ernaehrung" && state.view === "home") renderHome();
+    return "Erledigt — \"" + hit.food.name + "\" in \"" + hit.entry.name + "\" angepasst.";
+  }
+
   function guessMealNameByTime(){
     var h = new Date().getHours();
     if(h < 11) return "Frühstück";
@@ -2464,22 +2520,58 @@
 
   function buildCapabilitiesAnswer(){
     var lines = [];
-    lines.push("Das kann ich — auch ganz ohne Internet:");
-    lines.push("• Tagesbedarf & aktuelle Tageswerte anzeigen — Code-Wort: STATUS");
-    lines.push("• Kompletten Ernährungsplan für heute vorschlagen — Code-Wort: PLAN");
-    lines.push("• Lebensmittel zu einer Mahlzeit hinzufügen, z. B. \"150g Reis zum Mittagessen\"");
-    lines.push("• Erklären, wie du eine Mahlzeit bestätigst — Code-Wort: BESTÄTIGEN");
-    lines.push("• Erklären, wie du ein Profil anlegst oder wechselst — Code-Wort: PROFIL");
-    lines.push("• Erklären, wie die Cloud-Synchronisierung funktioniert — Code-Wort: SYNC");
-    lines.push("Tipp: schreib einfach eines der Code-Wörter, oder frag in normalen Sätzen — beides funktioniert.");
+    lines.push("Hey! Hier ist, wobei ich dir helfen kann — läuft auch komplett offline:");
+    lines.push("");
+    lines.push("🍽️ Essen eintragen: sag einfach \"150g Reis zum Mittagessen\" oder \"hab gerade 2 Eier gegessen\" — ich pack's rein.");
+    lines.push("✏️ Was ändern: \"ändere Reis auf 200g\" — Menge angepasst, fertig.");
+    lines.push("🗑️ Was rausnehmen: \"lösch den Reis\", \"entfern das Ei\" — weg damit.");
+    lines.push("📋 Tagesplan: frag \"was soll ich heute essen\" oder \"mach mir einen Vorschlag\", und ich bau dir einen kompletten Plan.");
+    lines.push("📊 Status checken: frag einfach nach deiner Übersicht oder wie viel dir heute noch bleibt.");
+    lines.push("⚙️ Profile, Bestätigen, Sync: erklär ich dir auch, sag einfach Bescheid.");
+    lines.push("");
+    lines.push("Feste Befehle brauchst du nicht — schreib's einfach so, wie du's sagen würdest, ich versteh schon, was du meinst.");
     if(isLikelyOnline()){
       lines.push("");
-      lines.push("Zusätzlich online (gerade verfügbar): freie, ausführliche Antworten auf beliebige Fragen über eine echte KI-Anbindung.");
+      lines.push("Und weil gerade online: bei allem anderen, was dir noch durch den Kopf geht, kannst du mich auch einfach frei drauflos fragen.");
     } else {
       lines.push("");
-      lines.push("Online-Funktionen (freie KI-Antworten) sind gerade nicht aktiv — dafür kannst du oben rechts (⋮) einen eigenen OpenAI-API-Key hinterlegen.");
+      lines.push("Für freie Antworten auf alles Mögliche brauch ich gerade noch eine Online-Anbindung — trag oben rechts (⋮) deinen eigenen OpenAI-Key ein, dann bin ich am Start.");
     }
     return lines.join("\n");
+  }
+
+  // ---------- Offline-Intent-Erkennung ----------
+  // Statt starrer Codewörter hat jede Funktion mehrere Auslöser/Synonyme. Für die
+  // "allgemeinen" Absichten (Status/Plan/Bestätigen/Profil/Sync) wird nicht einfach
+  // die erste gefundene Funktion ausgeführt, sondern über die gesamte Wortkette
+  // gezählt, welche Absicht die meisten Treffer hat — so wird z.B. "Ich hab heute
+  // einen Plan, aber wie sehen meine Werte aus?" trotz des Worts "Plan" als Status
+  // erkannt, weil dort mehr Status- als Plan-Signale vorkommen.
+  var INTENT_SYNONYMS = {
+    status: ["status", "werte", "tageswerte", "tagesbedarf", "wie stehe ich", "wo stehe ich", "meine werte", "was habe ich noch offen", "was hab ich noch offen", "übersicht", "tagesübersicht", "wie viel hab ich noch", "wie viel habe ich noch", "wie viel", "übrig", "offen", "kalorien", "kcal", "bedarf", "ziel erreicht"],
+    plan: ["plan", "pläne", "tagesplan", "essensplan", "was soll ich essen", "was soll ich heute essen", "was kann ich essen", "was gibt's heute", "was gibt es heute", "was gibt's zu essen", "was gibt es zu essen", "mein essen heute", "zeig mir meinen plan", "mach mir einen plan", "plan erstellen", "plan machen", "vorschlag", "vorschläge", "essensvorschlag", "rezeptvorschlag", "tagesvorschlag", "was koche ich", "was soll ich kochen", "koch mir was", "iss ich heute", "hab hunger", "ich hab hunger", "menü für heute", "tagesmenü", "füllen", "auffüllen"],
+    confirm: ["bestätig", "abhak", "abgehakt", "haken setz", "als erledigt", "fertig markier", "passt so", "kann so bleiben", "das nehme ich"],
+    profile: ["profil", "account wechseln", "anderes konto", "benutzer wechseln", "wer bin ich"],
+    sync: ["google", "sync", "cloud", "konto", "backup", "datensicherung", "hochladen", "herunterladen", "synchronisier", "abgleichen"]
+  };
+
+  function scoreIntent(lower, name){
+    var list = INTENT_SYNONYMS[name] || [];
+    var score = 0;
+    list.forEach(function(kw){ if(lower.indexOf(kw) > -1) score++; });
+    return score;
+  }
+
+  // Absicht mit den meisten Treffern in der gesamten Wortkette — bei Gleichstand
+  // gewinnt die zuerst genannte Absicht in `names`.
+  function topGeneralIntent(lower){
+    var names = ["status", "plan", "confirm", "profile", "sync"];
+    var best = null, bestScore = 0;
+    names.forEach(function(n){
+      var s = scoreIntent(lower, n);
+      if(s > bestScore){ bestScore = s; best = n; }
+    });
+    return bestScore > 0 ? best : null;
   }
 
   function runOfflineAssistant(text, chat, pendingBubble, finishOk){
@@ -2499,12 +2591,37 @@
           : [text];
         var lower = recentUserTexts.join(" ").toLowerCase();
 
-        var addVerbs = ["füg", "hinzufüg", "eintragen", "trag ein", "gegessen", "add", "war heute"];
+        var addVerbs = ["füg", "hinzufüg", "eintragen", "trag ein", "gegessen", "add", "war heute", "hab gerade", "hab gegessen", "leg rein", "pack rein", "pack dazu", "noch dazu", "dazu", "ergänzen", "nimm dazu", "notier", "logge", "log ", "speicher es", "gab's heute", "gab es heute", "aufschreib"];
         var hasAddIntent = addVerbs.some(function(v){ return lower.indexOf(v) > -1; });
 
+        var deleteVerbs = ["lösch", "entfern", "raus damit", "weg damit", "rausnehmen", "streich", "rückgängig", "doch nicht", "nicht mehr da", "kicken", "raus mit", "entfernen"];
+        var hasDeleteIntent = deleteVerbs.some(function(v){ return lower.indexOf(v) > -1; });
+        if(hasDeleteIntent){
+          var delDbMatch = findFoodMatch(lowerCurrent);
+          if(delDbMatch){
+            var delHit = findFoodInToday(delDbMatch.key);
+            if(delHit){
+              delHit.entry.foods = delHit.entry.foods.filter(function(f){ return f.id !== delHit.food.id; });
+              save();
+              if(state.activeTab === "ernaehrung" && state.view === "home") renderHome();
+              finishOk("Alles klar, \"" + delHit.food.name + "\" ist aus \"" + delHit.entry.name + "\" raus. 👍");
+              return;
+            }
+            finishOk("Ich find heute kein \"" + delDbMatch.key + "\" bei dir zum Löschen. 🤔");
+            return;
+          }
+        }
+
+        var editVerbs = ["änder", "anpass", "korrigier", "aktualisier", "umändern", "bearbeit"];
+        var hasEditIntent = editVerbs.some(function(v){ return lower.indexOf(v) > -1; });
+        if(hasEditIntent){
+          var editMsg = tryEditFoodQuantity(lowerCurrent);
+          if(editMsg){ finishOk(editMsg); return; }
+        }
+
         // Merkt sich pro Chatverlauf, was zuletzt vorgeschlagen wurde (Tagesplan,
-        // Rezept oder Lebensmittel), damit eine kurze Bestätigung wie "Ja, trag ihn
-        // ein" ohne Wiederholung des vollen Namens funktioniert.
+        // Rezept oder Lebensmittel), damit eine kurze Bestätigung wie "Passt" oder
+        // "trag ihn ein" ohne Wiederholung des vollen Namens funktioniert.
         var ctx = chat && chat.offlineContext;
         var isShortConfirm = /^(ja|jap|jep|joa|passt|gerne|ok|okay|alles klar|mach das|mach es|klingt gut)\b/.test(lowerCurrent.trim());
         var mentionsTragEin = lowerCurrent.indexOf("trag") > -1 && lowerCurrent.indexOf("ein") > -1;
@@ -2519,43 +2636,45 @@
               addedNames.push(p2.meal + ": " + p2.recipe.name);
             });
             if(chat) chat.offlineContext = null;
-            finishOk("Eingetragen (noch unbestätigt, bitte in den Mahlzeiten bestätigen):\n" + addedNames.join("\n"));
+            finishOk("Passt, alles eingetragen (noch unbestätigt — Haken nicht vergessen):\n" + addedNames.join("\n"));
             return;
           }
           if(ctx.type === "recipe"){
             var rr = ctx.recipe;
             var resultCtxR = addFoodToDayEntry({ mealName: detectMealName(lower) || rr.meal, foodName: rr.name, kh: rr.kh, fett: rr.fett, protein: rr.protein });
             if(chat) chat.offlineContext = null;
-            finishOk((resultCtxR && resultCtxR.message) || "Hinzugefügt.");
+            finishOk((resultCtxR && resultCtxR.message) || "Passt, drin.");
             return;
           }
           if(ctx.type === "food"){
             var resultCtxF = addFoodToDayEntry(ctx.food);
             if(chat) chat.offlineContext = null;
-            finishOk((resultCtxF && resultCtxF.message) || "Hinzugefügt.");
+            finishOk((resultCtxF && resultCtxF.message) || "Passt, drin.");
             return;
           }
         }
 
-        var planKeywords = ["ernährungsplan", "essensplan", "tagesplan", "was soll ich essen", "was soll ich heute essen", "was kann ich essen", "was koche ich", "plan für heute", "vorschlag für heute", "vorschläge fürs essen", "plan", "pläne", "vorschlag", "vorschläge", "essensvorschlag", "rezeptvorschlag", "tagesvorschlag", "füllen", "auffüllen"];
-        var wantsPlan = planKeywords.some(function(v){ return lower.indexOf(v) > -1; });
-        var pForPlan = activeProfile();
-        if(wantsPlan && pForPlan){
-          var mPlan = calcEngine(pForPlan);
-          var plan = generateDayPlan(mPlan.TB);
-          var lines = ["Vorschlag für heute (Tagesziel ca. " + Math.round(mPlan.TB) + " kcal):"];
-          var totalKcal = 0, totalKh = 0, totalFett = 0, totalProtein = 0;
-          plan.forEach(function(p2){
-            var r = p2.recipe;
-            if(!r) return;
-            totalKcal += r.kcal; totalKh += r.kh; totalFett += r.fett; totalProtein += r.protein;
-            lines.push(p2.meal + ": " + r.name + " (~" + r.kcal + " kcal) — " + r.zutaten);
-          });
-          lines.push("Gesamt: ca. " + totalKcal + " kcal (" + totalKh + "g KH, " + totalFett + "g Fett, " + totalProtein + "g Protein).");
-          lines.push("Sag \"Ja, trag ihn ein\", wenn dir der Plan gefällt — dann trage ich alle vier Mahlzeiten ein. Oder nenn mir ein einzelnes Gericht, das ich stattdessen eintragen soll.");
-          if(chat) chat.offlineContext = { type: "plan", plan: plan };
-          finishOk(lines.join("\n"));
-          return;
+        var generalIntent = topGeneralIntent(lower);
+
+        if(generalIntent === "plan"){
+          var pForPlan = activeProfile();
+          if(pForPlan){
+            var mPlan = calcEngine(pForPlan);
+            var plan = generateDayPlan(mPlan.TB);
+            var lines = ["Jo, hier ein Vorschlag für heute (Ziel ca. " + Math.round(mPlan.TB) + " kcal):"];
+            var totalKcal = 0, totalKh = 0, totalFett = 0, totalProtein = 0;
+            plan.forEach(function(p2){
+              var r = p2.recipe;
+              if(!r) return;
+              totalKcal += r.kcal; totalKh += r.kh; totalFett += r.fett; totalProtein += r.protein;
+              lines.push(p2.meal + ": " + r.name + " (~" + r.kcal + " kcal) — " + r.zutaten);
+            });
+            lines.push("Macht zusammen ca. " + totalKcal + " kcal (" + totalKh + "g KH, " + totalFett + "g Fett, " + totalProtein + "g Protein).");
+            lines.push("Sag \"passt\" oder \"trag ihn ein\", dann kommen alle Mahlzeiten rein — oder nenn mir einfach ein einzelnes Gericht, das ich stattdessen eintragen soll.");
+            if(chat) chat.offlineContext = { type: "plan", plan: plan };
+            finishOk(lines.join("\n"));
+            return;
+          }
         }
 
         var recipeMatch = findRecipeMatch(lower);
@@ -2563,12 +2682,12 @@
           var mealNameR = detectMealName(lower) || recipeMatch.meal;
           var resultR = addFoodToDayEntry({ mealName: mealNameR, foodName: recipeMatch.name, kh: recipeMatch.kh, fett: recipeMatch.fett, protein: recipeMatch.protein });
           if(chat) chat.offlineContext = null;
-          finishOk((resultR && resultR.message) || "Hinzugefügt.");
+          finishOk((resultR && resultR.message) || "Passt, drin.");
           return;
         }
         if(recipeMatch && !hasAddIntent){
           if(chat) chat.offlineContext = { type: "recipe", recipe: recipeMatch };
-          finishOk(recipeMatch.name + ": ca. " + recipeMatch.kcal + " kcal (" + recipeMatch.kh + "g KH, " + recipeMatch.fett + "g Fett, " + recipeMatch.protein + "g Protein). Zutaten: " + recipeMatch.zutaten + ". Sag \"ja, trag ihn ein\" oder \"" + recipeMatch.name + " zum " + recipeMatch.meal + " hinzufügen\", damit ich es einträge.");
+          finishOk(recipeMatch.name + ": ca. " + recipeMatch.kcal + " kcal (" + recipeMatch.kh + "g KH, " + recipeMatch.fett + "g Fett, " + recipeMatch.protein + "g Protein). Zutaten: " + recipeMatch.zutaten + ". Sag \"passt\" oder \"" + recipeMatch.name + " zum " + recipeMatch.meal + "\", dann trag ich's ein.");
           return;
         }
 
@@ -2592,7 +2711,7 @@
           var mealName = detectMealName(lower);
           var foodLabel = Math.round(grams) + "g " + match.key.charAt(0).toUpperCase() + match.key.slice(1);
           var result = addFoodToDayEntry({ mealName: mealName, foodName: foodLabel, kh: kh, fett: fett, protein: protein });
-          finishOk((result && result.message) || "Hinzugefügt.");
+          finishOk((result && result.message) || "Passt, drin.");
           return;
         }
 
@@ -2602,39 +2721,44 @@
           var mealNameF = detectMealName(lower);
           var foodLabelF = f2.g + "g " + match.key.charAt(0).toUpperCase() + match.key.slice(1);
           if(chat) chat.offlineContext = { type: "food", food: { mealName: mealNameF, foodName: foodLabelF, kh: f2.kh, fett: f2.fett, protein: f2.protein } };
-          finishOk("Pro " + f2.g + "g " + match.key + ": ca. " + kcal2 + " kcal (" + f2.kh + "g KH, " + f2.fett + "g Fett, " + f2.protein + "g Protein). Sag \"ja, trag ein\" oder \"150g " + match.key + " zum Mittagessen hinzufügen\", damit ich es einträge.");
+          finishOk("Pro " + f2.g + "g " + match.key + ": ca. " + kcal2 + " kcal (" + f2.kh + "g KH, " + f2.fett + "g Fett, " + f2.protein + "g Protein). Sag \"passt\" oder \"150g " + match.key + " zum Mittagessen\", dann kommt's rein.");
           return;
         }
 
-        var p = activeProfile();
-        if(p && (lower.indexOf("kalorien") > -1 || lower.indexOf("kcal") > -1 || lower.indexOf("ziel") > -1 || lower.indexOf("wie viel") > -1 || lower.indexOf("übrig") > -1 || lower.indexOf("offen") > -1 || lower.indexOf("bedarf") > -1 || lower.indexOf("status") > -1 || lower.indexOf("übersicht") > -1)){
-          var m = calcEngine(p);
-          var day = getDay(p, state.selectedDate);
-          var sums = confirmedSums(day);
-          finishOk("Dein Tagesziel: " + Math.round(m.TB) + " kcal (" + m.kh + "g KH, " + m.fett + "g Fett, " + m.protein + "g Protein). Heute bereits bestätigt: " + fmtInt(sums.kh) + "g KH, " + fmtInt(sums.fett) + "g Fett, " + fmtInt(sums.protein) + "g Protein. Noch offen: " + fmtInt(Math.max(0, m.kh - sums.kh)) + "g KH, " + fmtInt(Math.max(0, m.fett - sums.fett)) + "g Fett, " + fmtInt(Math.max(0, m.protein - sums.protein)) + "g Protein.");
+        if(generalIntent === "status"){
+          var p = activeProfile();
+          if(p){
+            var m = calcEngine(p);
+            var day = getDay(p, state.selectedDate);
+            var sums = confirmedSums(day);
+            finishOk("Jo, hier deine Zahlen: Tagesziel " + Math.round(m.TB) + " kcal (" + m.kh + "g KH, " + m.fett + "g Fett, " + m.protein + "g Protein). Heute schon bestätigt: " + fmtInt(sums.kh) + "g KH, " + fmtInt(sums.fett) + "g Fett, " + fmtInt(sums.protein) + "g Protein. Noch offen: " + fmtInt(Math.max(0, m.kh - sums.kh)) + "g KH, " + fmtInt(Math.max(0, m.fett - sums.fett)) + "g Fett, " + fmtInt(Math.max(0, m.protein - sums.protein)) + "g Protein.");
+            return;
+          }
+        }
+
+        if(generalIntent === "confirm"){
+          finishOk("Tipp auf der Startseite bei der Mahlzeit auf den Haken, dann ist sie bestätigt und zählt in deine Tagesbilanz.");
           return;
         }
 
-        if(lower.indexOf("bestätig") > -1){
-          finishOk("Tippe auf der Startseite bei einer Mahlzeit auf den Haken, um sie zu bestätigen — erst dann fließt sie in deine Tagesbilanz ein.");
-          return;
-        }
         if(lower.indexOf("hinzufüg") > -1 || (lower.indexOf("lebensmittel") > -1 && lower.indexOf("wie") > -1)){
-          finishOk("Tippe auf der Startseite bei der gewünschten Mahlzeit auf \"+\", trage Name und Nährwerte ein und speichere. Danach bestätige die Mahlzeit über den Haken. Du kannst mir hier im Chat auch direkt sagen \"100g Reis zum Mittagessen hinzufügen\" — das trage ich dann selbst ein.");
+          finishOk("Tipp bei der Mahlzeit auf \"+\", trag Name und Nährwerte ein und speicher — danach noch den Haken setzen. Geht aber auch direkt hier: sag mir z.B. \"100g Reis zum Mittagessen\", dann mach ich das für dich.");
           return;
         }
-        if(lower.indexOf("profil") > -1){
+
+        if(generalIntent === "profile"){
           finishOk("Unter Einstellungen → Profile kannst du ein neues Profil anlegen, bearbeiten oder wechseln.");
           return;
         }
-        if(lower.indexOf("google") > -1 || lower.indexOf("sync") > -1 || lower.indexOf("cloud") > -1 || lower.indexOf("konto") > -1){
-          finishOk("Deine Daten (inkl. Chatverläufe) werden automatisch mit deinem Google-Konto synchronisiert, sobald du dich in den Einstellungen anmeldest.");
+
+        if(generalIntent === "sync"){
+          finishOk("Sobald du dich in den Einstellungen mit Google anmeldest, läuft die Synchronisierung automatisch im Hintergrund mit — kein manuelles Hoch-/Runterladen nötig.");
           return;
         }
 
-        finishOk("Das habe ich nicht ganz verstanden. Frag mich z. B. nach \"Ernährungsplan für heute\" (PLAN), \"100g Reis zum Mittagessen hinzufügen\", \"Wie viele Kalorien habe ich noch übrig?\" (STATUS) oder \"Wie bestätige ich eine Mahlzeit?\" (BESTÄTIGEN). Tipp: schreib \"was kannst du\" für alle meine Funktionen.");
+        finishOk("Das hab ich offline gerade nicht verstanden 😅 Versuch's mal mit Status, Plan, Essen, Bestätigen, Profil oder Sync — oder schreib \"was kannst du\" für alle meine Funktionen.");
       }catch(e){
-        finishOk("Das konnte ich nicht ganz einordnen. Frag mich gern nach deinen Tageswerten (STATUS) oder sag mir direkt, welches Lebensmittel du hinzufügen möchtest.");
+        finishOk("Puh, das konnte ich nicht ganz einordnen. Frag mich einfach nach deinen Tageswerten oder sag mir direkt, welches Lebensmittel ich hinzufügen, ändern oder löschen soll.");
       }
     }, 250);
   }
