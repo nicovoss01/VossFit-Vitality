@@ -20,10 +20,15 @@ export default {
       return json({ error: "Invalid JSON" }, 400, corsHeaders);
     }
 
-    const system = (body.system || "").toString().slice(0, 4000);
-    const message = (body.message || "").toString().slice(0, 12000);
-    const tools = Array.isArray(body.tools) ? body.tools : null;
-    if (!message) {
+    const system = String(body.system || "").slice(0, 12000);
+    const message = String(body.message || "").slice(0, 12000);
+    const userText = String(body.userText || "").slice(0, 4000);
+    const context = String(body.context || "").slice(0, 6000);
+    const v2 = body.v === 2;
+    const toolFollowup = body.toolFollowup && typeof body.toolFollowup === "object" ? body.toolFollowup : null;
+    const tools = Array.isArray(body.tools) ? body.tools.slice(0, 8) : null;
+
+    if (!message && !userText && !toolFollowup) {
       return json({ error: "message fehlt" }, 400, corsHeaders);
     }
 
@@ -32,69 +37,211 @@ export default {
       return json({ error: "Server nicht konfiguriert (kein GEMINI_API_KEY Secret gesetzt)" }, 500, corsHeaders);
     }
 
-    const payload = {
-      contents: [{ role: "user", parts: [{ text: message }] }],
-      systemInstruction: { parts: [{ text: system }] },
-      generationConfig: { temperature: 0.6, maxOutputTokens: 700 }
-    };
-    if (tools && tools.length) {
-      payload.tools = [{
-        functionDeclarations: tools.map(function (t) {
-          return { name: t.name, description: t.description, parameters: t.parameters };
-        })
-      }];
+    // Persönlichkeit kommt unverändert aus der App (System-Prompt). Hier nur
+    // die aktuellen Zahlen anhängen, damit er sie nicht rät.
+    let systemText = system;
+    if (v2 && context) {
+      systemText += "\n\nAKTUELLE APP-DATEN (verbindlich, nichts davon erfinden oder widersprechen):\n" + context;
     }
 
-    // Gratis-Kontingent von Gemini ist oft kurz überlastet (503 "high demand") oder
-    // stößt an Rate-Limits (429). Statt sofort aufzugeben, probieren wir bis zu
-    // zwei zusätzliche Modelle als Fallback und wiederholen jede Anfrage einmal
-    // kurz nach kleiner Pause, bevor wir wirklich aufgeben.
-    const models = ["gemini-3.8-flash", "gemini-2.5-flash", "gemini-flash-latest"];
-    let resp = null, data = null, lastErr = "Unbekannter Fehler";
+    const contents = buildContents(body, v2, message, userText, toolFollowup);
+    const toolDecls = toolFollowup ? null : normalizeTools(tools);
 
-    outer:
+    const models = ["gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-2.5-flash"];
+    let lastErr = "Unbekannter Fehler";
+    let data = null;
+
     for (const model of models) {
-      const url = "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + apiKey;
-      for (let attempt = 0; attempt < 2; attempt++) {
-        if (attempt > 0) await new Promise(function(r){ setTimeout(r, 600); });
-        try {
-          resp = await fetch(url, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
-          });
-        } catch (e) {
-          lastErr = "Gemini nicht erreichbar";
-          continue;
-        }
-        data = await resp.json().catch(function(){ return null; });
-        if (resp.ok) break outer;
-        lastErr = (data && data.error && data.error.message) || ("HTTP " + resp.status);
-        // 429 (Rate-Limit) und 503 (überlastet) sind die Fälle, für die sich ein
-        // erneuter Versuch lohnt; alles andere (z.B. 400 falsche Anfrage) sofort
-        // beim nächsten Modell probieren statt sinnlos zu wiederholen.
-        if (resp.status !== 429 && resp.status !== 503) break;
+      const result = await generate(model, contents, systemText, toolDecls, apiKey);
+      if (result.ok) {
+        data = result.data;
+        break;
       }
-      if (resp && resp.ok) break;
+      lastErr = result.error || lastErr;
+      // 400 ist ein kaputter Request, kein Aussetzer — nächstes Modell bringt da nichts,
+      // außer der Fehler kam vom Modell selbst (unbekanntes Modell = 404).
+      if (result.status === 400) break;
     }
 
-    if (!resp || !resp.ok) {
+    if (!data) {
       return json({ error: lastErr }, 502, corsHeaders);
     }
 
-    const parts = data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
-    if (parts) {
-      const callPart = parts.filter(function(p){ return p.functionCall; })[0];
-      if (callPart) {
-        return json({ functionCall: { name: callPart.functionCall.name, args: callPart.functionCall.args || {} } }, 200, corsHeaders);
-      }
+    const parsed = readModelParts(data);
+    if (parsed.calls.length) {
+      return json({
+        v: 2,
+        functionCall: parsed.calls[0],
+        functionCalls: parsed.calls,
+        text: parsed.text || ""
+      }, 200, corsHeaders);
     }
-    const text = parts ? parts.map(function(p){ return p.text || ""; }).join("") : "";
-    return json({ text: text || "…" }, 200, corsHeaders);
+    return json({ v: 2, text: parsed.text || "…" }, 200, corsHeaders);
   }
 };
 
-// Deploy-Test über GitHub Actions (automatisch statt manuell in Cloudflare eingefügt).
+function buildContents(body, v2, message, userText, toolFollowup) {
+  const contents = [];
+  if (v2 && Array.isArray(body.history)) {
+    const turns = body.history.slice(-8);
+    for (const turn of turns) {
+      const role = turn && (turn.role === "model" || turn.role === "assistant") ? "model" : "user";
+      const text = String((turn && turn.text) || "").slice(0, 700).trim();
+      if (!text) continue;
+      const last = contents[contents.length - 1];
+      if (last && last.role === role) last.parts[0].text += "\n" + text;
+      else contents.push({ role: role, parts: [{ text: text }] });
+    }
+  }
+
+  const latest = (v2 ? (userText || message) : message).trim();
+  if (latest) {
+    const last = contents[contents.length - 1];
+    if (last && last.role === "user") last.parts[0].text += "\n" + latest;
+    else contents.push({ role: "user", parts: [{ text: latest.slice(0, 12000) }] });
+  }
+
+  const followUps = [];
+  if (toolFollowup) {
+    if (Array.isArray(toolFollowup.calls)) {
+      for (const item of toolFollowup.calls) followUps.push(item);
+    } else if (toolFollowup.call) {
+      followUps.push({ call: toolFollowup.call, response: toolFollowup.response });
+    }
+  }
+  if (followUps.length) {
+    const callParts = [];
+    const responseParts = [];
+    followUps.forEach(function (item, i) {
+      const call = item && item.call;
+      if (!call || !call.name) return;
+      const id = String(call.id || ("call-" + (i + 1))).slice(0, 80);
+      callParts.push({ functionCall: { name: String(call.name), args: call.args || {}, id: id } });
+      const response = item.response && typeof item.response === "object"
+        ? item.response
+        : { result: String(item && item.response || "") };
+      responseParts.push({ functionResponse: { name: String(call.name), id: id, response: response } });
+    });
+    if (callParts.length) {
+      contents.push({ role: "model", parts: callParts });
+      responseParts.push({
+        text: "Die Werkzeuge sind ausgeführt. Sag dem Nutzer das Ergebnis in deinem bisherigen Ton aus der Systemanweisung. Persönlichkeit nicht ändern, Fakten aus dem Ergebnis nicht umdeuten."
+      });
+      contents.push({ role: "user", parts: responseParts });
+    }
+  }
+
+  if (!contents.length) contents.push({ role: "user", parts: [{ text: "…" }] });
+  if (contents[0].role === "model") contents.unshift({ role: "user", parts: [{ text: "Weiter im Gespräch." }] });
+  return contents;
+}
+
+function normalizeTools(tools) {
+  if (!tools || !tools.length) return null;
+  return tools.map(function (t) {
+    if (!t || !t.name) return null;
+    return {
+      name: String(t.name).slice(0, 64),
+      description: String(t.description || "").slice(0, 500),
+      parameters: normalizeSchema(t.parameters) || { type: "object", properties: {} }
+    };
+  }).filter(Boolean);
+}
+
+function normalizeSchema(schema) {
+  if (!schema || typeof schema !== "object") return schema;
+  if (Array.isArray(schema)) return schema.map(normalizeSchema);
+  const typeMap = {
+    OBJECT: "object", STRING: "string", NUMBER: "number",
+    INTEGER: "integer", BOOLEAN: "boolean", ARRAY: "array"
+  };
+  const out = {};
+  for (const key of Object.keys(schema)) {
+    const value = schema[key];
+    if (key === "type" && typeof value === "string") out[key] = typeMap[value] || value.toLowerCase();
+    else out[key] = normalizeSchema(value);
+  }
+  return out;
+}
+
+async function generate(model, contents, systemText, toolDecls, apiKey) {
+  const modern = model.indexOf("gemini-3") === 0;
+  const modes = modern ? ["low", "plain"] : ["budget", "plain"];
+  let last = { ok: false, status: 0, error: "Unbekannter Fehler" };
+
+  for (const mode of modes) {
+    const payload = {
+      contents: contents,
+      systemInstruction: { parts: [{ text: systemText }] }
+    };
+    if (toolDecls) payload.tools = [{ functionDeclarations: toolDecls }];
+    if (mode === "low") {
+      payload.generationConfig = { maxOutputTokens: 480, thinkingConfig: { thinkingLevel: "low" } };
+    } else if (mode === "budget") {
+      payload.generationConfig = { maxOutputTokens: 480, temperature: 0.6, thinkingConfig: { thinkingBudget: 0 } };
+    } else {
+      payload.generationConfig = { maxOutputTokens: 480 };
+    }
+
+    const url = "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + apiKey;
+    let resp;
+    try {
+      resp = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(8000)
+      });
+    } catch (e) {
+      return { ok: false, status: 0, error: "Gemini nicht erreichbar" };
+    }
+    const data = await resp.json().catch(function () { return null; });
+    if (resp.ok && data) return { ok: true, data: data };
+
+    const errMsg = (data && data.error && data.error.message) || ("HTTP " + resp.status);
+    last = { ok: false, status: resp.status, error: errMsg };
+    const malformed = /malformed.?function/i.test(errMsg);
+    if (malformed && payload.tools) {
+      delete payload.tools;
+      try {
+        resp = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+          signal: AbortSignal.timeout(8000)
+        });
+      } catch (e) {
+        return { ok: false, status: 0, error: "Gemini nicht erreichbar" };
+      }
+      const retryData = await resp.json().catch(function () { return null; });
+      if (resp.ok && retryData) return { ok: true, data: retryData };
+      last = { ok: false, status: resp.status, error: (retryData && retryData.error && retryData.error.message) || ("HTTP " + resp.status) };
+    }
+    if (resp.status !== 400) break;
+  }
+  return last;
+}
+
+function readModelParts(data) {
+  const parts = data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
+  const calls = [];
+  let text = "";
+  if (parts) {
+    for (const part of parts) {
+      if (!part || part.thought) continue;
+      if (part.text) text += part.text;
+      if (part.functionCall && part.functionCall.name) {
+        calls.push({
+          name: part.functionCall.name,
+          args: part.functionCall.args || {},
+          id: part.functionCall.id || ("call-" + (calls.length + 1))
+        });
+      }
+    }
+  }
+  return { text: text.trim(), calls: calls };
+}
+
 function json(obj, status, corsHeaders) {
   return new Response(JSON.stringify(obj), {
     status: status,
