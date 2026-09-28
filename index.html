@@ -502,7 +502,7 @@
     filter: drop-shadow(0 0 10px rgba(18,203,238,.75));
   }
   .chat-fab img{ width: 100%; height: 100%; object-fit: contain; display: block; pointer-events: none; }
-  .chat-fab-backdrop{ position: fixed; inset: 0; background: rgba(0,0,0,.65); z-index: 59; }
+  .chat-fab-backdrop{ position: fixed; inset: 0; background: transparent; z-index: 59; }
   .chat-float-header{
     display: flex; align-items: center; justify-content: space-between;
     padding: 9px 11px; border-bottom: 1px solid var(--border);
@@ -545,6 +545,60 @@
   /* Im Sprechblasen-Fenster nur der reine Chatverlauf — keine
      Tagesübersicht-Kästen (die gehören nur zur Vollbild-Ansicht). */
   #tab-chat.chat-float-mode #chatOverviewCard{ display: none !important; }
+
+  /* Chat: nur der Verlauf scrollt. Kopf, Eingabe und der Rand
+     bleiben stehen und sind durchsichtig, damit das Hologramm durchscheint. */
+  body:has(#tab-chat:not([hidden]):not(.chat-float-mode)){
+    overflow: hidden;
+    height: 100dvh;
+  }
+  .app:has(#tab-chat:not([hidden]):not(.chat-float-mode)){
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow: hidden;
+  }
+  .app:has(#tab-chat:not([hidden]):not(.chat-float-mode)) .topbar{
+    background: transparent;
+    box-shadow: none;
+  }
+  .app:has(#tab-chat:not([hidden]):not(.chat-float-mode)) main{
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    padding-bottom: 0;
+  }
+  #tab-chat:not([hidden]):not(.chat-float-mode){
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
+    background: transparent;
+  }
+  #tab-chat:not(.chat-float-mode) .chat-wrap{
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    background: transparent;
+  }
+  #tab-chat:not(.chat-float-mode) .chat-messages{
+    flex: 0 0 auto;
+    overflow: visible;
+    max-height: none;
+    background: transparent;
+  }
+  #tab-chat:not(.chat-float-mode) .chat-inputrow,
+  #tab-chat.chat-float-mode .chat-inputrow{
+    background: transparent;
+    border-top: none;
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+  #tab-chat.chat-float-mode{
+    background-color: transparent;
+  }
 
   /* ---------- Shared form bits ---------- */
   .field{ display: flex; flex-direction: column; gap: 6px; }
