@@ -75,13 +75,13 @@
      mit dunklem Verlauf für Lesbarkeit, plus dieselbe Optik auf jeder
      einzelnen Chat-Zeile darin. */
   #tab-chatlist{
-    background-image: linear-gradient(180deg, rgba(0,0,0,.55), rgba(0,0,0,.75) 50%, rgba(0,0,0,.92) 92%), var(--bg-hologram);
-    background-size: cover, cover; background-position: center top, center 10%; background-repeat: no-repeat, no-repeat;
+    background-image: linear-gradient(180deg, rgba(0,0,0,.42), rgba(0,0,0,.58) 55%, rgba(0,0,0,.75)), var(--bg-hologram);
+    background-size: cover, cover; background-position: center, center; background-attachment: scroll, fixed; background-repeat: no-repeat, no-repeat;
     border-radius: 18px; min-height: calc(100vh - 160px);
   }
   #chatListWrap .profile-card{
-    background-image: linear-gradient(165deg, rgba(6,14,22,.75), rgba(0,0,0,.88) 65%), var(--bg-hologram);
-    background-size: cover, cover; background-position: center, center 15%; background-repeat: no-repeat, no-repeat;
+    background-image: linear-gradient(165deg, rgba(6,14,22,.55), rgba(0,0,0,.72) 65%), var(--bg-hologram);
+    background-size: cover, cover; background-position: center, center; background-attachment: scroll, fixed; background-repeat: no-repeat, no-repeat;
   }
 
   .eyebrow{ font-size: 11px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; color: var(--text-dim); }
@@ -237,24 +237,33 @@
   nav.tabbar button.active .ic-img{ opacity: 1; filter: drop-shadow(0 0 6px rgba(18,203,238,.85)); }
 
   /* ---------- VoßBot chat ---------- */
-  /* Hologram-Wallpaper hinter dem Chatverlauf — wie bei einem Messenger:
-     dunkler Verlauf über dem Bild sorgt dafür, dass Sprechblasen und Text
-     trotzdem gut lesbar bleiben (das Bild scrollt NICHT mit den
-     Nachrichten mit, es bleibt als Wallpaper an Ort und Stelle). */
+  /* Hologram-Wallpaper als EIN durchgehender Hintergrund über die ganze
+     Seite — nicht mehr pro Element einzeln zugeschnitten. Der Trick:
+     background-attachment:fixed verankert das Bild am Browser-Fenster,
+     nicht am Element — jede Fläche (Chatbereich, jede Sprechblase, die
+     Chatliste, jede Chat-Zeile) ist dann nur ein "Fenster" in dasselbe
+     eine, an Ort und Stelle bleibende Bild, statt ihr eigenes Stück
+     davon zu zeigen. So wirkt es wie EIN Hintergrund für die ganze
+     Seite, exakt wie gewünscht. */
   .chat-wrap{ display: flex; flex-direction: column; min-height: calc(100vh - 220px); padding-bottom: 150px; }
   .chat-messages{
     flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 4px 0 10px;
-    background-image: linear-gradient(180deg, rgba(0,0,0,.5), rgba(0,0,0,.68) 45%, rgba(0,0,0,.88) 90%), var(--bg-hologram);
+    background-image: linear-gradient(180deg, rgba(0,0,0,.42), rgba(0,0,0,.58) 55%, rgba(0,0,0,.72)), var(--bg-hologram);
     background-size: cover, cover;
-    background-position: center top, center 12%;
+    background-position: center, center;
+    background-attachment: scroll, fixed;
     background-repeat: no-repeat, no-repeat;
   }
   .chat-bubble{ max-width: 84%; padding: 11px 14px; border-radius: 16px; font-size: 14px; line-height: 1.45; white-space: pre-wrap; box-shadow: 0 1px 0 rgba(255,255,255,.03); }
-  .chat-bubble.user{ align-self: flex-end; background: var(--turquoise); color: #000; border-bottom-right-radius: 4px; box-shadow: 0 0 10px rgba(18,203,238,.35); }
+  .chat-bubble.user{
+    align-self: flex-end; color: #000; border-bottom-right-radius: 4px; box-shadow: 0 0 10px rgba(18,203,238,.35);
+    background-image: linear-gradient(rgba(18,203,238,.86), rgba(18,203,238,.86)), var(--bg-hologram);
+    background-size: cover, cover; background-position: center, center; background-attachment: scroll, fixed; background-repeat: no-repeat, no-repeat;
+  }
   .chat-bubble.assistant{
     align-self: flex-start;
-    background-image: linear-gradient(165deg, rgba(9,22,34,.78), rgba(2,6,11,.9) 60%), var(--bg-hologram);
-    background-size: cover, cover; background-position: center, center 20%; background-repeat: no-repeat, no-repeat;
+    background-image: linear-gradient(165deg, rgba(9,22,34,.62), rgba(2,6,11,.78) 60%), var(--bg-hologram);
+    background-size: cover, cover; background-position: center, center; background-attachment: scroll, fixed; background-repeat: no-repeat, no-repeat;
     border: 1px solid var(--turquoise); color: var(--text); border-bottom-left-radius: 4px; box-shadow: 0 0 10px rgba(18,203,238,.14), inset 0 1px 0 rgba(255,255,255,.05);
   }
   .chat-bubble.pending{ align-self: flex-start; background: linear-gradient(165deg, rgba(14,34,52,.85), rgba(3,9,16,.92) 60%); border: 1px solid var(--border); color: var(--text-dim); border-bottom-left-radius: 4px; }
