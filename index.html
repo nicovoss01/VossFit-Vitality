@@ -4009,7 +4009,18 @@
       notifyChatReply();
     }
 
-    var lowerForIntercept = text.trim().toLowerCase();
+    var rawTrimmed = text.trim();
+    var lowerForIntercept = rawTrimmed.toLowerCase();
+    // Easter Eggs — laufen VOR allen anderen Interceptions, greifen aber nur
+    // bei exakt diesen Mustern, damit sie keine echten Befehle blockieren.
+    if(isShoutedDankeMan(rawTrimmed)){
+      finishOk("DER HAMMER!!");
+      return;
+    }
+    if(isMoneyPitchSpam(lowerForIntercept)){
+      finishOk("KOMM IN MEINE WHATSAPP GRUPPE!");
+      return;
+    }
     if(isIdentityQuestion(lowerForIntercept)){
       finishOk(buildIdentityAnswer());
       return;
@@ -4480,6 +4491,22 @@
   // VoßBot ist niemals ChatGPT/Claude/Anthropic/"ein Sprachmodell" — egal ob
   // online oder offline gefragt, das läuft nie über die generische KI-Antwort,
   // sondern immer über diese hart einprogrammierte Identität.
+  // Easter Egg 1: "DANKE MAN" komplett in Großbuchstaben (mit oder ohne
+  // Ausrufezeichen) — bewusst case-sensitiv, damit normales "Danke Mann"
+  // nicht versehentlich auslöst.
+  function isShoutedDankeMan(rawTrimmed){
+    return /^DANKE\s+MAN[!.]*$/.test(rawTrimmed);
+  }
+
+  // Easter Egg 2: typische Spam-Anmache mit Geldbetrag + "monatlich" (z.B.
+  // "(1000-50000) 1000 Euro monatlich", "2000-8000€ im Monat verdienen").
+  function isMoneyPitchSpam(lower){
+    var hasMoneyWord = lower.indexOf("euro") > -1 || lower.indexOf("€") > -1;
+    var hasMonthly = lower.indexOf("monatlich") > -1 || lower.indexOf("im monat") > -1 || lower.indexOf("pro monat") > -1;
+    var hasBigNumber = /\d{3,}/.test(lower);
+    return hasMoneyWord && hasMonthly && hasBigNumber;
+  }
+
   function isIdentityQuestion(lower){
     var pats = [
       "wer bist du", "was bist du", "bist du chatgpt", "bist du claude", "bist du gpt",
