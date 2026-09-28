@@ -44,6 +44,20 @@
 
   *{ box-sizing: border-box; }
   body{ background: radial-gradient(ellipse 900px 520px at 50% -8%, rgba(18,203,238,.12), transparent 62%), var(--bg); color: var(--text); font-family: var(--body); padding-inline: 0; }
+  /* VoßBot-Chat: EIN Wallpaper über die ganze Fläche, auch seitlich und unter dem Verlauf. */
+  body:has(#tab-chat:not([hidden])){
+    background-color: #000;
+    background-image: linear-gradient(180deg, rgba(0,0,0,.18), rgba(0,0,0,.34) 42%, rgba(0,0,0,.5)), var(--bg-hologram);
+    background-size: cover;
+    background-position: center center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+  }
+  .app:has(#tab-chat:not([hidden])){ background: transparent; min-height: 100dvh; }
+  .app:has(#tab-chat:not([hidden])) .topbar{ background: linear-gradient(rgba(0,0,0,.42), transparent); }
+  #tab-chat:not(.chat-float-mode){ min-height: calc(100dvh - 72px); }
+  #tab-chat:not(.chat-float-mode) .chat-wrap{ background: none; min-height: calc(100dvh - 120px); }
+  #tab-chat:not(.chat-float-mode) .chat-messages{ background: none; }
   .app{ max-width: 460px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; background: var(--bg); }
 
   /* ---------- Top bar ---------- */
@@ -432,15 +446,24 @@
   .chat-empty{ color: var(--text-dim); font-size: 13px; text-align: center; padding: 30px 10px; }
   .chat-empty-list-header{ color: var(--text-faint); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; padding: 0 4px 4px; }
   .chat-hint{ font-size: 11px; color: var(--text-dim); text-align: center; padding: 2px 4px 8px; }
+  /* Nicht im Chatverlauf: fest ganz unten, mittig, über die volle Breite. */
+  #tab-chat:not(.chat-float-mode) .chat-hint{
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 28; width: 100%;
+    margin: 0; box-sizing: border-box; pointer-events: none;
+    text-align: center; font-size: 11px; line-height: 1.35; color: var(--text-dim);
+    padding: 8px 20px calc(10px + env(safe-area-inset-bottom, 0px));
+    background: transparent;
+  }
   /* Fix ans untere Bildschirmende (wie die Tableiste) statt mit der Seite
      mitzuscrollen — sonst verschwindet die Eingabezeile bei längeren
      Chatverläufen irgendwo in der Mitte der Seite. */
   .chat-inputrow{
-    position: fixed; left: 50%; bottom: 0; transform: translateX(-50%);
+    position: fixed; left: 50%; bottom: calc(46px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%);
     width: 100%; max-width: 460px; z-index: 25; box-sizing: border-box;
     display: flex; gap: 8px; align-items: flex-end;
-    padding: 10px 18px calc(14px + env(safe-area-inset-bottom, 0px));
-    background: rgba(0,0,0,.92); backdrop-filter: blur(10px);
+    padding: 10px 18px 12px;
+    background: linear-gradient(180deg, rgba(0,0,0,.2), rgba(0,0,0,.55));
+    backdrop-filter: blur(8px);
     border-top: 1px solid var(--border);
   }
   .chat-inputrow textarea{ flex: 1; background: #000; border: 1px solid var(--turquoise); border-radius: 14px; padding: 11px 13px; color: var(--text); font-family: var(--body); font-size: 14px; resize: none; max-height: 110px; }
@@ -496,7 +519,7 @@
     width: 32px !important; height: 32px !important; font-size: 13px !important;
   }
   #tab-chat.chat-float-mode #chatInputRow textarea{ font-size: 12.5px !important; padding: 7px 9px !important; }
-  #tab-chat.chat-float-mode .chat-hint{ font-size: 9.5px; padding: 1px 4px 4px; }
+  #tab-chat.chat-float-mode .chat-hint{ position: static; left: auto; right: auto; bottom: auto; width: auto; z-index: auto; pointer-events: auto; font-size: 9.5px; padding: 1px 4px 4px; background: none; }
   /* Im Sprechblasen-Fenster nur der reine Chatverlauf — keine
      Tagesübersicht-Kästen (die gehören nur zur Vollbild-Ansicht). */
   #tab-chat.chat-float-mode #chatOverviewCard{ display: none !important; }
@@ -3546,10 +3569,18 @@
   function positionChatInputRow(){
     var row = document.getElementById("chatInputRow");
     var wrap = document.querySelector(".chat-wrap");
+    var tab = document.getElementById("tab-chat");
+    var floating = tab && tab.classList.contains("chat-float-mode");
+    var hint = document.querySelector("#tab-chat .chat-hint");
     var tabbar = document.querySelector("nav.tabbar");
     var tabbarH = (tabbar && !tabbar.hidden) ? tabbar.offsetHeight : 0;
-    if(row) row.style.bottom = tabbarH + "px";
-    if(wrap) wrap.style.paddingBottom = (tabbarH + 150) + "px";
+    var hintH = 0;
+    if(!floating && hint){
+      hint.style.bottom = tabbarH + "px";
+      hintH = hint.offsetHeight || 46;
+    }
+    if(row && !floating) row.style.bottom = (tabbarH + hintH) + "px";
+    if(wrap && !floating) wrap.style.paddingBottom = (tabbarH + hintH + 92) + "px";
   }
 
   // Startet einen komplett neuen Hauptchat: der bisherige Hauptchat verliert
