@@ -565,6 +565,19 @@
     background: transparent;
     box-shadow: none;
   }
+  /* #mainApp ist ein reiner Login-Gate-Wrapper ohne eigenes Styling und
+     sitzt zwischen .app und main — ohne diese Regel bleibt er ein
+     normaler Block, der auf seine Inhaltshöhe wächst und dadurch die
+     Flex-Kette bricht, die main/#tab-chat/.chat-wrap auf die
+     Bildschirmhöhe begrenzt. Erst damit kann .chat-wrap wieder
+     scrollen statt einfach unbegrenzt in die Höhe zu wachsen. */
+  .app:has(#tab-chat:not([hidden]):not(.chat-float-mode)) #mainApp{
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
   .app:has(#tab-chat:not([hidden]):not(.chat-float-mode)) main{
     flex: 1;
     min-height: 0;
