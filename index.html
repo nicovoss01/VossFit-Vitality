@@ -335,6 +335,31 @@
   .cov-combo-actions{ display: flex; flex-direction: column; gap: 6px; border-top: 1px solid rgba(18,203,238,.25); padding-top: 10px; margin-top: 2px; }
   .cov-combo-sel-label{ font-size: 12px; color: var(--text-dim); }
 
+  /* ---- Reichhaltigere Karten-Sektionen (Kopf-Statzeile, Schnellaktionen,
+     Kombinationen, Befehlsketten) — an das Einstellungen/Referenz-Layout
+     angelehnt: kompakte Stat-Boxen oben, darunter Icon-Raster-Buttons. */
+  .cov-stat-row{ display: flex; gap: 7px; }
+  .cov-stat-box{ flex: 1; min-width: 0; border: 1px solid rgba(18,203,238,.28); border-radius: 13px; background: rgba(0,0,0,.32); padding: 8px 6px; text-align: center; }
+  .cov-stat-box b{ display: block; font-family: var(--mono); font-size: 15px; color: var(--text); }
+  .cov-stat-box span{ display: block; font-size: 9.5px; color: var(--text-faint); margin-top: 1px; line-height: 1.25; }
+  .cov-pill-row{ display: flex; gap: 7px; overflow-x: auto; padding-bottom: 2px; -webkit-overflow-scrolling: touch; }
+  .cov-pill{ flex-shrink: 0; font-size: 11.5px; font-weight: 600; color: var(--text-dim); background: rgba(0,0,0,.32); border: 1px solid rgba(18,203,238,.28); border-radius: 999px; padding: 7px 12px; cursor: pointer; font-family: var(--body); }
+  .cov-pill.active{ color: #031013; background: var(--turquoise); border-color: var(--turquoise); }
+  .cov-sec-head{ display: flex; align-items: baseline; justify-content: space-between; margin-top: 2px; }
+  .cov-sec-head .h{ font-size: 12px; font-weight: 700; color: var(--text-dim); display: flex; align-items: center; gap: 5px; }
+  .cov-sec-head .more{ font-size: 11px; color: var(--turquoise); cursor: pointer; background: none; border: none; font-family: var(--body); padding: 0; }
+  .cov-qa-grid{ display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 7px; }
+  .cov-qa-btn{ display: flex; flex-direction: column; align-items: center; gap: 5px; text-align: center; border: 1px solid rgba(18,203,238,.28); border-radius: 13px; background: rgba(0,0,0,.32); padding: 10px 4px; cursor: pointer; font-family: var(--body); color: var(--text); }
+  .cov-qa-btn .ic{ width: 26px; height: 26px; display: grid; place-items: center; color: var(--turquoise); }
+  .cov-qa-btn .ic svg{ width: 17px; height: 17px; }
+  .cov-qa-btn .lb{ font-size: 10px; line-height: 1.2; font-weight: 600; }
+  .cov-cmd-list{ display: flex; flex-direction: column; gap: 6px; }
+  .cov-cmd-row{ display: flex; align-items: center; gap: 9px; border: 1px solid rgba(18,203,238,.25); border-radius: 13px; background: rgba(0,0,0,.28); padding: 9px 11px; cursor: pointer; text-align: left; font-family: var(--body); color: var(--text); }
+  .cov-cmd-row .ic{ width: 22px; height: 22px; flex-shrink: 0; display: grid; place-items: center; color: var(--turquoise); }
+  .cov-cmd-row .ic svg{ width: 14px; height: 14px; }
+  .cov-cmd-row .tx{ flex: 1; min-width: 0; font-size: 12px; line-height: 1.35; }
+  .cov-cmd-row .chev{ color: var(--text-faint); flex-shrink: 0; }
+
   /* Größere Variante auf dem VoßBot-Startbildschirm (Chatliste) */
   .cov-lg .cov-page{ padding: 22px; border-radius: 22px; min-height: 220px; }
   .cov-lg .cov-card-icon{ width: 46px; height: 46px; }
@@ -2730,13 +2755,8 @@
       });
       row.appendChild(chip);
     });
-    var addChip = document.createElement("div");
-    addChip.className = "cov-chip add";
-    addChip.textContent = kind === "meal" ? "+ Mahlzeit" : "+ Übung";
-    addChip.addEventListener("click", function(){
-      if(kind === "meal") addMealFromOverview(); else addExerciseFromOverview();
-    });
-    row.appendChild(addChip);
+    // Kein eigener "+ Mahlzeit/+ Übung"-Chip mehr hier — das übernimmt der
+    // gleichnamige Button im "Schnellaktionen"-Raster darunter.
     return row;
   }
 
@@ -2750,15 +2770,35 @@
     var comboPage = document.createElement("div");
     comboPage.className = "cov-page";
 
-    var comboTitle = document.createElement("div");
-    comboTitle.style.cssText = "font-weight:700;font-size:15.5px;color:var(--turquoise);";
-    comboTitle.textContent = "GymCook";
-    comboPage.appendChild(comboTitle);
+    var comboHead = document.createElement("div");
+    comboHead.className = "cov-card-head";
+    comboHead.style.cursor = "default";
+    comboHead.innerHTML = '<span class="cov-card-icon">' + COV_ICON.link + '</span>' +
+      '<div class="cov-card-title"><div class="t">GymCook</div><div class="s">Training + Ernährung kombiniert</div></div>';
+    comboPage.appendChild(comboHead);
 
     var comboText = document.createElement("div");
     comboText.className = "cov-mixed-text";
     comboText.textContent = mixedText;
     comboPage.appendChild(comboText);
+
+    comboPage.appendChild(buildCovPillRow([
+      { label: (cook.kcalRest > 0 ? cook.kcalRest + " kcal offen" : "Kcal-Ziel erreicht") },
+      { label: gym.done + "/" + gym.count + " Übungen" },
+      { label: "Ziele anpassen", action: function(){ fillMainChatInput("Meine Ziele anpassen"); } }
+    ]));
+
+    comboPage.appendChild(buildCovSecHead("Schnellaktionen"));
+    comboPage.appendChild(buildCovQaGrid([
+      { icon: COV_ICON.calendar, label: "Plan + Mahlzeit", fill: "Trainingsplan und passende Mahlzeiten für heute erstellen" },
+      { icon: COV_ICON.dumbbell, label: "Training + Mahlzeit", fill: "Training und Mahlzeiten für heute aufeinander abstimmen" },
+      { icon: COV_ICON.target, label: "Tagesplan komplett", fill: "Kompletten Tagesplan aus Training und Ernährung erstellen" },
+      { icon: COV_ICON.fire, label: "Kalorien anpassen", fill: "Meine Kalorien passend zum heutigen Training anpassen" },
+      { icon: COV_ICON.target, label: "Ziele bearbeiten", fill: "Meine Ziele bearbeiten" },
+      { icon: COV_ICON.calendar, label: "Wochenplan", fill: "Wochenplan erstellen (Training + Essen)" }
+    ]));
+
+    comboPage.appendChild(buildCovSecHead("Kombinieren"));
 
     // Konkreter Vorschlag aus echten Daten: nächste offene Übung + nächste
     // offene Mahlzeit — antippen übernimmt beides direkt in die Auswahl.
@@ -2944,15 +2984,11 @@
       }
     }
 
-    comboPage.appendChild(buildQuickOptionsToggle("💡 Weitere Optionen", [
-      "Ruhetag sinnvoll einplanen",
-      "Ernährung und Training für die Woche neu berechnen",
-      "Wochenplan erstellen (Training + Essen)",
-      "Mahlzeit und Übung aufeinander abstimmen",
-      "Kalorienbilanz von Training und Essen zeigen",
-      "Was passt heute am besten zu meinem Trainingsziel?",
-      "Makros rund um mein Training optimieren",
-      "Vorschlag für Pre- und Post-Workout-Mahlzeit"
+    comboPage.appendChild(buildCovSecHead("Beispiel-Befehlsketten"));
+    comboPage.appendChild(buildCovCmdList([
+      { icon: COV_ICON.link, text: "Erstelle mir einen Plan mit Training und passenden Mahlzeiten" },
+      { icon: COV_ICON.calendar, text: "Plane mein Training und passe die Kalorien dazu an" },
+      { icon: COV_ICON.target, text: "Zeig mir meine Ziele und erstelle einen passenden Tagesplan" }
     ]));
 
     var comboCta = document.createElement("button");
@@ -3172,18 +3208,110 @@
       row.addEventListener("click", function(){ openExerciseFromOverview(idx); });
       list.appendChild(row);
     });
-    var addRow = document.createElement("div");
-    addRow.className = "cov-chip add";
-    addRow.style.alignSelf = "flex-start";
-    addRow.textContent = "+ Übung";
-    addRow.addEventListener("click", addExerciseFromOverview);
-    list.appendChild(addRow);
+    // Kein eigener "+ Übung"-Chip mehr hier — das übernimmt der gleichnamige
+    // Button im "Schnellaktionen"-Raster darunter (sonst doppelt vorhanden).
     return list;
   }
 
   // Baut eine Instanz der Tagesübersicht als 3 wischbare Seiten (Ernährung /
   // Fitness / Kombiniert) mit Punkte-Indikator, ähnlich dem Wischen zwischen
   // Homescreen-Seiten.
+  // ---- Kleine Icon-Sammlung für Schnellaktionen/Kombinationen/Befehlsketten
+  // auf den 3 Tagesübersicht-Seiten (Gym/GymCook/Cook) — gleicher Linien-Stil
+  // wie die bestehenden cov-card-icon SVGs.
+  var COV_ICON = {
+    plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>',
+    calendar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
+    chart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M12 20V4M20 20v-7"/></svg>',
+    target: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r=".6" fill="currentColor"/></svg>',
+    moon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5Z"/></svg>',
+    search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>',
+    chef: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 13a4 4 0 0 1 1-7.9A3.5 3.5 0 0 1 12 3a3.5 3.5 0 0 1 5 2.1A4 4 0 0 1 18 13"/><path d="M6 13h12v5a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1v-5Z"/></svg>',
+    basket: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h16l-1.5 11a2 2 0 0 1-2 1.8H7.5a2 2 0 0 1-2-1.8L4 8Z"/><path d="M8 8V6a4 4 0 0 1 8 0v2"/></svg>',
+    link: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 15l6-6M8 12a4 4 0 0 1 0-5.7l2-2a4 4 0 0 1 5.7 5.7l-1 1M16 12a4 4 0 0 1 0 5.7l-2 2a4 4 0 0 1-5.7-5.7l1-1"/></svg>',
+    pie: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12V3a9 9 0 1 1-9 9h9Z"/></svg>',
+    body: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="2.5"/><path d="M6 21l2-8-2-3M18 21l-2-8 2-3M9 10h6"/></svg>',
+    timer: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6"/></svg>',
+    fire: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c4 0 7-2.7 7-6.5 0-3-2-5-3-7-.3 2-1.3 3-2.3 2 .6-2.5-1-5-3.2-6.5.5 2.5-.5 4.5-2 6-1.5 1.5-2.5 3.3-2.5 5.5 0 3.8 3 6.5 6 6.5Z"/></svg>',
+    dumbbell: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 7v10M17.5 7v10M4 9.5v5M20 9.5v5M8 12h8"/></svg>'
+  };
+
+  // Kleine Sektions-Überschrift ("Schnellaktionen", "Kombinationen" …) —
+  // rein visuell, ohne "Mehr"-Funktion (es gibt keine tiefere Unterseite).
+  function buildCovSecHead(label){
+    var head = document.createElement("div");
+    head.className = "cov-sec-head";
+    head.innerHTML = '<div class="h">' + label + '</div>';
+    return head;
+  }
+
+  // Statistik-Boxen nebeneinander (z.B. Übungen/Sätze/Volumen) — rein
+  // anzeigend, aus echten Tagesdaten berechnet (nie erfunden).
+  function buildCovStatRow(items){
+    var row = document.createElement("div");
+    row.className = "cov-stat-row";
+    items.forEach(function(it){
+      var box = document.createElement("div");
+      box.className = "cov-stat-box";
+      box.innerHTML = "<b>" + it.val + "</b><span>" + it.label + "</span>";
+      row.appendChild(box);
+    });
+    return row;
+  }
+
+  // Kleine Pillen-Reihe direkt unterm Kartenkopf (z.B. "320 kcal offen",
+  // "3/5 Übungen", "Ziele anpassen") — rein informativ, außer bei einer
+  // übergebenen `action`, dann wie ein Button antippbar.
+  function buildCovPillRow(items){
+    var row = document.createElement("div");
+    row.className = "cov-pill-row";
+    items.forEach(function(it){
+      var p = document.createElement("button");
+      p.type = "button";
+      p.className = "cov-pill";
+      p.textContent = it.label;
+      if(!it.action) p.style.cursor = "default";
+      p.addEventListener("click", function(){ if(it.action) it.action(); });
+      row.appendChild(p);
+    });
+    return row;
+  }
+
+  // Icon-Raster für Schnellaktionen/Kombinationen — Antippen füllt entweder
+  // direkt die Nachrichtenzeile (Standardfall) oder löst eine eigene
+  // Aktion aus (z.B. direkt eine Mahlzeit/Übung anlegen).
+  function buildCovQaGrid(items){
+    var grid = document.createElement("div");
+    grid.className = "cov-qa-grid";
+    items.forEach(function(it){
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "cov-qa-btn";
+      b.innerHTML = '<span class="ic">' + (it.icon || COV_ICON.link) + '</span><span class="lb">' + it.label + '</span>';
+      b.addEventListener("click", function(){
+        if(it.action) it.action(); else fillMainChatInput(it.fill || it.label);
+      });
+      grid.appendChild(b);
+    });
+    return grid;
+  }
+
+  // Liste voller Beispiel-Befehle (Befehlsketten) — Antippen trägt den
+  // ganzen Satz in die Nachrichtenzeile ein, gesendet wird erst manuell.
+  function buildCovCmdList(items){
+    var list = document.createElement("div");
+    list.className = "cov-cmd-list";
+    items.forEach(function(it){
+      var row = document.createElement("button");
+      row.type = "button";
+      row.className = "cov-cmd-row";
+      row.innerHTML = '<span class="ic">' + (it.icon || COV_ICON.link) + '</span><span class="tx">„' + it.text + '"</span><span class="chev">›</span>';
+      row.addEventListener("click", function(){ fillMainChatInput(it.text); });
+      list.appendChild(row);
+    });
+    return list;
+  }
+
   function buildOverviewCardDOM(suffix, cook, gym, mixedText){
     var card = document.getElementById("chatOverviewCard" + suffix);
     if(!card) return;
@@ -3193,43 +3321,64 @@
     var pager = document.createElement("div");
     pager.className = "cov-pager";
 
-    // Seite 1 — Ernährung: Nährstoff-Diagramm + Mahlzeiten
+    // Seite "Cook" — Nährstoff-Diagramm + Mahlzeiten + Schnellaktionen
     var cookPage = document.createElement("div");
     cookPage.className = "cov-page";
     var cookHead = document.createElement("button");
     cookHead.type = "button";
     cookHead.className = "cov-card-head";
-    cookHead.innerHTML = '<span class="cov-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 2v7a2 2 0 0 0 4 0V2M9 9v13"/><path d="M17 2c-1.6 0-3 1.7-3 4.5S15.4 11 17 11v11"/></svg></span>' +
+    cookHead.innerHTML = '<span class="cov-card-icon">' + COV_ICON.chef + '</span>' +
       '<div class="cov-card-title"><div class="t">Cook</div><div class="s">' + (cook.kcalRest > 0 ? "noch " + cook.kcalRest + " kcal offen" : "Tagesziel erreicht") + '</div></div>' +
       '<div class="cov-card-stat">' + cook.kcalIst + '<small> / ' + cook.kcalZiel + '</small></div>';
     cookHead.addEventListener("click", function(){ fillMainChatInput("Wie sieht mein Tagesbedarf aus?"); });
     cookPage.appendChild(cookHead);
     cookPage.appendChild(buildCovDonut(cook));
     cookPage.appendChild(buildCovChipRow(cook.entries, "meal"));
-    cookPage.appendChild(buildQuickOptionsToggle("💡 Optionen", [
-      "Tagesplan mit passenden Mahlzeiten erstellen",
-      "Nächste Mahlzeit vorschlagen",
-      "Wie viele Kalorien hab ich noch offen?",
-      "Proteinreiche Mahlzeit empfehlen",
-      "Fettreiche Mahlzeit empfehlen",
-      "Kohlenhydratreiche Mahlzeit empfehlen",
-      "Schnelles Gericht für heute vorschlagen",
-      "Lebensmittel zur nächsten Mahlzeit hinzufügen",
-      "Meine Makros für heute zeigen",
-      "Wochenplan fürs Essen erstellen"
+    cookPage.appendChild(buildCovSecHead("Schnellaktionen"));
+    cookPage.appendChild(buildCovQaGrid([
+      { icon: COV_ICON.plus, label: "+ Mahlzeit", action: addMealFromOverview },
+      { icon: COV_ICON.chef, label: "Rezeptvorschläge", fill: "Rezeptvorschläge für heute zeigen" },
+      { icon: COV_ICON.search, label: "Lebensmittel", fill: "Lebensmittel zur nächsten Mahlzeit hinzufügen" },
+      { icon: COV_ICON.calendar, label: "Tagesplan", fill: "Tagesplan mit passenden Mahlzeiten erstellen" },
+      { icon: COV_ICON.pie, label: "Makros anpassen", fill: "Meine Makros für heute anpassen" },
+      { icon: COV_ICON.target, label: "Ziele bearbeiten", fill: "Meine Ernährungsziele bearbeiten" }
+    ]));
+    cookPage.appendChild(buildCovSecHead("Kombinationen"));
+    cookPage.appendChild(buildCovQaGrid([
+      { icon: COV_ICON.link, label: "Mahlzeit + Training", fill: "Mahlzeit passend zu meinem Training vorschlagen" },
+      { icon: COV_ICON.calendar, label: "Plan + Training", fill: "Ernährungsplan und Training für die Woche kombinieren" },
+      { icon: COV_ICON.fire, label: "Snack + Workout", fill: "Snack passend zum nächsten Workout vorschlagen" },
+      { icon: COV_ICON.target, label: "Ziele + Mahlzeiten", fill: "Meine Ziele und heutigen Mahlzeiten abgleichen" }
+    ]));
+    cookPage.appendChild(buildCovSecHead("Beliebte Befehlsketten"));
+    cookPage.appendChild(buildCovCmdList([
+      { icon: COV_ICON.chef, text: "Erstelle mir 3 Mahlzeiten für heute passend zu meinen Makros" },
+      { icon: COV_ICON.search, text: "Zeig mir Rezepte mit viel Protein" },
+      { icon: COV_ICON.basket, text: "Erstelle einen Wochenplan mit Einkaufsliste" }
     ]));
 
-    // Seite 2 — Fitness: Übungen mit Sätzen/Wdh./Pause
+    // Seite "Gym" — Übungen mit Sätzen/Wdh./Pause + Schnellaktionen
     var gymPage = document.createElement("div");
     gymPage.className = "cov-page";
+    var gymSets = 0, gymVolume = 0;
+    (gym.exercises || []).forEach(function(e){
+      var s = parseInt(e.sets, 10) || 0, r = parseInt(e.reps, 10) || 0, w = parseFloat(e.weight) || 0;
+      gymSets += s;
+      gymVolume += s * r * w;
+    });
     var gymHead = document.createElement("button");
     gymHead.type = "button";
     gymHead.className = "cov-card-head";
-    gymHead.innerHTML = '<span class="cov-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 7v10M17.5 7v10M4 9.5v5M20 9.5v5M8 12h8"/></svg></span>' +
+    gymHead.innerHTML = '<span class="cov-card-icon">' + COV_ICON.dumbbell + '</span>' +
       '<div class="cov-card-title"><div class="t">Gym</div><div class="s">Heutiges Training</div></div>' +
       '<div class="cov-card-stat">' + gym.done + '<small> / ' + gym.count + '</small></div>';
     gymHead.addEventListener("click", function(){ fillMainChatInput("Was steht heute im Training an?"); });
     gymPage.appendChild(gymHead);
+    gymPage.appendChild(buildCovStatRow([
+      { val: gym.count, label: "Übungen geplant" },
+      { val: gymSets, label: "Sätze gesamt" },
+      { val: fmtInt(gymVolume) + "kg", label: "Volumen gesamt" }
+    ]));
     if(gym.count === 0){
       var gymEmpty = document.createElement("div");
       gymEmpty.style.cssText = "font-size:13px;color:var(--text-faint);";
@@ -3237,37 +3386,44 @@
       gymPage.appendChild(gymEmpty);
     }
     gymPage.appendChild(buildCovExList(gym.exercises));
-    gymPage.appendChild(buildQuickOptionsToggle("💡 Optionen", [
-      "Neue Übung planen",
-      "Trainingsplan für diese Woche zeigen",
-      "Sätze/Wiederholungen anpassen",
-      "Pause zwischen Sätzen optimieren",
-      "Meinen Trainingsfortschritt zeigen",
-      "Gewicht für die nächste Übung anpassen",
-      "Alternative Übung bei Zeitmangel vorschlagen",
-      "Aufwärmprogramm vor dem Training zeigen",
-      "Wie viele Übungen fehlen mir heute noch?",
-      "Trainingsintensität für heute einschätzen"
+    gymPage.appendChild(buildCovSecHead("Schnellaktionen"));
+    gymPage.appendChild(buildCovQaGrid([
+      { icon: COV_ICON.plus, label: "+ Übung", action: addExerciseFromOverview },
+      { icon: COV_ICON.calendar, label: "Trainingsplan", fill: "Trainingsplan für diese Woche zeigen" },
+      { icon: COV_ICON.body, label: "Muskelgruppen", fill: "Welche Muskelgruppen fehlen mir diese Woche noch?" },
+      { icon: COV_ICON.chart, label: "Fortschritt", fill: "Meinen Trainingsfortschritt zeigen" },
+      { icon: COV_ICON.moon, label: "Regeneration", fill: "Wie sollte ich mich heute erholen?" },
+      { icon: COV_ICON.calendar, label: "Tagesplan", fill: "Was steht heute im Training an?" }
+    ]));
+    gymPage.appendChild(buildCovSecHead("Kombinationen"));
+    gymPage.appendChild(buildCovQaGrid([
+      { icon: COV_ICON.link, label: "Mahlzeit danach", fill: "Passende Mahlzeit nach dem Training vorschlagen" },
+      { icon: COV_ICON.calendar, label: "Plan + Mahlzeit", fill: "Trainingsplan und passende Mahlzeiten für heute erstellen" },
+      { icon: COV_ICON.body, label: "Oberkörper + Plan", fill: "Oberkörper-Training mit Ernährungsplan kombinieren" },
+      { icon: COV_ICON.timer, label: "HIIT + Mahlzeit", fill: "HIIT-Training und passende Mahlzeit vorschlagen" }
     ]));
 
-    // Seite 3 — Kombiniert: Mahlzeiten + Übungen gemeinsam auswählen und
-    // erst auf Bestätigung hin anpassen/im Chat besprechen (kein Chat wird
-    // schon beim bloßen Antippen einzelner Einträge losgeschickt).
+    // Seite "GymCook" (Mitte) — Mahlzeiten + Übungen gemeinsam auswählen
+    // und erst auf Bestätigung hin anpassen/im Chat besprechen (kein Chat
+    // wird schon beim bloßen Antippen einzelner Einträge losgeschickt).
     var comboPage = buildComboPage(cook, gym, mixedText);
 
-    pager.appendChild(cookPage);
+    // Reihenfolge: Gym links, GymCook in der Mitte, Cook rechts.
     pager.appendChild(gymPage);
     pager.appendChild(comboPage);
+    pager.appendChild(cookPage);
     card.appendChild(pager);
 
-    // Punkte-Indikator zum Wischen/Antippen zwischen den 3 Seiten
+    // Punkte-Indikator zum Wischen/Antippen zwischen den 3 Seiten — Mitte
+    // (Index 1 = GymCook) ist die Standardseite beim Öffnen.
+    var DEFAULT_COV_PAGE = 1;
     var dots = document.createElement("div");
     dots.className = "cov-dots";
     var dotEls = [];
     for(var i = 0; i < 3; i++){
       var dot = document.createElement("button");
       dot.type = "button";
-      dot.className = "cov-dot" + (i === 0 ? " active" : "");
+      dot.className = "cov-dot" + (i === DEFAULT_COV_PAGE ? " active" : "");
       dot.addEventListener("click", (function(idx){ return function(){
         pager.scrollTo({ left: pager.clientWidth * idx, behavior: "smooth" });
       }; })(i));
@@ -3279,6 +3435,12 @@
       var idx = Math.round(pager.scrollLeft / Math.max(1, pager.clientWidth));
       dotEls.forEach(function(d, di){ d.classList.toggle("active", di === idx); });
     }, { passive: true });
+    // Direkt (ohne Animation) auf die mittlere Seite springen, sobald die
+    // Karte ihre echte Breite hat — beim ersten Rendern ist clientWidth
+    // sonst noch 0 (Element gerade erst eingefügt).
+    requestAnimationFrame(function(){
+      pager.scrollLeft = pager.clientWidth * DEFAULT_COV_PAGE;
+    });
   }
 
   function renderChatOverviewCard(){
@@ -3297,15 +3459,15 @@
     else if(cook.kcalRest > 0) mixedText = "Noch " + cook.kcalRest + " kcal offen, " + gym.done + "/" + gym.count + " Übungen heute erledigt.";
     else if(gym.count === 0) mixedText = "Kalorienziel für heute erreicht — schon trainiert?";
     else mixedText = "Kalorienziel erreicht, " + gym.done + "/" + gym.count + " Übungen heute erledigt. Stark! 💪";
-    // Die Kästen erscheinen im offenen Chat nur im Hauptchat — alle
-    // anderen (frei angelegten) Chats bleiben reines Geplauder ohne Boxen.
+    // Die Kästen erscheinen NUR im offenen Hauptchat — weder in anderen
+    // (frei angelegten) Chats noch in "Alle Chats" (der Chatliste/Startbildschirm).
     var chat = currentChat();
     if(chat && chat.isMain){
       buildOverviewCardDOM("", cook, gym, mixedText);
     } else if(card1){
       card1.hidden = true;
     }
-    buildOverviewCardDOM("Home", cook, gym, mixedText);
+    if(card2) card2.hidden = true;
   }
 
   // Stellt sicher, dass der Hauptchat (VoßBot-Startpunkt) geöffnet ist —
