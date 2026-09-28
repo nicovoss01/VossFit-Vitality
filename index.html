@@ -2474,10 +2474,10 @@
   // dieselbe Nachricht ist.
   function randomChatWelcome(){
     var openers = [
-      "Hey! Worüber reden wir? Ein paar Ideen zum Start:",
-      "Neuer Chat, neue Fragen — hier ein paar Vorschläge:",
-      "Womit kann ich helfen? Zum Beispiel:",
-      "Alles klar, ich hör zu. Falls du Inspiration brauchst:"
+      "Was steht an, Digga?",
+      "Bin da. Was brauchst du — Essen, Training oder Zahlen?",
+      "Vibe-Check: was schieben wir los?",
+      "Los geht's. Sag an, dann ballern wir's rein:"
     ];
     var chipSets = [
       ["Was soll ich heute essen?", "Trainingsplan für diese Woche", "Wie viele Kalorien hab ich noch?", "Rezeptidee für heute Abend"],
@@ -3805,11 +3805,24 @@
     var input = document.getElementById("chatInput");
     var text = input.value.trim();
     if(!text){
-      // Leeres Eingabefeld absenden = neuer Hauptchat (der bisherige
-      // wandert dabei mit vollem Verlauf in "Alle Chats"), genau wie beim
-      // "Neuen Hauptchat starten"-Eintrag im Menü links im Eingabefeld.
+      // Leeres Eingabefeld absenden ist der EINZIGE Auslöser für eine neue,
+      // zufällige Willkommensnachricht. Steht im aktuellen Hauptchat schon
+      // was drin, wandert der zuerst (mit vollem Verlauf) nach "Alle Chats"
+      // — genau wie beim "Neuen Hauptchat starten"-Eintrag im Menü links im
+      // Eingabefeld — bevor die Begrüßung im jetzt leeren neuen Hauptchat
+      // landet.
       var cchat = currentChat();
-      if(cchat && cchat.isMain && !chatOnboarding) startNewMainChat();
+      if(cchat && cchat.isMain && !chatOnboarding){
+        if(cchat.messages.length > 0){
+          startNewMainChat();
+          cchat = currentChat();
+        }
+        var w = randomChatWelcome();
+        cchat.messages.push({ role: "assistant", text: w.text, suggestChips: w.chips });
+        cchat.updatedAt = Date.now();
+        save();
+        renderChatMessages();
+      }
       return;
     }
     input.value = "";
@@ -3818,14 +3831,11 @@
     var chat = currentChat();
     if(!chat){ createNewChat(); chat = currentChat(); }
 
-    // War der Chat bis jetzt leer (Startseite mit "Alle Chats" statt
-    // Verlauf), macht das Absenden einer Nachricht daraus einen echten Chat
-    // nach Standard-Einstellungen: erst das übliche Willkommen, direkt
-    // gefolgt von der gerade geschriebenen Nachricht.
-    if(chat.messages.length === 0 && !chatOnboarding){
-      var stdWelcome = randomChatWelcome();
-      chat.messages.push({ role: "assistant", text: stdWelcome.text, suggestChips: stdWelcome.chips });
-    }
+    // Eine zufällige Willkommensnachricht gibt es NUR beim Absenden mit
+    // leerem Eingabefeld (siehe oben) — ein echter, getippter Befehl bekommt
+    // immer direkt eine Antwort auf genau diesen Befehl, ohne vorgeschaltetes
+    // Willkommen, auch wenn der Chat vorher leer war (Startseite mit "Alle
+    // Chats" statt Verlauf).
 
     // Der Hauptchat ist ein durchgehender Chat mit voller
     // Befehlsketten-Funktionalität — jede Nachricht bleibt einfach im
@@ -3915,6 +3925,10 @@
     }
 
     var lowerForIntercept = text.trim().toLowerCase();
+    if(isIdentityQuestion(lowerForIntercept)){
+      finishOk(buildIdentityAnswer());
+      return;
+    }
     if(isCapabilityQuestion(lowerForIntercept)){
       finishOk(buildCapabilitiesAnswer());
       return;
@@ -3928,7 +3942,11 @@
     try{
       history = chat.messages.slice(0, -1).map(function(m){ return (m.role === "user" ? "Nutzer" : "VoßBot") + ": " + m.text; }).join("\n");
       contextBlock = "Aktuelle Daten:\n" + buildChatContext() + (history ? ("\n\nBisheriger Chatverlauf:\n" + history) : "");
-      systemInstruction = "Du bist VoßBot in der App VossFit — quasi die lockere, digitale Version von Nico, dem Macher der App. Du redest wie ein guter Kumpel, nicht wie ein steifer Assistent: locker, direkt, auf Augenhöhe, gern mit einer Prise Humor, aber nie oberflächlich. Du hilfst bei Ernährung, Training, Körperdaten, Mahlzeiten und allem, was den Alltag drumherum betrifft. Antworte kurz, konkret und auf Deutsch (Du-Form). Du bist kein Arzt und gibst keine medizinische Diagnose — sag das beiläufig, nicht wie eine Rechtsabteilung.";
+      systemInstruction = "Du bist VoßBot, die smarte, radikal pragmatische KI-Assistenz der App VossFit. Deine Aufgabe: Dem Nutzer jede unnötige Reibung (Zero Friction) bei Ernährungs- und Trainingsplanung abzunehmen.\n\n" +
+        "PERSÖNLICHKEIT & TONALITÄT: Du redest wie ein erfahrener, direkter Gym-Buddy und Coach. Kein \"Hallo, wie kann ich helfen\", sondern eher \"Was steht an?\". Du nutzt Umgangssprache und Gym-Slang (Gains, Makros, KH, PR, Dropset, tracken, loggen, Vibe-Check, Digga, Macher, Zero Friction, reinschweißen, ballern) — aber sparsam und natürlich, nie aufgesetzt in jedem Satz. Du bist motivierend, aber duldest keine faulen Ausreden (\"Kein Bock gibt's nicht\"). Antworten sind extrem kurz, präzise, auf Deutsch (Du-Form) — keine Romane, keine Aufzählungs-Wände wo ein Satz reicht.\n\n" +
+        "DEIN WISSEN ÜBER DIE APP: Dark-Mode Neon-Cyan-Hologramm-Design. Makros (Protein, Fett, KH) laufen als leuchtende Kacheln/Balken. Nutzer tracken frei oder nach Plan. Du lebst als schwebendes Fenster (Chat-Blase) oder als eigener Tab.\n\n" +
+        "IDENTITÄT: Du bist NIEMALS ChatGPT, Anthropic, Claude oder ein generisches Sprachmodell — du bist VoßBot. Fragen nach deiner Identität beantwortest du bezogen auf deine Rolle in VossFit, kurz und selbstbewusst, dann sofort zurück zur Sache.\n\n" +
+        "Du hilfst bei Ernährung, Training, Körperdaten, Mahlzeiten und dem Alltag drumherum. Du bist kein Arzt und gibst keine medizinische Diagnose — sag das beiläufig, nicht wie eine Rechtsabteilung.";
     }catch(e){
       finishError("Unerwarteter Fehler beim Vorbereiten der Antwort. Bitte erneut versuchen.");
       return;
@@ -4351,6 +4369,28 @@
   // unabhängig davon, ob gerade eine Online-KI verfügbar wäre.
   var CODE_WORDS_DIRECT = ["plan", "status", "übersicht", "tagesübersicht", "bestätigen", "profil", "sync"];
 
+  // VoßBot ist niemals ChatGPT/Claude/Anthropic/"ein Sprachmodell" — egal ob
+  // online oder offline gefragt, das läuft nie über die generische KI-Antwort,
+  // sondern immer über diese hart einprogrammierte Identität.
+  function isIdentityQuestion(lower){
+    var pats = [
+      "wer bist du", "was bist du", "bist du chatgpt", "bist du claude", "bist du gpt",
+      "bist du eine ki", "bist du ein bot", "bist du anthropic", "bist du openai",
+      "bist du ein sprachmodell", "bist du echt", "welches modell", "wer hat dich",
+      "wer hat dich programmiert", "wer hat dich gebaut", "wer hat dich entwickelt",
+      "bist du chat gpt"
+    ];
+    return pats.some(function(p){ return lower.indexOf(p) > -1; });
+  }
+  var IDENTITY_VARIANTS = [
+    "Bro, ich bin VoßBot. Speziell für dich und deine Gains in der VossFit App gebaut. Lass die Standard-KIs Texte schreiben, wir hitten hier Makros. Was gibt's?",
+    "VoßBot, sonst niemand. Kein ChatGPT, kein Claude — dein Coach direkt in der App. Jetzt zurück zum Wesentlichen: was steht an?",
+    "Ich bin VoßBot — die digitale Version von Nico, dem Macher der App. Kein generisches Sprachmodell, sondern dein Ernährungs- und Gym-Coach. Was brauchst du?"
+  ];
+  function buildIdentityAnswer(){
+    return IDENTITY_VARIANTS[Math.floor(Math.random() * IDENTITY_VARIANTS.length)];
+  }
+
   function isCapabilityQuestion(lower){
     var pats = [
       "was kannst du", "was kannst du alles", "welche funktionen", "was für funktionen",
@@ -4644,7 +4684,7 @@
           return;
         }
 
-        finishOk("Das hab ich offline gerade nicht verstanden 😅 Versuch's mal mit Status, Plan, Essen, Bestätigen, Profil oder Sync — oder schreib \"was kannst du\" für alle meine Funktionen.");
+        finishOk("Das kam offline nicht an, Digga. Versuch's mal mit Status, Plan, Essen, Bestätigen, Profil oder Sync — oder schreib \"was kannst du\" für alle meine Funktionen.");
       }catch(e){
         finishOk("Puh, das konnte ich nicht ganz einordnen. Frag mich einfach nach deinen Tageswerten oder sag mir direkt, welches Lebensmittel ich hinzufügen, ändern oder löschen soll.");
       }
@@ -5402,23 +5442,26 @@
     // dort vorher eine Bestätigung).
     // Ohne Login (offline): bis zu 5 lokale Profile möglich. Angemeldet bleibt
     // es bei genau einem lokalen/aktiven Profil (alles andere lebt in der Cloud).
+    // Der Schritt-Wizard ist raus — ein (zusätzliches) Profil anzulegen läuft
+    // jetzt genauso als Chat-Unterhaltung mit VoßBot wie beim allerersten
+    // Login. Läuft technisch kurz im "_guest"-Fach (activeProfileId
+    // vorübergehend leer), finishChatOnboarding übernimmt die Antworten am
+    // Ende unverändert in ein neues Profil (bestehende Profile bleiben
+    // erhalten — außer bei Google-Login, da bleibt weiterhin nur ein
+    // aktives Profil erlaubt, exakt wie vorher beim Wizard).
     function startNewProfileWizard(){
-      var existingIds = Object.keys(state.profiles);
+      var existingIds = Object.keys(state.profiles || {});
       if(!fbUser && existingIds.length >= 5){
         window.alert("Lokal sind maximal 5 Profile möglich. Lösche zuerst eins, um ein neues anzulegen.");
         return;
       }
-      startWizard(newProfile("Profil " + (existingIds.length + 1)), function(draft){
-        var id = "p"+Date.now();
-        if(fbUser) state.profiles = {}; // angemeldet: lokal bleibt nur EIN aktives Profil
-        state.profiles[id] = draft;
-        state.activeProfileId = id;
-        save();
-        if(fbUser) pushProfileToCloud(id);
-        document.getElementById("wizard").hidden = true;
-        document.getElementById("mainApp").hidden = false;
-        showTab("einstellungen");
-      }, "newProfile");
+      state.activeProfileId = null;
+      var id = createNewChat("VoßBot");
+      activeChats()[id].isMain = true;
+      state.activeChatId = id;
+      save();
+      showTab("chat");
+      beginQuestionnaireAfterAuthChoice();
     }
     document.getElementById("newProfileBtn").addEventListener("click", startNewProfileWizard);
     var emptyNewBtn = document.getElementById("ernaehrungEmptyNewProfileBtn");
