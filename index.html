@@ -4353,23 +4353,37 @@
   // Kandidaten, damit "nochmal" oder "was anderes" auch wirklich Abwechslung
   // bringt. `exclude` (Namen) lässt gerade schon vorgeschlagene Rezepte
   // bewusst aus, wenn Platz genug für Alternativen ist.
-  function pickClosestRecipe(mealType, targetKcal, exclude){
+  // Kalorien-Nähe UND Makro-Bias fließen in den Score ein — je größer der
+  // Bias (Nutzer will "mehr Fett"/"weniger KH" usw.), desto stärker darf ein
+  // Rezept von der reinen Kalorien-Nähe abweichen, wenn es dafür besser zum
+  // gewünschten Makro passt. Bias ist signiert: positiv = "mehr davon"
+  // (Rezepte mit viel von diesem Makro bekommen einen Bonus/niedrigeren
+  // Score), negativ = "weniger davon" (Rezepte mit viel davon werden
+  // bestraft/höherer Score).
+  function scoreRecipeForPlan(r, targetKcal, bias){
+    var base = Math.abs(r.kcal - targetKcal);
+    if(!bias) return base;
+    var W = 6;
+    return base - W * ((bias.fett || 0) * r.fett + (bias.protein || 0) * r.protein + (bias.kh || 0) * r.kh);
+  }
+
+  function pickClosestRecipe(mealType, targetKcal, exclude, bias){
     var candidates = RECIPE_DB.filter(function(r){ return r.meal === mealType; });
     var withoutExcluded = exclude && exclude.length
       ? candidates.filter(function(r){ return exclude.indexOf(r.name) === -1; })
       : candidates;
     if(withoutExcluded.length) candidates = withoutExcluded;
     candidates = candidates.slice().sort(function(a, b){
-      return Math.abs(a.kcal - targetKcal) - Math.abs(b.kcal - targetKcal);
+      return scoreRecipeForPlan(a, targetKcal, bias) - scoreRecipeForPlan(b, targetKcal, bias);
     });
     var pool = candidates.slice(0, Math.min(3, candidates.length));
     return pool[Math.floor(Math.random() * pool.length)];
   }
 
-  function generateDayPlan(targetKcal, excludeNames){
+  function generateDayPlan(targetKcal, excludeNames, bias){
     var shares = { "Frühstück": 0.25, "Mittagessen": 0.35, "Abendessen": 0.30, "Snack": 0.10 };
     return ["Frühstück", "Mittagessen", "Abendessen", "Snack"].map(function(meal){
-      return { meal: meal, recipe: pickClosestRecipe(meal, targetKcal * shares[meal], excludeNames) };
+      return { meal: meal, recipe: pickClosestRecipe(meal, targetKcal * shares[meal], excludeNames, bias) };
     });
   }
 
@@ -4532,6 +4546,87 @@
     return bestScore > 0 ? best : null;
   }
 
+  // ---------- Makro-Bias & "gefällt nicht" (live-Anpassung von Plänen) ----------
+  // Statt jede Anfrage isoliert zu beantworten, merkt sich VoßBot pro Chat einen
+  // Makro-Bias (mehr/weniger Fett, Protein, KH) und eine Ausschluss-Liste
+  // ("mag ich nicht") — neue Nachrichten AKTUALISIEREN diesen Zustand, statt ihn
+  // jedes Mal neu zu bauen ("neue Befehle integrieren sich in den alten Stand").
+  var MACRO_BIAS_PATTERNS = {
+    fett: {
+      more: ["mehr fett", "mehr fette", "fettreich", "fettreiche", "fettreicher", "high fat"],
+      less: ["weniger fett", "weniger fette", "fettarm", "fettarme", "fettärmer", "low fat"]
+    },
+    protein: {
+      more: ["mehr protein", "mehr proteine", "mehr eiweiß", "mehr eiweiss", "proteinreich", "proteinreiche", "proteinreicher", "eiweißreich", "eiweissreich", "high protein", "mehr gains"],
+      less: ["weniger protein", "weniger eiweiß", "weniger eiweiss", "proteinarm", "eiweißarm", "low protein"]
+    },
+    kh: {
+      more: ["mehr kohlenhydrate", "mehr kh", "mehr carbs", "kohlenhydratreich", "kohlenhydratreiche", "high carb"],
+      less: ["weniger kohlenhydrate", "weniger kh", "weniger carbs", "kohlenhydratarm", "kohlenhydratärmer", "low carb", "wenig kohlenhydrate", "kh-arm", "kh arm"]
+    }
+  };
+
+  function detectMacroBiasShift(lower){
+    var shift = { kh: 0, fett: 0, protein: 0 };
+    var found = false;
+    Object.keys(MACRO_BIAS_PATTERNS).forEach(function(macro){
+      var pat = MACRO_BIAS_PATTERNS[macro];
+      if(pat.more.some(function(p){ return lower.indexOf(p) > -1; })){ shift[macro] += 1; found = true; }
+      if(pat.less.some(function(p){ return lower.indexOf(p) > -1; })){ shift[macro] -= 1; found = true; }
+    });
+    return found ? shift : null;
+  }
+
+  var DISLIKE_PATTERNS = [
+    "mag ich nicht", "schmeckt nicht", "schmeckt mir nicht", "gefällt mir nicht",
+    "nicht so mein ding", "nicht so meins", "ist nicht meins", "kein bock auf",
+    "will was anderes", "eklig", "nicht mein fall", "mag ich nich", "schmeckt mir nich"
+  ];
+  function detectDislike(lower){
+    return DISLIKE_PATTERNS.some(function(p){ return lower.indexOf(p) > -1; });
+  }
+
+  function clampBias(v){ return Math.max(-2, Math.min(2, v)); }
+
+  function describeBias(bias){
+    if(!bias) return "";
+    var parts = [];
+    if(bias.fett > 0) parts.push("mehr Fett");
+    if(bias.fett < 0) parts.push("weniger Fett");
+    if(bias.protein > 0) parts.push("mehr Protein");
+    if(bias.protein < 0) parts.push("weniger Protein");
+    if(bias.kh > 0) parts.push("mehr KH");
+    if(bias.kh < 0) parts.push("weniger KH");
+    return parts.join(", ");
+  }
+
+  // Hinzufüge-Signalwörter — auch außerhalb von runOfflineAssistant nutzbar
+  // (z.B. um einzelne Teilsätze einer kombinierten Nachricht zu bewerten).
+  var ADD_VERBS_LIST = ["füg", "hinzufüg", "eintragen", "trag ein", "gegessen", "add", "war heute", "hab gerade", "hab gegessen", "leg rein", "pack rein", "pack dazu", "noch dazu", "dazu", "ergänzen", "nimm dazu", "notier", "logge", "log ", "speicher es", "gab's heute", "gab es heute", "aufschreib"];
+
+  // Teilt eine Nachricht in mehrere eigenständige Befehle auf, wenn sie klar
+  // erkennbar mehrere Aktionen in einem Rutsch enthält (z.B. "Fettreiche
+  // Mahlzeit empfehlen + Protein zur nächsten Mahlzeit hinzufügen"). Ein "+"
+  // ist ein eindeutiges Trennsignal; ein bloßes "und" wird nur als Trenner
+  // genutzt, wenn BEIDE Hälften für sich schon eine erkennbare Handlung
+  // enthalten — sonst würde z.B. "Hähnchen und Reis" fälschlich aufgeteilt.
+  function splitCompoundClauses(rawText){
+    var byPlus = rawText.split(/\s*\+\s*/).filter(function(s){ return s.trim().length > 0; });
+    if(byPlus.length > 1) return byPlus;
+    var byUnd = rawText.split(/\s+und\s+/i).filter(function(s){ return s.trim().length > 0; });
+    if(byUnd.length > 1){
+      var actionable = function(seg){
+        var l = normalizeIntentModals(seg.toLowerCase());
+        return scoreIntent(l, "plan") > 0 ||
+          ADD_VERBS_LIST.some(function(v){ return l.indexOf(v) > -1; }) ||
+          !!detectMacroBiasShift(l) ||
+          detectDislike(l);
+      };
+      if(byUnd.every(actionable)) return byUnd;
+    }
+    return [rawText];
+  }
+
   function runOfflineAssistant(text, chat, pendingBubble, finishOk){
     pendingBubble.className = "chat-bubble pending";
     pendingBubble.textContent = "…";
@@ -4554,7 +4649,7 @@
           : [text];
         var lower = normalizeIntentModals(recentUserTexts.join(" ").toLowerCase());
 
-        var addVerbs = ["füg", "hinzufüg", "eintragen", "trag ein", "gegessen", "add", "war heute", "hab gerade", "hab gegessen", "leg rein", "pack rein", "pack dazu", "noch dazu", "dazu", "ergänzen", "nimm dazu", "notier", "logge", "log ", "speicher es", "gab's heute", "gab es heute", "aufschreib"];
+        var addVerbs = ADD_VERBS_LIST;
         var hasAddIntent = addVerbs.some(function(v){ return lower.indexOf(v) > -1; });
 
         var deleteVerbs = ["lösch", "entfern", "raus damit", "weg damit", "rausnehmen", "streich", "rückgängig", "doch nicht", "nicht mehr da", "kicken", "raus mit", "entfernen"];
@@ -4617,21 +4712,129 @@
           }
         }
 
+        // Makro-Bias ("mehr Fett", "weniger KH", ...) und Ablehnung ("mag ich
+        // nicht", "schmeckt nicht", ...) werden IMMER aus der aktuellen
+        // Nachricht gelesen (nicht aus dem älteren Verlauf) und aktualisieren
+        // den chatweiten Zustand dauerhaft — ein späterer Plan "erbt" diese
+        // Präferenzen, bis sie erneut geändert werden.
+        if(chat && !chat.nutriPrefs) chat.nutriPrefs = { bias: { kh: 0, fett: 0, protein: 0 }, excluded: [] };
+        var biasShiftNow = detectMacroBiasShift(lowerCurrent);
+        var dislikeNow = detectDislike(lowerCurrent);
+        if(chat && biasShiftNow){
+          chat.nutriPrefs.bias.kh = clampBias(chat.nutriPrefs.bias.kh + biasShiftNow.kh);
+          chat.nutriPrefs.bias.fett = clampBias(chat.nutriPrefs.bias.fett + biasShiftNow.fett);
+          chat.nutriPrefs.bias.protein = clampBias(chat.nutriPrefs.bias.protein + biasShiftNow.protein);
+        }
+        if(chat && dislikeNow){
+          var ctxDislike = chat.offlineContext;
+          if(ctxDislike && ctxDislike.type === "plan"){
+            ctxDislike.plan.forEach(function(p3){
+              if(p3.recipe && chat.nutriPrefs.excluded.indexOf(p3.recipe.name) === -1) chat.nutriPrefs.excluded.push(p3.recipe.name);
+            });
+          } else if(ctxDislike && ctxDislike.type === "recipe" && ctxDislike.recipe){
+            if(chat.nutriPrefs.excluded.indexOf(ctxDislike.recipe.name) === -1) chat.nutriPrefs.excluded.push(ctxDislike.recipe.name);
+          }
+          if(chat.nutriPrefs.excluded.length > 12) chat.nutriPrefs.excluded = chat.nutriPrefs.excluded.slice(-12);
+        }
+
+        // ---------- Kombinierte Befehle in einer Nachricht ----------
+        // z.B. "Fettreiche Mahlzeit empfehlen + Protein zur nächsten Mahlzeit
+        // hinzufügen" — beide Teile sollen ausgeführt werden, nicht nur einer,
+        // statt dass nur eine Absicht "gewinnt" und der Rest ignoriert wird.
+        var clauses = splitCompoundClauses(text);
+        if(clauses.length > 1){
+          var combinedReplies = [];
+          var triggeredPlan = false;
+          clauses.forEach(function(clauseRaw){
+            var clauseLower = normalizeIntentModals(clauseRaw.toLowerCase());
+            var clauseHasAdd = ADD_VERBS_LIST.some(function(v){ return clauseLower.indexOf(v) > -1; });
+            var clauseRecipeMatch = findRecipeMatch(clauseLower);
+            var clauseFoodMatch = findFoodMatch(clauseLower);
+            if(clauseRecipeMatch && clauseHasAdd){
+              var mealNameC = detectMealName(clauseLower) || clauseRecipeMatch.meal;
+              var rC = addFoodToDayEntry({ mealName: mealNameC, foodName: clauseRecipeMatch.name, kh: clauseRecipeMatch.kh, fett: clauseRecipeMatch.fett, protein: clauseRecipeMatch.protein });
+              combinedReplies.push((rC && rC.message) || ("Passt, " + clauseRecipeMatch.name + " ist drin."));
+              return;
+            }
+            if(clauseFoodMatch && clauseHasAdd){
+              var fC = clauseFoodMatch.food;
+              var qtyC = parseQuantity(clauseLower, clauseFoodMatch);
+              var gramsC;
+              if(qtyC && qtyC.isPieceUnit && fC.perPiece){ gramsC = qtyC.amount * fC.g; }
+              else if(qtyC){ gramsC = qtyC.amount; }
+              else { gramsC = fC.g; }
+              var factorC = gramsC / fC.g;
+              var khC = Math.round(fC.kh * factorC * 10) / 10;
+              var fettC = Math.round(fC.fett * factorC * 10) / 10;
+              var proteinC = Math.round(fC.protein * factorC * 10) / 10;
+              var mealNameC2 = detectMealName(clauseLower);
+              var foodLabelC = Math.round(gramsC) + "g " + clauseFoodMatch.key.charAt(0).toUpperCase() + clauseFoodMatch.key.slice(1);
+              var resC = addFoodToDayEntry({ mealName: mealNameC2, foodName: foodLabelC, kh: khC, fett: fettC, protein: proteinC });
+              combinedReplies.push((resC && resC.message) || "Passt, drin.");
+              return;
+            }
+            // Kein direktes Hinzufügen erkannt — zählt als Plan-/Anpassungswunsch,
+            // sobald Plan-Signale, Makro-Bias oder Ablehnung drinstecken.
+            var clauseIsPlanIntent = scoreIntent(clauseLower, "plan") > 0;
+            if(clauseIsPlanIntent || detectMacroBiasShift(clauseLower) || detectDislike(clauseLower)){
+              triggeredPlan = true;
+            }
+          });
+
+          if(triggeredPlan){
+            var pForPlanC = activeProfile();
+            if(pForPlanC){
+              var mPlanC = calcEngine(pForPlanC);
+              var prevPlanNamesC = (chat && chat.offlineContext && chat.offlineContext.type === "plan")
+                ? chat.offlineContext.plan.map(function(p4){ return p4.recipe && p4.recipe.name; }).filter(Boolean)
+                : [];
+              var excludedC = (chat && chat.nutriPrefs && chat.nutriPrefs.excluded) ? chat.nutriPrefs.excluded.slice() : [];
+              prevPlanNamesC.forEach(function(n){ if(excludedC.indexOf(n) === -1) excludedC.push(n); });
+              var biasC = (chat && chat.nutriPrefs && chat.nutriPrefs.bias) || null;
+              var planC = generateDayPlan(mPlanC.TB, excludedC, biasC);
+              var biasNoteC = describeBias(biasC);
+              var linesC = [(biasNoteC ? "Angepasst (" + biasNoteC + ") — h" : "H") + "ier der Vorschlag (Ziel ca. " + Math.round(mPlanC.TB) + " kcal):"];
+              var tKcalC = 0, tKhC = 0, tFettC = 0, tProteinC = 0;
+              planC.forEach(function(p5){
+                var rP = p5.recipe;
+                if(!rP) return;
+                tKcalC += rP.kcal; tKhC += rP.kh; tFettC += rP.fett; tProteinC += rP.protein;
+                linesC.push(p5.meal + ": " + rP.name + " (~" + rP.kcal + " kcal) — " + rP.zutaten);
+              });
+              linesC.push("Macht zusammen ca. " + tKcalC + " kcal (" + tKhC + "g KH, " + tFettC + "g Fett, " + tProteinC + "g Protein).");
+              if(chat) chat.offlineContext = { type: "plan", plan: planC };
+              combinedReplies.push(linesC.join("\n"));
+            }
+          }
+
+          if(combinedReplies.length){
+            finishOk(combinedReplies.join("\n\n"));
+            return;
+          }
+        }
+
         var generalIntent = topGeneralIntent(lower);
 
-        if(generalIntent === "plan"){
+        if(generalIntent === "plan" || biasShiftNow || dislikeNow){
           var pForPlan = activeProfile();
           if(pForPlan){
             var mPlan = calcEngine(pForPlan);
             // War gerade schon ein Plan im Gespräch, sollen die vorher schon
             // genannten Rezepte möglichst nicht nochmal auftauchen — sonst
             // wirkt ein erneutes "Plan"/"Mehr" wie ein Echo statt wie eine
-            // echte Alternative.
+            // echte Alternative. Zusätzlich fließt die dauerhafte
+            // Ausschluss-Liste (aus "mag ich nicht") und der Makro-Bias mit ein.
             var prevPlanNames = (chat && chat.offlineContext && chat.offlineContext.type === "plan")
               ? chat.offlineContext.plan.map(function(p2){ return p2.recipe && p2.recipe.name; }).filter(Boolean)
               : [];
-            var plan = generateDayPlan(mPlan.TB, prevPlanNames);
-            var lines = ["Jo, hier ein Vorschlag für heute (Ziel ca. " + Math.round(mPlan.TB) + " kcal):"];
+            var excludedNow = (chat && chat.nutriPrefs && chat.nutriPrefs.excluded) ? chat.nutriPrefs.excluded.slice() : [];
+            prevPlanNames.forEach(function(n){ if(excludedNow.indexOf(n) === -1) excludedNow.push(n); });
+            var biasNow = (chat && chat.nutriPrefs && chat.nutriPrefs.bias) || null;
+            var plan = generateDayPlan(mPlan.TB, excludedNow, biasNow);
+            var biasNote = describeBias(biasNow);
+            var lines = [biasNote
+              ? "Alles klar, passe an (" + biasNote + ") — hier der neue Vorschlag (Ziel ca. " + Math.round(mPlan.TB) + " kcal):"
+              : "Jo, hier ein Vorschlag für heute (Ziel ca. " + Math.round(mPlan.TB) + " kcal):"];
             var totalKcal = 0, totalKh = 0, totalFett = 0, totalProtein = 0;
             plan.forEach(function(p2){
               var r = p2.recipe;
