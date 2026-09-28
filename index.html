@@ -45,15 +45,19 @@
   *{ box-sizing: border-box; }
   body{ background: radial-gradient(ellipse 900px 520px at 50% -8%, rgba(18,203,238,.12), transparent 62%), var(--bg); color: var(--text); font-family: var(--body); padding-inline: 0; }
   /* VoßBot-Chat: EIN Wallpaper über die ganze Fläche, auch seitlich und unter dem Verlauf. */
-  body:has(#tab-chat:not([hidden])){
+  body:has(#tab-chat:not([hidden])),
+  body:has(#tab-chatlist:not([hidden])){
     background-color: #000;
     background-image: linear-gradient(180deg, rgba(0,0,0,.18), rgba(0,0,0,.34) 42%, rgba(0,0,0,.5)), var(--bg-hologram);
     background-size: cover;
     background-position: center center;
     background-repeat: no-repeat;
+    min-height: 100dvh;
   }
-  .app:has(#tab-chat:not([hidden])){ background: transparent; min-height: 100dvh; }
-  .app:has(#tab-chat:not([hidden])) .topbar{ background: linear-gradient(rgba(0,0,0,.42), transparent); }
+  .app:has(#tab-chat:not([hidden])),
+  .app:has(#tab-chatlist:not([hidden])){ background: transparent; min-height: 100dvh; }
+  .app:has(#tab-chat:not([hidden])) .topbar,
+  .app:has(#tab-chatlist:not([hidden])) .topbar{ background: linear-gradient(rgba(0,0,0,.42), transparent); }
   #tab-chat:not(.chat-float-mode){ min-height: calc(100dvh - 72px); }
   #tab-chat:not(.chat-float-mode) .chat-wrap{ background: none; min-height: calc(100dvh - 120px); }
   #tab-chat:not(.chat-float-mode) .chat-messages{ background: none; }
@@ -88,13 +92,14 @@
      mit dunklem Verlauf für Lesbarkeit, plus dieselbe Optik auf jeder
      einzelnen Chat-Zeile darin. */
   #tab-chatlist{
-    background-image: linear-gradient(180deg, rgba(0,0,0,.42), rgba(0,0,0,.58) 55%, rgba(0,0,0,.75)), var(--bg-hologram);
-    background-size: contain, contain; background-position: center, center; background-attachment: scroll, fixed; background-repeat: no-repeat, no-repeat;
-    border-radius: 18px; min-height: calc(100vh - 160px);
+    background: none;
+    border-radius: 0;
+    min-height: calc(100dvh - 160px);
   }
   #chatListWrap .profile-card{
-    background-image: linear-gradient(165deg, rgba(6,14,22,.55), rgba(0,0,0,.72) 65%), var(--bg-hologram);
-    background-size: contain, contain; background-position: center, center; background-attachment: scroll, fixed; background-repeat: no-repeat, no-repeat;
+    background: linear-gradient(165deg, rgba(6,14,22,.42), rgba(0,0,0,.58) 70%);
+    border: 1px solid rgba(18,203,238,.4);
+    box-shadow: var(--glow-border);
   }
 
   .eyebrow{ font-size: 11px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; color: var(--text-dim); }
@@ -230,7 +235,10 @@
   nav.tabbar{
     position: fixed; left: 50%; transform: translateX(-50%); bottom: 0;
     width: 100%; max-width: 460px; padding: 10px 18px calc(14px + env(safe-area-inset-bottom, 0px));
-    background: rgba(0,0,0,.92); backdrop-filter: blur(10px); border-top: 1px solid var(--border);
+    background-image: linear-gradient(180deg, rgba(4,14,22,.55), rgba(0,0,0,.72)), var(--bg-hologram);
+    background-size: cover; background-position: center bottom; background-repeat: no-repeat;
+    border-top: 1px solid rgba(18,203,238,.5);
+    box-shadow: 0 -12px 28px rgba(18,203,238,.16);
     display: flex; gap: 8px; z-index: 30;
   }
   nav.tabbar button{ position: relative; flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; background: none; border: 1.5px solid transparent; color: var(--turquoise); font-family: var(--body); font-size: 11.5px; font-weight: 500; padding: 8px 0 6px; cursor: pointer; border-radius: 12px; transition: box-shadow .18s, border-color .18s, text-shadow .18s; }
@@ -260,12 +268,8 @@
      Seite, exakt wie gewünscht. */
   .chat-wrap{ display: flex; flex-direction: column; min-height: calc(100vh - 220px); padding-bottom: 150px; }
   .chat-messages{
-    flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 4px 0 10px;
-    background-image: linear-gradient(180deg, rgba(0,0,0,.42), rgba(0,0,0,.58) 55%, rgba(0,0,0,.72)), var(--bg-hologram);
-    background-size: contain, contain;
-    background-position: center, center;
-    background-attachment: scroll, fixed;
-    background-repeat: no-repeat, no-repeat;
+    flex: 0 0 auto; overflow: visible; display: flex; flex-direction: column; gap: 10px; padding: 4px 0 10px;
+    background: none;
   }
   .chat-bubble{ max-width: 84%; padding: 11px 14px; border-radius: 16px; font-size: 14px; line-height: 1.45; white-space: pre-wrap; box-shadow: 0 1px 0 rgba(255,255,255,.03); }
   .chat-bubble.user{
@@ -445,34 +449,41 @@
   .chat-empty{ color: var(--text-dim); font-size: 13px; text-align: center; padding: 30px 10px; }
   .chat-empty-list-header{ color: var(--text-faint); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; padding: 0 4px 4px; }
   .page-medical{
-    display: none;
-    position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
-    width: 100%; margin: 0; box-sizing: border-box; pointer-events: none;
+    margin-top: auto;
     text-align: center; font-size: 11px; line-height: 1.35; color: var(--text-dim);
-    padding: 7px 18px calc(8px + env(safe-area-inset-bottom, 0px));
+    padding: 22px 16px 6px;
     background: transparent;
-  }
-  body:has(#tab-chat:not([hidden]):not(.chat-float-mode)) .page-medical{ display: block; }
-  body:has(#tab-chat:not([hidden]):not(.chat-float-mode)){ overflow: hidden; height: 100dvh; }
-  #tab-chat:not(.chat-float-mode) .chat-messages{
-    overflow-y: auto; max-height: calc(100dvh - 220px); -webkit-overflow-scrolling: touch;
   }
   /* Fix ans untere Bildschirmende (wie die Tableiste) statt mit der Seite
      mitzuscrollen — sonst verschwindet die Eingabezeile bei längeren
      Chatverläufen irgendwo in der Mitte der Seite. */
   .chat-inputrow{
-    position: fixed; left: 50%; bottom: calc(46px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%);
+    position: fixed; left: 50%; bottom: 0; transform: translateX(-50%);
     width: 100%; max-width: 460px; z-index: 25; box-sizing: border-box;
     display: flex; gap: 8px; align-items: flex-end;
-    padding: 10px 18px 12px;
-    background: linear-gradient(180deg, rgba(0,0,0,.2), rgba(0,0,0,.55));
-    backdrop-filter: blur(8px);
-    border-top: 1px solid var(--border);
+    padding: 10px 18px calc(12px + env(safe-area-inset-bottom, 0px));
+    background-image: linear-gradient(180deg, rgba(4,14,22,.48), rgba(0,0,0,.7)), var(--bg-hologram);
+    background-size: cover; background-position: center bottom; background-repeat: no-repeat;
+    border-top: 1px solid rgba(18,203,238,.5);
+    box-shadow: 0 -10px 24px rgba(18,203,238,.14);
   }
-  .chat-inputrow textarea{ flex: 1; background: #000; border: 1px solid var(--turquoise); border-radius: 14px; padding: 11px 13px; color: var(--text); font-family: var(--body); font-size: 14px; resize: none; max-height: 110px; }
-  .chat-sendbtn{ width: 44px; height: 44px; border-radius: 50%; background: var(--turquoise); color: #000; display: grid; place-items: center; font-size: 18px; cursor: pointer; flex-shrink: 0; }
+  .chat-inputrow textarea{
+    flex: 1; color: var(--text); font-family: var(--body); font-size: 14px; resize: none; max-height: 110px;
+    padding: 11px 13px; border-radius: 14px; border: 1px solid var(--turquoise);
+    background-image: linear-gradient(165deg, rgba(9,22,34,.55), rgba(2,6,11,.72)), var(--bg-hologram);
+    background-size: cover; background-position: center; background-repeat: no-repeat;
+    box-shadow: var(--glow-border);
+  }
+  .chat-sendbtn, .chat-listbtn{
+    width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; cursor: pointer; flex-shrink: 0;
+    color: var(--turquoise); border: 1px solid var(--turquoise);
+    background-image: linear-gradient(160deg, rgba(18,203,238,.22), rgba(4,14,22,.62)), var(--bg-hologram);
+    background-size: cover; background-position: center; background-repeat: no-repeat;
+    box-shadow: var(--glow-sm);
+  }
+  .chat-sendbtn{ font-size: 18px; }
   .chat-sendbtn.disabled{ opacity: .4; pointer-events: none; }
-  .chat-listbtn{ width: 44px; height: 44px; border-radius: 50%; background: #000; border: 1px solid var(--turquoise); color: var(--turquoise); display: grid; place-items: center; font-size: 17px; cursor: pointer; flex-shrink: 0; }
+  .chat-listbtn{ font-size: 17px; }
   /* Menü links vom Eingabefeld: klappt statt einer Direktaktion ein kleines
      Auswahlmenü ("Reiter") auf — poppt nach OBEN auf, da der Button unten
      am Bildschirmrand sitzt. */
@@ -1267,6 +1278,7 @@
         <div class="chat-wrap">
           <div class="chat-overview-card" id="chatOverviewCard" hidden></div>
           <div class="chat-messages" id="chatMessages"></div>
+          <p class="page-medical" id="pageMedicalHint">VoßBot redet locker mit dir, ersetzt aber keinen Arzt & keine medizinische Beratung.</p>
           <div class="chat-inputrow" id="chatInputRow">
             <div class="chat-listbtn" id="chatAllChatsBtn" title="Chat-Optionen">☰</div>
             <div class="chat-menu-dropdown chat-left-dropdown" id="chatLeftDropdown" hidden>
@@ -1280,8 +1292,6 @@
       </div>
 
     </main>
-
-    <p class="page-medical" id="pageMedicalHint">VoßBot redet locker mit dir, ersetzt aber keinen Arzt & keine medizinische Beratung.</p>
 
     <div class="chat-fab-backdrop" id="chatFabBackdrop" hidden></div>
     <div class="chat-fab" id="chatFab" title="VoßBot" hidden>💬</div>
@@ -3574,16 +3584,10 @@
     var wrap = document.querySelector(".chat-wrap");
     var tab = document.getElementById("tab-chat");
     var floating = tab && tab.classList.contains("chat-float-mode");
-    var hint = document.getElementById("pageMedicalHint");
     var tabbar = document.querySelector("nav.tabbar");
     var tabbarH = (tabbar && !tabbar.hidden) ? tabbar.offsetHeight : 0;
-    var hintH = 0;
-    if(!floating && hint && tab && !tab.hidden){
-      hint.style.bottom = tabbarH + "px";
-      hintH = hint.offsetHeight || 46;
-    }
-    if(row && !floating) row.style.bottom = (tabbarH + hintH) + "px";
-    if(wrap && !floating) wrap.style.paddingBottom = (tabbarH + hintH + 92) + "px";
+    if(row && !floating) row.style.bottom = tabbarH + "px";
+    if(wrap && !floating) wrap.style.paddingBottom = (tabbarH + 108) + "px";
   }
 
   // Startet einen komplett neuen Hauptchat: der bisherige Hauptchat verliert
