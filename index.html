@@ -718,8 +718,8 @@
 
         <div class="warn-banner" id="warnBanner" hidden></div>
 
-        <section>
-          <div class="eyebrow">Tagesbedarf &amp; Zusammensetzung</div>
+        <section class="settings-card">
+          <div class="eyebrow-icon-row"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg></span>Tagesbedarf &amp; Zusammensetzung</div>
           <div class="comp-card">
             <div class="comp-top">
               <div class="donut">
@@ -4483,10 +4483,31 @@
     sync: ["google", "sync", "cloud", "konto", "backup", "datensicherung", "hochladen", "herunterladen", "synchronisier", "abgleichen"]
   };
 
+  // Modalverb-Varianten ("könnte", "sollte", "dürfte") auf die Form bringen,
+  // die in den Synonym-Listen steht ("kann"/"soll") — sonst matcht z.B. "Was
+  // könnte ich heute essen?" keinen der "was kann ich essen"-Auslöser.
+  function normalizeIntentModals(s){
+    return s
+      .replace(/\bkönnte\b/g, "kann")
+      .replace(/\bkönnt\b/g, "kann")
+      .replace(/\bsollte\b/g, "soll")
+      .replace(/\bdürfte\b/g, "kann");
+  }
+
   function scoreIntent(lower, name){
     var list = INTENT_SYNONYMS[name] || [];
     var score = 0;
-    list.forEach(function(kw){ if(lower.indexOf(kw) > -1) score++; });
+    list.forEach(function(kw){
+      if(lower.indexOf(kw) > -1){ score++; return; }
+      // Mehrwort-Auslöser zählen auch, wenn alle ihre (nicht-trivialen)
+      // Wörter irgendwo im Text vorkommen, nicht zwingend direkt
+      // hintereinander — ein eingeschobenes Wort ("was kann ich HEUTE
+      // essen") soll den Treffer nicht kaputt machen.
+      var words = kw.split(" ").filter(function(w){ return w.length > 2; });
+      if(words.length > 1 && words.every(function(w){ return lower.indexOf(w) > -1; })){
+        score++;
+      }
+    });
     return score;
   }
 
@@ -4508,7 +4529,7 @@
     // Kleine Verzögerung, damit die Antwort nicht wirkt wie ein Absturz/Sofort-Echo.
     setTimeout(function(){
       try{
-        var lowerCurrent = text.toLowerCase();
+        var lowerCurrent = normalizeIntentModals(text.toLowerCase());
         // Bezieht die letzten Nachrichten desselben Chats mit ein (nicht nur die
         // aktuelle) — so kann z.B. "Hähnchen" in einer Nachricht und "200g" in der
         // nächsten zusammen erkannt werden. Mengen-/Wort-Erkennung läuft auf diesem
@@ -4517,7 +4538,7 @@
         var recentUserTexts = (chat && chat.messages)
           ? chat.messages.filter(function(m){ return m.role === "user"; }).map(function(m){ return m.text; })
           : [text];
-        var lower = recentUserTexts.join(" ").toLowerCase();
+        var lower = normalizeIntentModals(recentUserTexts.join(" ").toLowerCase());
 
         var addVerbs = ["füg", "hinzufüg", "eintragen", "trag ein", "gegessen", "add", "war heute", "hab gerade", "hab gegessen", "leg rein", "pack rein", "pack dazu", "noch dazu", "dazu", "ergänzen", "nimm dazu", "notier", "logge", "log ", "speicher es", "gab's heute", "gab es heute", "aufschreib"];
         var hasAddIntent = addVerbs.some(function(v){ return lower.indexOf(v) > -1; });
