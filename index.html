@@ -1437,6 +1437,7 @@
   // jedes Profil synchronisiert für sich, permanent im Hintergrund.
   var cloudProfileIndex = null; // {id: profilObjekt}, gefüllt sobald angemeldet
   var cloudProfileUpdatedAt = {}; // {id: millis}, um beim Login das zuletzt bearbeitete Profil zu erkennen
+  var cloudChatsIndex = {}; // {id: chatsObjekt} — die Chats desselben Profils, im selben Cloud-Dokument
 
   // Räumt lokal alles außer dem aktiven Profil weg — aber NUR nachdem der
   // Cloud-Stand bestätigt ist, damit dabei nie Daten verloren gehen. So wird
@@ -1449,6 +1450,13 @@
     Object.keys(state.profiles || {}).forEach(function(id){
       if(id !== keep) delete state.profiles[id];
     });
+    // Chats anderer Profile bleiben in der Cloud gesichert (siehe
+    // cloudChatsIndex) und kommen beim nächsten Profilwechsel von dort
+    // zurück — lokal wird nur das aktive Profil vorgehalten, wie beim
+    // Profil selbst.
+    Object.keys(state.chatsByProfile || {}).forEach(function(id){
+      if(id !== keep && id !== "_guest") delete state.chatsByProfile[id];
+    });
   }
 
   function fetchCloudProfiles(){
@@ -1459,8 +1467,14 @@
       var out = {};
       snap.forEach(function(docSnap){
         try{
-          out[docSnap.id] = JSON.parse(docSnap.data().profile);
-          var ts = docSnap.data().updatedAt;
+          var d = docSnap.data();
+          out[docSnap.id] = JSON.parse(d.profile);
+          // Die Chats hängen am selben Cloud-Dokument wie das Profil — so
+          // bleiben sie zwingend profilgebunden (kein Chat kann je einem
+          // fremden Profil zugeordnet werden) und wandern beim Login auf
+          // einem neuen Gerät automatisch mit.
+          cloudChatsIndex[docSnap.id] = d.chats ? JSON.parse(d.chats) : {};
+          var ts = d.updatedAt;
           cloudProfileUpdatedAt[docSnap.id] = ts && ts.toMillis ? ts.toMillis() : (ts && ts.seconds ? ts.seconds * 1000 : 0);
         }catch(e){}
       });
@@ -1528,6 +1542,7 @@
           if(!db || !fsApi) throw new Error("Cloud-Datenbank nicht verfügbar" + (fsLoadError ? (": " + fsLoadError) : ""));
           return fsApi.setDoc(fsApi.doc(db, "users", fbUser.uid, "profiles", id), {
             profile: JSON.stringify(state.profiles[id]),
+            chats: JSON.stringify((state.chatsByProfile && state.chatsByProfile[id]) || {}),
             updatedAt: fsApi.serverTimestamp()
           });
         });
@@ -1535,6 +1550,7 @@
         toPush.forEach(function(id){
           state.knownCloudIds[id] = true;
           if(cloudProfileIndex) cloudProfileIndex[id] = state.profiles[id];
+          cloudChatsIndex[id] = (state.chatsByProfile && state.chatsByProfile[id]) || {};
         });
         pruneLocalToActiveOnly();
         finish();
@@ -1571,6 +1587,11 @@
       if(cloudId){
         state.profiles = {};
         state.profiles[cloudId] = cloudProfileIndex[cloudId];
+        // Die Chats dieses Profils kommen aus demselben Cloud-Dokument mit
+        // herunter — sie sind ja fest an das Profil gebunden, nie an das
+        // Gerät.
+        if(!state.chatsByProfile) state.chatsByProfile = {};
+        state.chatsByProfile[cloudId] = cloudChatsIndex[cloudId] || {};
         state.activeProfileId = cloudId;
         state.onboarded = true;
         save({skipCloud:true});
@@ -1644,11 +1665,13 @@
       if(!db || !fsApi) throw new Error("Cloud-Datenbank nicht verfügbar" + (fsLoadError ? (": " + fsLoadError) : ""));
       return fsApi.setDoc(fsApi.doc(db, "users", fbUser.uid, "profiles", profileId), {
         profile: JSON.stringify(state.profiles[profileId]),
+        chats: JSON.stringify((state.chatsByProfile && state.chatsByProfile[profileId]) || {}),
         updatedAt: fsApi.serverTimestamp()
       });
     }).then(function(){
       setSyncStatus("Profil in Cloud gesichert ✓");
       if(cloudProfileIndex) cloudProfileIndex[profileId] = state.profiles[profileId];
+      cloudChatsIndex[profileId] = (state.chatsByProfile && state.chatsByProfile[profileId]) || {};
       if(!state.knownCloudIds) state.knownCloudIds = {};
       state.knownCloudIds[profileId] = true;
       if(onDone) onDone(true);
@@ -2729,7 +2752,7 @@
 
     var comboTitle = document.createElement("div");
     comboTitle.style.cssText = "font-weight:700;font-size:15.5px;color:var(--turquoise);";
-    comboTitle.textContent = "Kombiniert";
+    comboTitle.textContent = "GymCook";
     comboPage.appendChild(comboTitle);
 
     var comboText = document.createElement("div");
@@ -3177,12 +3200,24 @@
     cookHead.type = "button";
     cookHead.className = "cov-card-head";
     cookHead.innerHTML = '<span class="cov-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 2v7a2 2 0 0 0 4 0V2M9 9v13"/><path d="M17 2c-1.6 0-3 1.7-3 4.5S15.4 11 17 11v11"/></svg></span>' +
-      '<div class="cov-card-title"><div class="t">Ernährung</div><div class="s">' + (cook.kcalRest > 0 ? "noch " + cook.kcalRest + " kcal offen" : "Tagesziel erreicht") + '</div></div>' +
+      '<div class="cov-card-title"><div class="t">Cook</div><div class="s">' + (cook.kcalRest > 0 ? "noch " + cook.kcalRest + " kcal offen" : "Tagesziel erreicht") + '</div></div>' +
       '<div class="cov-card-stat">' + cook.kcalIst + '<small> / ' + cook.kcalZiel + '</small></div>';
     cookHead.addEventListener("click", function(){ fillMainChatInput("Wie sieht mein Tagesbedarf aus?"); });
     cookPage.appendChild(cookHead);
     cookPage.appendChild(buildCovDonut(cook));
     cookPage.appendChild(buildCovChipRow(cook.entries, "meal"));
+    cookPage.appendChild(buildQuickOptionsToggle("💡 Optionen", [
+      "Tagesplan mit passenden Mahlzeiten erstellen",
+      "Nächste Mahlzeit vorschlagen",
+      "Wie viele Kalorien hab ich noch offen?",
+      "Proteinreiche Mahlzeit empfehlen",
+      "Fettreiche Mahlzeit empfehlen",
+      "Kohlenhydratreiche Mahlzeit empfehlen",
+      "Schnelles Gericht für heute vorschlagen",
+      "Lebensmittel zur nächsten Mahlzeit hinzufügen",
+      "Meine Makros für heute zeigen",
+      "Wochenplan fürs Essen erstellen"
+    ]));
 
     // Seite 2 — Fitness: Übungen mit Sätzen/Wdh./Pause
     var gymPage = document.createElement("div");
@@ -3191,7 +3226,7 @@
     gymHead.type = "button";
     gymHead.className = "cov-card-head";
     gymHead.innerHTML = '<span class="cov-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 7v10M17.5 7v10M4 9.5v5M20 9.5v5M8 12h8"/></svg></span>' +
-      '<div class="cov-card-title"><div class="t">Fitness</div><div class="s">Heutiges Training</div></div>' +
+      '<div class="cov-card-title"><div class="t">Gym</div><div class="s">Heutiges Training</div></div>' +
       '<div class="cov-card-stat">' + gym.done + '<small> / ' + gym.count + '</small></div>';
     gymHead.addEventListener("click", function(){ fillMainChatInput("Was steht heute im Training an?"); });
     gymPage.appendChild(gymHead);
@@ -3605,6 +3640,57 @@
       lines.push("Für heute sind noch keine Mahlzeiten angelegt.");
     }
     return lines.join("\n");
+  }
+
+  // Entfernt leere, unbestätigte Mahlzeiten (keine Lebensmittel mehr drin) aus
+  // dem Tag — z.B. wenn VoßBot eine Mahlzeit angelegt hat und danach alle
+  // Lebensmittel daraus wieder gelöscht wurden, oder eine ganze Mahlzeit direkt
+  // verworfen wird. Bestätigte Mahlzeiten bleiben immer stehen, auch leer.
+  function pruneEmptyUnconfirmedMeals(day){
+    if(!day || !day.entries) return;
+    // Namenlose Mahlzeiten-Slots ("Mahlzeit 1" etc. per Fallback-Anzeige) sind
+    // die normalen leeren Standardplätze der Tagesübersicht — die bleiben immer
+    // stehen. Gelöscht werden nur benannte, unbestätigte Mahlzeiten (von VoßBot
+    // oder dem Nutzer angelegt), sobald sie kein Lebensmittel mehr enthalten.
+    day.entries = day.entries.filter(function(e){ return e.confirmed || !e.name || (e.foods && e.foods.length); });
+  }
+
+  // Vom VoßBot (online) aufrufbares Werkzeug zum Löschen — eine bestimmte
+  // Mahlzeit, ein bestimmtes Lebensmittel, oder (auf expliziten Wunsch) alle
+  // noch unbestätigten Mahlzeiten des Tages. Leer gewordene, unbestätigte
+  // Mahlzeiten werden danach automatisch mit aufgeräumt.
+  function deleteFoodOrMealEntry(input){
+    var p = activeProfile();
+    if(!p) return { ok:false, message: "Kein Profil aktiv." };
+    var day = getDay(p, state.selectedDate);
+    var mealName = (input && input.mealName) ? String(input.mealName).toLowerCase() : "";
+    var foodName = (input && input.foodName) ? String(input.foodName).toLowerCase() : "";
+    var deleteAll = !!(input && input.deleteAll);
+    var removed = [];
+    if(deleteAll){
+      // Nur benannte, unbestätigte Mahlzeiten löschen — leere, namenlose
+      // Standard-Slots ("Mahlzeit 1" etc.) sind normale UI-Platzhalter und
+      // bleiben unangetastet.
+      day.entries.forEach(function(e){ if(!e.confirmed && e.name) removed.push(e.name); });
+      day.entries = day.entries.filter(function(e){ return e.confirmed || !e.name; });
+    } else if(mealName){
+      var mi = day.entries.findIndex(function(e){ return e.name && e.name.toLowerCase().indexOf(mealName) > -1; });
+      if(mi > -1){
+        removed.push(day.entries[mi].name || "Mahlzeit");
+        day.entries.splice(mi, 1);
+      }
+    } else if(foodName){
+      day.entries.forEach(function(e){
+        var fi = (e.foods || []).findIndex(function(f){ return f.name && f.name.toLowerCase().indexOf(foodName) > -1; });
+        if(fi > -1){ removed.push(e.foods[fi].name); e.foods.splice(fi, 1); }
+      });
+    }
+    pruneEmptyUnconfirmedMeals(day);
+    save();
+    if(state.activeTab === "ernaehrung" && state.view === "home") renderHome();
+    return removed.length
+      ? { ok: true, message: "Gelöscht: " + removed.join(", ") + "." }
+      : { ok: false, message: "Hab dazu nichts Passendes zum Löschen gefunden." };
   }
 
   function addFoodToDayEntry(input){
@@ -4042,6 +4128,8 @@
         "PERSÖNLICHKEIT & TONALITÄT: Du redest wie ein erfahrener, direkter Gym-Buddy und Coach. Kein \"Hallo, wie kann ich helfen\", sondern eher \"Was steht an?\". Du nutzt Umgangssprache und Gym-Slang (Gains, Makros, KH, PR, Dropset, tracken, loggen, Vibe-Check, Digga, Macher, Zero Friction, reinschweißen, ballern) — aber sparsam und natürlich, nie aufgesetzt in jedem Satz. Du bist motivierend, aber duldest keine faulen Ausreden (\"Kein Bock gibt's nicht\"). Antworten sind extrem kurz, präzise, auf Deutsch (Du-Form) — keine Romane, keine Aufzählungs-Wände wo ein Satz reicht.\n\n" +
         "DEIN WISSEN ÜBER DIE APP: Dark-Mode Neon-Cyan-Hologramm-Design. Makros (Protein, Fett, KH) laufen als leuchtende Kacheln/Balken. Nutzer tracken frei oder nach Plan. Du lebst als schwebendes Fenster (Chat-Blase) oder als eigener Tab.\n\n" +
         "IDENTITÄT: Du bist NIEMALS ChatGPT, Anthropic, Claude oder ein generisches Sprachmodell — du bist VoßBot. Fragen nach deiner Identität beantwortest du bezogen auf deine Rolle in VoßFit, kurz und selbstbewusst, dann sofort zurück zur Sache.\n\n" +
+        "SPRACHQUALITÄT (wichtig): Auch wenn Antworten extrem kurz sind, sind es IMMER vollständige, grammatikalisch korrekte deutsche Sätze — Subjekt, Verb, alles dran. Kein abgehacktes Halbsatz-Slang-Kauderwelsch, keine fehlenden Wörter, keine Satzfragmente, die keinen Sinn ergeben. Lieber ein kurzer, klarer, ganzer Satz als ein cooler, aber kaputter. Zahlen wie Kalorien immer eindeutig einbetten (z.B. \"bei deinem Ziel von 2.440 kcal würdest du sonst zu wenig essen\", nie ein Zahlen-Fragment ohne Kontext).\n\n" +
+        "LÖSCHEN: Will der Nutzer eine von dir angelegte oder bestehende Mahlzeit/ein Lebensmittel wieder loswerden (\"löschen\", \"raus damit\", \"doch nicht\", \"vergiss das\"), nutze IMMER das Werkzeug delete_food_or_meal, statt nur zu behaupten, es sei erledigt — sonst bleibt der Eintrag unsichtbar für den Nutzer bestehen.\n\n" +
         "Du hilfst bei Ernährung, Training, Körperdaten, Mahlzeiten und dem Alltag drumherum. Du bist kein Arzt und gibst keine medizinische Diagnose — sag das beiläufig, nicht wie eine Rechtsabteilung.";
     }catch(e){
       finishError("Unerwarteter Fehler beim Vorbereiten der Antwort. Bitte erneut versuchen.");
@@ -4055,7 +4143,7 @@
 
     (window.claude && window.claude.use ? window.claude.use("sample") : Promise.resolve(null)).then(function(sample){
       if(sample){
-        var prompt = systemInstruction + " Wenn der Nutzer eine konkrete Anpassung der heutigen Mahlzeiten möchte (z.B. ein Lebensmittel hinzufügen), nutze das Werkzeug add_food_to_day, statt es nur zu beschreiben.\n\n" + contextBlock + "\n\nNutzer: " + text;
+        var prompt = systemInstruction + " Wenn der Nutzer eine konkrete Anpassung der heutigen Mahlzeiten möchte (z.B. ein Lebensmittel hinzufügen), nutze das Werkzeug add_food_to_day, statt es nur zu beschreiben. Will er etwas davon wieder löschen, nutze delete_food_or_meal, statt es nur zu behaupten.\n\n" + contextBlock + "\n\nNutzer: " + text;
         sample(prompt, {
           onText: function(o){ pendingBubble.className = "chat-bubble assistant"; pendingBubble.textContent = o.text || "…"; document.getElementById("chatMessages").scrollTop = document.getElementById("chatMessages").scrollHeight; },
           tools: [{
@@ -4075,6 +4163,21 @@
             execute: function(input){
               try{ return addFoodToDayEntry(input); }
               catch(e){ return { ok:false, message: "Konnte nicht hinzugefügt werden." }; }
+            }
+          }, {
+            name: "delete_food_or_meal",
+            description: "Löscht eine bestehende Mahlzeit, ein einzelnes Lebensmittel darin, oder (mit deleteAll) alle noch unbestätigten Mahlzeiten des Tages. Leer gewordene, unbestätigte Mahlzeiten werden dabei automatisch mit entfernt.",
+            inputSchema: {
+              type: "object",
+              properties: {
+                mealName: { type: "string", description: "Name der zu löschenden Mahlzeit, z.B. Mittagessen." },
+                foodName: { type: "string", description: "Name des zu löschenden Lebensmittels." },
+                deleteAll: { type: "boolean", description: "true, um alle noch unbestätigten Mahlzeiten des Tages zu löschen." }
+              }
+            },
+            execute: function(input){
+              try{ return deleteFoodOrMealEntry(input); }
+              catch(e){ return { ok:false, message: "Konnte nicht gelöscht werden." }; }
             }
           }]
         }).then(function(res){ finishOk(res && res.text); })
@@ -4109,7 +4212,7 @@
   // Ein einzelner Versuch gegen den Proxy, mit Zeitlimit (verhindert ewiges "…"-Hängen
   // bei einer toten/langsamen Verbindung).
   function tryProxyChatOnce(systemInstruction, contextBlock, text, timeoutMs){
-    var toolHint = " Wenn der Nutzer eine konkrete Anpassung der heutigen Mahlzeiten möchte (z.B. ein Lebensmittel hinzufügen), nutze das Werkzeug add_food_to_day, statt es nur zu beschreiben.";
+    var toolHint = " Wenn der Nutzer eine konkrete Anpassung der heutigen Mahlzeiten möchte (z.B. ein Lebensmittel hinzufügen), nutze das Werkzeug add_food_to_day, statt es nur zu beschreiben. Will er etwas davon wieder löschen, nutze delete_food_or_meal, statt es nur zu behaupten.";
     var controller = (typeof AbortController !== "undefined") ? new AbortController() : null;
     var timer = controller ? setTimeout(function(){ controller.abort(); }, timeoutMs) : null;
     return fetch(AI_PROXY_URL, {
@@ -4132,6 +4235,17 @@
               protein: { type: "NUMBER", description: "Protein in Gramm" }
             },
             required: ["foodName"]
+          }
+        }, {
+          name: "delete_food_or_meal",
+          description: "Löscht eine bestehende Mahlzeit, ein einzelnes Lebensmittel darin, oder (mit deleteAll) alle noch unbestätigten Mahlzeiten des Tages. Leer gewordene, unbestätigte Mahlzeiten werden dabei automatisch mit entfernt.",
+          parameters: {
+            type: "OBJECT",
+            properties: {
+              mealName: { type: "STRING", description: "Name der zu löschenden Mahlzeit, z.B. Mittagessen." },
+              foodName: { type: "STRING", description: "Name des zu löschenden Lebensmittels." },
+              deleteAll: { type: "BOOLEAN", description: "true, um alle noch unbestätigten Mahlzeiten des Tages zu löschen." }
+            }
           }
         }]
       })
@@ -4163,6 +4277,13 @@
         try{ result = addFoodToDayEntry(data.functionCall.args || {}); }
         catch(e){ result = { ok:false, message: "Konnte nicht hinzugefügt werden." }; }
         finishOk(result && result.message);
+        return;
+      }
+      if(data.functionCall && data.functionCall.name === "delete_food_or_meal"){
+        var delResult;
+        try{ delResult = deleteFoodOrMealEntry(data.functionCall.args || {}); }
+        catch(e){ delResult = { ok:false, message: "Konnte nicht gelöscht werden." }; }
+        finishOk(delResult && delResult.message);
         return;
       }
       finishOk(data.text || "…");
@@ -4871,6 +4992,30 @@
     // Kleine Verzögerung, damit die Antwort nicht wirkt wie ein Absturz/Sofort-Echo.
     setTimeout(function(){
       try{
+        // Einziger Weg, wie VoßBot selbst Mahlzeiten bestätigt: der exakte,
+        // einzelne Befehl "Bestätigen" (ohne weiteren Text drumherum) — bewusst
+        // NICHT über beiläufige Formulierungen wie "passt so"/"stimmt schon",
+        // damit nie aus Versehen etwas bestätigt wird, das gar nicht gemeint war.
+        var exactConfirmCmd = text.trim().toLowerCase().replace(/[!.]+$/, "");
+        if(exactConfirmCmd === "bestätigen" || exactConfirmCmd === "bestätige"){
+          var confP = activeProfile();
+          if(!confP){
+            finishOk("Brauch erst ein Profil von dir, bevor ich was bestätigen kann.");
+            return;
+          }
+          var confDay = getDay(confP, state.selectedDate);
+          var openEntries = confDay.entries.filter(function(e){ return !e.confirmed && e.foods && e.foods.length; });
+          if(!openEntries.length){
+            finishOk("Da ist gerade nichts Offenes zum Bestätigen — leg erst eine Mahlzeit an.");
+            return;
+          }
+          openEntries.forEach(function(e){ e.confirmed = true; });
+          save();
+          if(state.activeTab === "ernaehrung" && state.view === "home") renderHome();
+          finishOk("Bestätigt: " + openEntries.map(function(e){ return e.name || "Mahlzeit"; }).join(", ") + ". Zählt jetzt in deiner Tagesbilanz. 👍");
+          return;
+        }
+
         var lowerCurrent = normalizeIntentModals(text.toLowerCase());
         // Bezieht die letzten Nachrichten desselben Chats mit ein (nicht nur die
         // aktuelle) — so kann z.B. "Hähnchen" in einer Nachricht und "200g" in der
@@ -4904,6 +5049,8 @@
             var delHit = findFoodInToday(delDbMatch.key);
             if(delHit){
               delHit.entry.foods = delHit.entry.foods.filter(function(f){ return f.id !== delHit.food.id; });
+              var delDay = getDay(activeProfile(), state.selectedDate);
+              pruneEmptyUnconfirmedMeals(delDay);
               save();
               if(state.activeTab === "ernaehrung" && state.view === "home") renderHome();
               finishOk("Alles klar, \"" + delHit.food.name + "\" ist aus \"" + delHit.entry.name + "\" raus. 👍");
@@ -4911,6 +5058,24 @@
             }
             finishOk("Ich find heute kein \"" + delDbMatch.key + "\" bei dir zum Löschen. 🤔");
             return;
+          }
+          // Kein konkretes Lebensmittel benannt (z.B. nur "löschen"/"weg damit"/
+          // "doch nicht") — dann bezieht sich das auf die zuletzt von VoßBot
+          // angelegten, noch unbestätigten Mahlzeiten: die werden komplett
+          // verworfen, statt als leere Karteileichen stehen zu bleiben.
+          var delProfile = activeProfile();
+          if(delProfile){
+            var genDay = getDay(delProfile, state.selectedDate);
+            // Nur benannte, unbestätigte Mahlzeiten zählen — leere, namenlose
+            // Standard-Slots sind normale UI-Platzhalter und bleiben stehen.
+            var openNames = genDay.entries.filter(function(e){ return !e.confirmed && e.name; }).map(function(e){ return e.name; });
+            if(openNames.length){
+              genDay.entries = genDay.entries.filter(function(e){ return e.confirmed || !e.name; });
+              save();
+              if(state.activeTab === "ernaehrung" && state.view === "home") renderHome();
+              finishOk("Passt, weg damit: " + openNames.join(", ") + " sind gelöscht. 👍");
+              return;
+            }
           }
         }
 
@@ -5497,6 +5662,11 @@
         var prevId = state.activeProfileId;
         function doSwitch(){
           state.profiles[id] = cp;
+          // Die Chats dieses Profils liegen im selben Cloud-Dokument und
+          // kommen beim Aktivieren mit herunter — fest profilgebunden, nie
+          // an ein bestimmtes Gerät.
+          if(!state.chatsByProfile) state.chatsByProfile = {};
+          state.chatsByProfile[id] = cloudChatsIndex[id] || {};
           state.activeProfileId = id;
           pruneLocalToActiveOnly();
           save();
