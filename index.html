@@ -4347,20 +4347,29 @@
     return best;
   }
 
-  function pickClosestRecipe(mealType, targetKcal){
+  // Wählt nicht stur IMMER das kalorisch nächstliegende Rezept (das wäre bei
+  // gleichem Tagesbedarf jedes Mal exakt dasselbe Ergebnis, egal wie oft man
+  // fragt) — stattdessen zufällig eins aus den paar nächstliegenden
+  // Kandidaten, damit "nochmal" oder "was anderes" auch wirklich Abwechslung
+  // bringt. `exclude` (Namen) lässt gerade schon vorgeschlagene Rezepte
+  // bewusst aus, wenn Platz genug für Alternativen ist.
+  function pickClosestRecipe(mealType, targetKcal, exclude){
     var candidates = RECIPE_DB.filter(function(r){ return r.meal === mealType; });
-    var best = candidates[0], bestDiff = Infinity;
-    candidates.forEach(function(r){
-      var diff = Math.abs(r.kcal - targetKcal);
-      if(diff < bestDiff){ bestDiff = diff; best = r; }
+    var withoutExcluded = exclude && exclude.length
+      ? candidates.filter(function(r){ return exclude.indexOf(r.name) === -1; })
+      : candidates;
+    if(withoutExcluded.length) candidates = withoutExcluded;
+    candidates = candidates.slice().sort(function(a, b){
+      return Math.abs(a.kcal - targetKcal) - Math.abs(b.kcal - targetKcal);
     });
-    return best;
+    var pool = candidates.slice(0, Math.min(3, candidates.length));
+    return pool[Math.floor(Math.random() * pool.length)];
   }
 
-  function generateDayPlan(targetKcal){
+  function generateDayPlan(targetKcal, excludeNames){
     var shares = { "Frühstück": 0.25, "Mittagessen": 0.35, "Abendessen": 0.30, "Snack": 0.10 };
     return ["Frühstück", "Mittagessen", "Abendessen", "Snack"].map(function(meal){
-      return { meal: meal, recipe: pickClosestRecipe(meal, targetKcal * shares[meal]) };
+      return { meal: meal, recipe: pickClosestRecipe(meal, targetKcal * shares[meal], excludeNames) };
     });
   }
 
@@ -4477,7 +4486,7 @@
   // erkannt, weil dort mehr Status- als Plan-Signale vorkommen.
   var INTENT_SYNONYMS = {
     status: ["status", "werte", "tageswerte", "tagesbedarf", "wie stehe ich", "wo stehe ich", "meine werte", "was habe ich noch offen", "was hab ich noch offen", "übersicht", "tagesübersicht", "wie viel hab ich noch", "wie viel habe ich noch", "wie viel", "übrig", "offen", "kalorien", "kcal", "bedarf", "ziel erreicht"],
-    plan: ["plan", "pläne", "tagesplan", "essensplan", "was soll ich essen", "was soll ich heute essen", "was kann ich essen", "was gibt's heute", "was gibt es heute", "was gibt's zu essen", "was gibt es zu essen", "mein essen heute", "zeig mir meinen plan", "mach mir einen plan", "plan erstellen", "plan machen", "vorschlag", "vorschläge", "essensvorschlag", "rezeptvorschlag", "tagesvorschlag", "was koche ich", "was soll ich kochen", "koch mir was", "iss ich heute", "hab hunger", "ich hab hunger", "menü für heute", "tagesmenü", "füllen", "auffüllen"],
+    plan: ["plan", "pläne", "tagesplan", "essensplan", "was soll ich essen", "was soll ich heute essen", "was kann ich essen", "was gibt's heute", "was gibt es heute", "was gibt's zu essen", "was gibt es zu essen", "mein essen heute", "zeig mir meinen plan", "mach mir einen plan", "plan erstellen", "plan machen", "vorschlag", "vorschläge", "essensvorschlag", "rezeptvorschlag", "tagesvorschlag", "was koche ich", "was soll ich kochen", "koch mir was", "iss ich heute", "hab hunger", "ich hab hunger", "menü für heute", "tagesmenü", "füllen", "auffüllen", "ander", "was anderes", "etwas anderes", "alternative", "noch einen vorschlag", "noch ein rezept", "nochmal was anderes"],
     confirm: ["bestätig", "abhak", "abgehakt", "haken setz", "als erledigt", "fertig markier", "passt so", "kann so bleiben", "das nehme ich"],
     profile: ["profil", "account wechseln", "anderes konto", "benutzer wechseln", "wer bin ich"],
     sync: ["google", "sync", "cloud", "konto", "backup", "datensicherung", "hochladen", "herunterladen", "synchronisier", "abgleichen"]
@@ -4535,8 +4544,13 @@
         // nächsten zusammen erkannt werden. Mengen-/Wort-Erkennung läuft auf diesem
         // kombinierten Text; nur die Kurz-Bestätigung ("Ja") bezieht sich bewusst
         // ausschließlich auf die aktuelle Nachricht.
+        // Nur die letzten paar Nachrichten fließen mit ein (nicht der GESAMTE
+        // bisherige Chatverlauf) — sonst "klebt" eine einmal erkannte Absicht
+        // (z.B. "Plan") für immer, und jede spätere Kurznachricht wie
+        // "Anderer" oder "Mehr" triggert wieder denselben alten Plan, weil
+        // das Wort "Plan"/"Vorschlag" irgendwo weiter oben im Verlauf steht.
         var recentUserTexts = (chat && chat.messages)
-          ? chat.messages.filter(function(m){ return m.role === "user"; }).map(function(m){ return m.text; })
+          ? chat.messages.filter(function(m){ return m.role === "user"; }).map(function(m){ return m.text; }).slice(-3)
           : [text];
         var lower = normalizeIntentModals(recentUserTexts.join(" ").toLowerCase());
 
@@ -4609,7 +4623,14 @@
           var pForPlan = activeProfile();
           if(pForPlan){
             var mPlan = calcEngine(pForPlan);
-            var plan = generateDayPlan(mPlan.TB);
+            // War gerade schon ein Plan im Gespräch, sollen die vorher schon
+            // genannten Rezepte möglichst nicht nochmal auftauchen — sonst
+            // wirkt ein erneutes "Plan"/"Mehr" wie ein Echo statt wie eine
+            // echte Alternative.
+            var prevPlanNames = (chat && chat.offlineContext && chat.offlineContext.type === "plan")
+              ? chat.offlineContext.plan.map(function(p2){ return p2.recipe && p2.recipe.name; }).filter(Boolean)
+              : [];
+            var plan = generateDayPlan(mPlan.TB, prevPlanNames);
             var lines = ["Jo, hier ein Vorschlag für heute (Ziel ca. " + Math.round(mPlan.TB) + " kcal):"];
             var totalKcal = 0, totalKh = 0, totalFett = 0, totalProtein = 0;
             plan.forEach(function(p2){
