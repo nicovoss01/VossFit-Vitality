@@ -1382,75 +1382,48 @@ nav.tabbar button .ic-img{ width: 38px; height: 38px; }
 
 </style>
 
-<style id="gymcook-transparent-head-20260929">
-/* GymCook Head: transparentes Infinity-Emblem im Kristallrahmen */
+<style id="gymcook-image-head-20260929">
+/* Keep the supplied artwork intact; frame only its banner area (y=246..956). */
 .cov-page.cv-gymcook .cv-hero{
-  position:relative;
   display:block;
+  position:relative;
   width:100%;
+  height:auto;
   box-sizing:border-box;
-  border:10px solid transparent;
-  border-image:var(--f-gc-panel) var(--s-gc-panel) / 10px stretch;
+  margin:0;
+  padding:0;
+  border:0 !important;
+  border-image:none !important;
   border-radius:0;
   background:transparent !important;
   box-shadow:none !important;
-  padding:0;
   overflow:hidden;
 }
-.cov-page.cv-gymcook .cv-hero::after{ display:none !important; }
+.cov-page.cv-gymcook .cv-hero::after{display:none !important;}
 .cov-page.cv-gymcook .cv-hero .art{
-  display:flex;
-  align-items:center;
-  justify-content:center;
+  display:block;
+  position:relative;
   width:100%;
-  box-sizing:border-box;
-  aspect-ratio:560 / 205;
-  padding:4px 18px 30px;
-  background:transparent !important;
+  height:auto;
+  aspect-ratio:1536 / 710;
+  margin:0;
+  padding:0;
+  overflow:hidden;
+  background:none !important;
   -webkit-mask-image:none !important;
   mask-image:none !important;
 }
 .cov-page.cv-gymcook .cv-hero .art .pi-emblem{
   display:block;
-  width:100%;
-  height:100%;
-  object-fit:contain;
-  mix-blend-mode:screen;
-  filter:none;
-}
-.cov-page.cv-gymcook .cv-hero .txt{
   position:absolute;
+  top:-34.647887%;
   left:0;
-  right:0;
-  bottom:5px;
-  z-index:2;
-  text-align:center;
-  pointer-events:none;
-}
-.cov-page.cv-gymcook .cv-hero .t{
-  display:inline-block;
-  font-family:var(--display);
-  font-size:clamp(25px,6.2vw,40px);
-  line-height:1;
-  font-weight:800;
-  letter-spacing:.3px;
-  color:#eafcff;
-  background:linear-gradient(90deg,#84f7ff 0%,#f7fdff 46%,#ffe9a0 58%,#ffc14a 100%);
-  -webkit-background-clip:text;
-  background-clip:text;
-  -webkit-text-fill-color:transparent;
-  text-shadow:0 0 9px rgba(0,210,255,.62),0 0 14px rgba(255,173,43,.30);
-}
-.cov-page.cv-gymcook .cv-hero > .cv-chev{
-  position:absolute;
-  right:8px;
-  top:50%;
-  transform:translateY(-50%);
-  z-index:3;
-}
-.cov-page.cv-gymcook .cv-hero{
-  border:10px solid transparent;
-  border-image:var(--universal-frame) 300 / 10px stretch;
+  width:100%;
+  height:auto;
+  max-width:none;
+  object-fit:contain;
+  mix-blend-mode:normal;
+  filter:none;
 }
 </style>
 
@@ -3723,7 +3696,7 @@ nav.tabbar button .ic-img{ width: 38px; height: 38px; }
     var hero = document.createElement("button");
     hero.type = "button";
     hero.className = "cv-hero";
-    hero.innerHTML = '<div class="art"><img class="pi-emblem" alt="GymCook" draggable="false" src="' + PI.gc_emblem + '"></div><div class="txt"><div class="t">GymCook</div></div><span class="cv-chev">›</span>';
+    hero.innerHTML = '<div class="art"><img class="pi-emblem" alt="GymCook" draggable="false" width="1536" height="1152" src="assets/gymcook-header.jpg"></div>';
     hero.addEventListener("click", function(){ fillMainChatInput("Kombinierten Tagesplan aus Training und Ernährung erstellen"); });
     comboPage.appendChild(hero);
 
