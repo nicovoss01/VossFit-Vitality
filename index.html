@@ -1348,6 +1348,37 @@ nav.tabbar button .ic-img{ width: 38px; height: 38px; }
 #chatListWrap .profile-card{ border-radius: 16px !important; }
 .chat-inputrow textarea{ border-radius: 14px !important; }
 
+/* Diamantmuster in den Fenstern: Die vorhandenen border-image-Rahmen bleiben
+   unberührt. Das Motiv folgt der jeweiligen Fensterbreite ohne Verzerrung;
+   bei hohen Fenstern setzt es sich nach unten fort. */
+:root{ --window-diamonds: url('window-diamonds.jpg'); }
+:is(
+  .cov-page.cv-gym, .cov-page.cv-cook, .cov-page.cv-gymcook,
+  .cov-page .cv-stat, .cov-page .cv-t3, .cov-page .cv-btn,
+  .cov-page .cv-tabs, .cov-page .cv-tab, .cov-page .cov-qa-btn,
+  .cov-page .cov-cmd-row, .cov-page .cov-stat-box,
+  .settings-card, .modal-box, .chat-bubble.chat-auth-choice,
+  .comp-card, .macro-tile, .meal-card, .food-row, .addfood-card,
+  .profile-card, .profile-card-v2, .new-profile-card,
+  .chat-messages, .chat-bubble.user, .chat-bubble.assistant,
+  .chat-inputrow textarea, .option-card, .appdata-section,
+  .chat-menu-dropdown, .export-fallback
+){
+  background-color: #020813;
+  background-image: linear-gradient(rgba(1,5,12,.64), rgba(1,5,12,.70)), var(--window-diamonds);
+  background-size: 100% 100%, 100% auto;
+  background-position: center top, center top;
+  background-repeat: no-repeat, repeat-y;
+  background-origin: padding-box;
+  background-clip: padding-box;
+}
+/* Das gleiche Motiv in den kleineren Fenstern der Übersicht. */
+:is(.cov-page .cv-stat, .cov-page .cv-t3, .cov-page .cv-btn,
+    .cov-page .cv-tab, .cov-page .cov-qa-btn, .cov-page .cov-cmd-row,
+    .cov-page .cov-stat-box){
+  background-image: linear-gradient(rgba(1,5,12,.73), rgba(1,5,12,.78)), var(--window-diamonds);
+}
+
 </style>
 </head>
 <body>
