@@ -1,0 +1,117 @@
+name: Apply GymCook head
+
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-gymcook-head.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Patch GymCook head
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path("index.html")
+          text = path.read_text(encoding="utf-8")
+
+          style_id = "gymcook-transparent-head-20260929"
+          css = r"""
+          <style id="gymcook-transparent-head-20260929">
+          /* GymCook Head: transparentes Infinity-Emblem im Kristallrahmen */
+          .cov-page.cv-gymcook .cv-hero{
+            position:relative;
+            display:block;
+            width:100%;
+            box-sizing:border-box;
+            border:10px solid transparent;
+            border-image:var(--f-gc-panel) var(--s-gc-panel) / 10px stretch;
+            border-radius:0;
+            background:transparent !important;
+            box-shadow:none !important;
+            padding:0;
+            overflow:hidden;
+          }
+          .cov-page.cv-gymcook .cv-hero::after{ display:none !important; }
+          .cov-page.cv-gymcook .cv-hero .art{
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            width:100%;
+            box-sizing:border-box;
+            aspect-ratio:560 / 205;
+            padding:4px 18px 30px;
+            background:transparent !important;
+            -webkit-mask-image:none !important;
+            mask-image:none !important;
+          }
+          .cov-page.cv-gymcook .cv-hero .art .pi-emblem{
+            display:block;
+            width:100%;
+            height:100%;
+            object-fit:contain;
+            mix-blend-mode:screen;
+            filter:none;
+          }
+          .cov-page.cv-gymcook .cv-hero .txt{
+            position:absolute;
+            left:0;
+            right:0;
+            bottom:5px;
+            z-index:2;
+            text-align:center;
+            pointer-events:none;
+          }
+          .cov-page.cv-gymcook .cv-hero .t{
+            display:inline-block;
+            font-family:var(--display);
+            font-size:clamp(25px,6.2vw,40px);
+            line-height:1;
+            font-weight:800;
+            letter-spacing:.3px;
+            color:#eafcff;
+            background:linear-gradient(90deg,#84f7ff 0%,#f7fdff 46%,#ffe9a0 58%,#ffc14a 100%);
+            -webkit-background-clip:text;
+            background-clip:text;
+            -webkit-text-fill-color:transparent;
+            text-shadow:0 0 9px rgba(0,210,255,.62),0 0 14px rgba(255,173,43,.30);
+          }
+          .cov-page.cv-gymcook .cv-hero > .cv-chev{
+            position:absolute;
+            right:8px;
+            top:50%;
+            transform:translateY(-50%);
+            z-index:3;
+          }
+          </style>
+          """
+
+          if style_id not in text:
+              if "</head>" not in text:
+                  raise SystemExit("Could not find </head> in index.html")
+              text = text.replace("</head>", css + "\n</head>", 1)
+
+          old = '<img class="pi-emblem" alt="" draggable="false" src="\' + PI.gc_emblem + \'">'
+          new = '<img class="pi-emblem" alt="GymCook" draggable="false" src="\' + PI.gc_emblem + \'">'
+          text = text.replace(old, new)
+
+          path.write_text(text, encoding="utf-8")
+      - name: Commit change
+        run: |
+          if git diff --quiet; then
+            echo "No change needed."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Apply GymCook transparent head"
+          git push origin HEAD:main
