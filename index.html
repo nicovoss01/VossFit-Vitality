@@ -4520,10 +4520,11 @@ nav.tabbar button .ic-img{ width: 38px; height: 38px; }
     else if(cook.kcalRest > 0) mixedText = "Noch " + cook.kcalRest + " kcal offen, " + gym.done + "/" + gym.count + " Übungen heute erledigt.";
     else if(gym.count === 0) mixedText = "Kalorienziel für heute erreicht — schon trainiert?";
     else mixedText = "Kalorienziel erreicht, " + gym.done + "/" + gym.count + " Übungen heute erledigt. Stark! 💪";
-    // Die Kästen erscheinen NUR im offenen Hauptchat — weder in anderen
-    // (frei angelegten) Chats noch in "Alle Chats" (der Chatliste/Startbildschirm).
-    var chat = currentChat();
-    if(chat && chat.isMain){
+    // Gym, Cook und GymCook gehören zur VoßBot-Seite, unabhängig
+    // davon, welcher Chat dort gerade geöffnet ist.
+    var tab = document.getElementById("tab-chat");
+    var showOverview = tab && !tab.hidden && !tab.classList.contains("chat-float-mode");
+    if(showOverview){
       buildOverviewCardDOM("", cook, gym, mixedText);
     } else if(card1){
       card1.hidden = true;
@@ -7322,6 +7323,7 @@ nav.tabbar button .ic-img{ width: 38px; height: 38px; }
       if(mc){
         state.activeChatId = mc.id;
         renderChatMessages();
+        document.getElementById("chatWrap").scrollTop = 0;
       }
       positionChatInputRow();
     }
