@@ -1543,6 +1543,29 @@ nav.tabbar button .ic-img{ width: 38px; height: 38px; }
   background-color: transparent !important;
 }
 </style>
+
+<style id="gymcook-numbered-selection">
+.cv-gymcook .cov-combo-list.cov-number-picker {
+  display: flex; flex-direction: column; flex-wrap: nowrap;
+  max-height: none; overflow: visible; gap: 10px;
+}
+.cov-number-group { min-width: 0; width: 100%; }
+.cov-number-heading { font-size: 11px; color: var(--text-dim); margin-bottom: 5px; }
+.cov-number-row { display: flex; gap: 7px; overflow-x: auto; padding: 3px 2px 6px; scrollbar-width: thin; overscroll-behavior-x: contain; }
+.cv-gymcook .cov-number-tile {
+  position: relative; flex: 0 0 48px; width: 48px; height: 48px;
+  display: grid; place-items: center; padding: 3px;
+  border: 5px solid transparent; border-image: var(--universal-frame) 300 / 5px stretch;
+  background: rgba(0,8,15,.65); color: var(--text); cursor: pointer;
+}
+.cov-number-icon, .cov-number-icon img, .cov-number-icon svg { display: block; width: 27px; height: 27px; object-fit: contain; }
+.cov-number { position: absolute; bottom: -1px; right: -1px; min-width: 18px; padding: 1px 3px; border-radius: 4px; background: #03131e; color: #eafcff; font: 700 11px var(--mono); text-align: center; }
+.cv-gymcook .cov-number-tile.selected { background: rgba(18,203,238,.27); box-shadow: inset 0 0 0 2px #35e4ff,0 0 7px rgba(18,203,238,.6); }
+.cv-gymcook .cov-number-tile.selected .cov-number { color: #00141a; background: #35e4ff; }
+.cov-number-tile:focus-visible { outline: 2px solid #baf9ff; outline-offset: 2px; }
+.cov-number-tile.done::after { content: "✓"; position: absolute; top: -3px; left: -2px; color: #5bffa9; font-size: 10px; }
+.cov-number-empty { color: var(--text-dim); font-size: 11px; padding: 6px 0; }
+</style>
 </head>
 <body>
 
@@ -3828,7 +3851,6 @@ nav.tabbar button .ic-img{ width: 38px; height: 38px; }
     comboPage.appendChild(buildCvTabs([
       { label: "Heute", panel: todayPanel },
       { label: "Planen", panel: cvPromptPanel(["Wochenplan mit Training und Essen erstellen", "Morgen Training und Mahlzeiten vorplanen", "Trainingstage und Ruhetage verteilen"]) },
-      { label: "Fortschritt", panel: cvPromptPanel(["Wie läuft meine Woche bei Training und Ernährung?", "Habe ich mein Kalorienziel diese Woche getroffen?", "Zeig mir meinen Fortschritt bei Gewicht und Kraft"]) },
       { label: "Ziele", panel: cvPromptPanel(["Meine Ziele anpassen", "Zeig mir meine Ziele und erstelle einen passenden Plan", "Ist mein Kalorienziel noch passend?"]) }
     ]));
 
@@ -3868,35 +3890,10 @@ nav.tabbar button .ic-img{ width: 38px; height: 38px; }
       todayPanel.appendChild(suggest);
     }
 
-    // Semi-Menü: steuert, was zusammen ausgewählt werden darf.
-    var modes = [
-      { key: "mix", label: "Übung + Mahlzeit" },
-      { key: "gym2", label: "2× Fitness" },
-      { key: "cook2", label: "2× Ernährung" },
-      { key: "free", label: "Frei wählen" }
-    ];
-    var comboMode = "mix";
-    var modeRow = document.createElement("div");
-    modeRow.className = "cov-mode-row";
-    var modeBtns = {};
-    modes.forEach(function(m){
-      var b = document.createElement("button");
-      b.type = "button";
-      b.className = "cov-mode-btn" + (m.key === comboMode ? " active" : "");
-      b.textContent = m.label;
-      b.addEventListener("click", function(){
-        comboMode = m.key;
-        selection = [];
-        Object.keys(modeBtns).forEach(function(k){ modeBtns[k].classList.toggle("active", k === comboMode); });
-        renderSelection();
-      });
-      modeBtns[m.key] = b;
-      modeRow.appendChild(b);
-    });
-    todayPanel.appendChild(modeRow);
+    var comboMode = "free";
 
     var selection = []; // [{kind:"meal"|"ex"|"macro", idx, label}]
-    function maxForMode(){ return comboMode === "free" ? 3 : 2; }
+    function maxForMode(){ return 40; }
     var maxMacros = 3; // Protein + KH + Fett sollen gleichzeitig kombinierbar sein
     function allowedKind(kind){
       if(kind === "macro") return true; // Nährstoff-Anpassung lässt sich immer dazukombinieren
@@ -3938,33 +3935,46 @@ nav.tabbar button .ic-img{ width: 38px; height: 38px; }
     }
 
     var listWrap = document.createElement("div");
-    listWrap.className = "cov-combo-list";
-    cook.entries.forEach(function(item, idx){
-      var chip = document.createElement("div");
-      chip.className = "cov-chip cov-combo-item" + (item.confirmed ? " done" : "");
-      chip.style.cssText = "width:100%;box-sizing:border-box;white-space:normal;";
-      var label = item.name || "Mahlzeit " + (idx + 1);
-      chip.textContent = (item.confirmed ? "✓ " : "") + label;
-      chip.dataset.kind = "meal"; chip.dataset.idx = idx;
-      chip.addEventListener("click", function(){ toggleSelect("meal", idx, label); });
-      listWrap.appendChild(chip);
-    });
-    gym.exercises.forEach(function(ex, idx){
+    listWrap.className = "cov-combo-list cov-number-picker";
+    function addNumberRow(kind, items, limit, heading, icon){
+      var group = document.createElement("div");
+      group.className = "cov-number-group";
+      var title = document.createElement("div");
+      title.className = "cov-number-heading";
+      title.textContent = heading;
+      group.appendChild(title);
       var row = document.createElement("div");
-      row.className = "cov-ex-row cov-combo-item" + (ex.success ? " done" : "");
-      var label = ex.name || "Übung " + (idx + 1);
-      var meta = (ex.sets || 3) + "×" + (ex.reps || 8) + (ex.weight ? " · " + fmtWeight(ex.weight) + "kg" : "") + " · " + (ex.restSec != null ? ex.restSec : 90) + "s Pause";
-      row.innerHTML = '<span class="n">' + (ex.success ? "✓ " : "") + label + '</span><span class="m">' + meta + '</span>';
-      row.dataset.kind = "ex"; row.dataset.idx = idx;
-      row.addEventListener("click", function(){ toggleSelect("ex", idx, label); });
-      listWrap.appendChild(row);
-    });
-    if(!cook.entries.length && !gym.exercises.length){
-      var emptyMsg = document.createElement("div");
-      emptyMsg.style.cssText = "font-size:13px;color:var(--text-faint);";
-      emptyMsg.textContent = "Noch keine Mahlzeiten oder Übungen heute.";
-      listWrap.appendChild(emptyMsg);
+      row.className = "cov-number-row";
+      row.setAttribute("role", "group");
+      row.setAttribute("aria-label", heading);
+      items.slice(0, limit).forEach(function(item, idx){
+        var number = idx + 1;
+        var name = item.name || (kind === "meal" ? "Mahlzeit " : "Übung ") + number;
+        var label = (kind === "meal" ? "Mahlzeit " : "Übung ") + number;
+        if(item.name) label += ": " + item.name;
+        var button = document.createElement("button");
+        button.type = "button";
+        button.className = "cov-number-tile cov-combo-item" + ((kind === "meal" ? item.confirmed : item.success) ? " done" : "");
+        button.dataset.kind = kind;
+        button.dataset.idx = idx;
+        button.setAttribute("aria-label", label);
+        button.setAttribute("aria-pressed", "false");
+        button.title = label;
+        button.innerHTML = '<span class="cov-number-icon" aria-hidden="true">' + icon + '</span><span class="cov-number">' + number + '</span>';
+        button.addEventListener("click", function(){ toggleSelect(kind, idx, label); });
+        row.appendChild(button);
+      });
+      if(!items.length){
+        var empty = document.createElement("span");
+        empty.className = "cov-number-empty";
+        empty.textContent = kind === "meal" ? "Noch keine Mahlzeiten gespeichert." : "Noch keine Übungen gespeichert.";
+        row.appendChild(empty);
+      }
+      group.appendChild(row);
+      listWrap.appendChild(group);
     }
+    addNumberRow("meal", cook.entries, 15, "Mahlzeiten", COV_ICON.k_fork_meal);
+    addNumberRow("ex", gym.exercises, 25, "Übungen", COV_ICON.g_dumbbell_plus);
     todayPanel.appendChild(listWrap);
 
     // Nährstoffe lassen sich immer mit dazu auswählen — z.B. "Bankdrücken +
@@ -4023,10 +4033,11 @@ nav.tabbar button .ic-img{ width: 38px; height: 38px; }
 
     function renderSelection(){
       [listWrap, macroRow].forEach(function(container){
-        Array.prototype.forEach.call(container.children, function(el){
+        Array.prototype.forEach.call(container.querySelectorAll(".cov-combo-item"), function(el){
           if(!el.dataset || !el.dataset.kind) return;
           var isSel = selection.some(function(s){ return s.kind === el.dataset.kind && String(s.idx) === el.dataset.idx; });
           el.classList.toggle("selected", isSel);
+          if(el.tagName === "BUTTON") el.setAttribute("aria-pressed", String(isSel));
         });
       });
       if(selection.length){
@@ -4380,7 +4391,7 @@ nav.tabbar button .ic-img{ width: 38px; height: 38px; }
         ? '<span class="icg">' + it.icons.map(function(k){ return '<span class="ic">' + COV_ICON[k] + '</span>'; }).join('<span class="pl">+</span>') + '</span>'
         : '<span class="ic">' + (it.icon || COV_ICON.link) + '</span>';
       row.innerHTML = icHtml + '<span class="tx">„' + it.text + '"</span><span class="chev">›</span>';
-      row.addEventListener("click", function(){ fillMainChatInput(it.text); });
+      row.addEventListener("click", function(){ fillChatInputOnly(it.text); });
       list.appendChild(row);
     });
     return list;
