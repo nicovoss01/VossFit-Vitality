@@ -2430,6 +2430,24 @@ nav.tabbar button .ic-img{ width: 38px; height: 38px; }
   var justSignedIn = false;
   try{ if(sessionStorage.getItem("vf_just_signed_in") === "1"){ justSignedIn = true; sessionStorage.removeItem("vf_just_signed_in"); } }catch(e){}
 
+  // Desktop handoff: the browser sends a short-lived Google credential to the
+  // waiting app on loopback. No credential is put in a URL or stored by Electron.
+  var desktopAuth = (function(){
+    if(window.vossfit) return null;
+    var query = new URLSearchParams(location.search);
+    if(query.get("vf_desktop_auth") !== "1") return null;
+    var port = Number(query.get("port"));
+    var nonce = query.get("nonce");
+    if(!Number.isInteger(port) || port < 1 || port > 65535 || !/^[a-f0-9]{64}$/.test(nonce || "")) return null;
+    query.delete("vf_desktop_auth"); query.delete("port"); query.delete("nonce");
+    history.replaceState(null, "", location.pathname + (query.size ? "?" + query : "") + location.hash);
+    var banner = document.createElement("div");
+    banner.textContent = "Desktop-Anmeldung: Bitte hier auf Mit Google anmelden klicken. Anschließend zur App zurückkehren.";
+    banner.style.cssText = "position:fixed;bottom:16px;left:16px;right:16px;z-index:99999;padding:14px 18px;border-radius:12px;background:#10304e;color:white;font:600 14px system-ui;box-shadow:0 8px 24px #0007";
+    document.body.appendChild(banner);
+    return { port: port, nonce: nonce, banner: banner };
+  })();
+
   function signInGoogle(){
     fbReady.then(function(r){
       if(!r || !fbAuth || !authApi){
@@ -2440,16 +2458,40 @@ nav.tabbar button .ic-img{ width: 38px; height: 38px; }
       justSignedIn = true;
       setDiagStatus("Anmeldung wird geöffnet…");
       var provider = new authApi.GoogleAuthProvider();
-      authApi.signInWithPopup(fbAuth, provider).then(function(){
-        setDiagStatus("Angemeldet ✓");
+      if(window.vossfit && typeof window.vossfit.startGoogleSignIn === "function"){
+        window.vossfit.startGoogleSignIn().then(function(tokens){
+          return authApi.signInWithCredential(fbAuth, authApi.GoogleAuthProvider.credential(tokens.idToken, tokens.accessToken));
+        }).then(function(){
+          setDiagStatus("Angemeldet ✓");
+        }).catch(function(err){
+          justSignedIn = false;
+          setDiagStatus("Desktop-Anmeldung fehlgeschlagen: " + ((err && err.code) || (err && err.message) || "Unbekannter Fehler"), true);
+        });
+        return;
+      }
+      authApi.signInWithPopup(fbAuth, provider).then(function(result){
+        if(!desktopAuth){ setDiagStatus("Angemeldet ✓"); return; }
+        var credential = authApi.GoogleAuthProvider.credentialFromResult(result);
+        if(!credential || !credential.idToken) throw new Error("Google hat keine Anmeldebestätigung zurückgegeben.");
+        return fetch("http://127.0.0.1:" + desktopAuth.port + "/auth", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ nonce: desktopAuth.nonce, idToken: credential.idToken, accessToken: credential.accessToken || null })
+        }).then(function(response){
+          if(!response.ok) throw new Error("Die Desktop-App hat die Anmeldung nicht angenommen.");
+          desktopAuth.banner.textContent = "Anmeldung übermittelt. Du kannst jetzt zur Desktop-App zurückkehren.";
+          desktopAuth = null;
+          setDiagStatus("Anmeldung an Desktop-App übermittelt ✓");
+        });
       }).catch(function(err){
         justSignedIn = false;
         var code = err && err.code;
-        if(code === "auth/popup-blocked"){
+        if(code === "auth/popup-blocked" && !desktopAuth){
           setDiagStatus("Popup wurde blockiert — versuche es über die andere Anmeldemethode (siehe unten) oder erlaube Popups für diese Seite.", true);
           signInGoogleRedirect();
         } else {
           setDiagStatus("Anmeldung fehlgeschlagen: " + (code || (err && err.message) || "Unbekannter Fehler"), true);
+          if(desktopAuth) desktopAuth.banner.textContent = "Anmeldung fehlgeschlagen. Bitte Popups erlauben und erneut mit Google anmelden.";
         }
       });
     });
