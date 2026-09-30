@@ -4661,8 +4661,8 @@ var PI = {"g_tile":vfSharedIcon("--vf-shared-87"),"k_tile":vfSharedIcon("--vf-sh
   }
 
   // Homepage-Vertrag: VoßBot und seine Übersicht bilden eine gemeinsame Seite.
-  // Login, Profilstatus und der ausgewählte Chat dürfen die Fenster nicht entfernen.
-  function renderGuestHomepage(card){
+  // Erst nach bestätigtem Login anzeigen; danach unabhängig vom ausgewählten Chat.
+  function renderSignedInEmptyHomepage(card){
     if(!card) return;
     if(card._pagerObserver) card._pagerObserver.disconnect();
     card.hidden = false;
@@ -4678,7 +4678,7 @@ var PI = {"g_tile":vfSharedIcon("--vf-shared-87"),"k_tile":vfSharedIcon("--vf-sh
       var title = document.createElement("h2"); title.textContent = item[1];
       head.appendChild(img); head.appendChild(title); panel.appendChild(head);
       var hint = document.createElement("p");
-      hint.textContent = "Melde dich mit Google an oder lege dein Profil im VoßBot-Chat an, um deine Daten hier zu sehen.";
+      hint.textContent = "Lege dein Profil im VoßBot-Chat an, um deine Daten hier zu sehen.";
       panel.appendChild(hint); card.appendChild(panel);
     });
   }
@@ -4686,13 +4686,20 @@ var PI = {"g_tile":vfSharedIcon("--vf-shared-87"),"k_tile":vfSharedIcon("--vf-sh
   function renderChatOverviewCard(){
     var card1 = document.getElementById("chatOverviewCard");
     var card2 = document.getElementById("chatOverviewCardHome");
+    // Firebase bestätigt den Login asynchron. Auch mit lokalen Profildaten
+    // bleibt die Übersicht bis dahin und nach dem Logout ausgeblendet.
+    if(!fbUser){
+      if(card1) card1.hidden = true;
+      if(card2) card2.hidden = true;
+      return;
+    }
     var p = activeProfile();
     var tab = document.getElementById("tab-chat");
     var showOverview = tab && !tab.hidden && !tab.classList.contains("chat-float-mode");
     if(card2) card2.hidden = true;
     if(!showOverview){ if(card1) card1.hidden = true; return; }
     if(!p){
-      renderGuestHomepage(card1);
+      renderSignedInEmptyHomepage(card1);
       return;
     }
     var cook = computeCookSummary(p);
