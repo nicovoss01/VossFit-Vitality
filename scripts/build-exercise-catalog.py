@@ -1,4 +1,4 @@
-"""Build 317 catalogue variants and 24 cropped atlases from VossFit-Galerie-24-Raster.zip."""
+"""Build source catalogue variants and 24 cropped atlases from VossFit-Galerie-24-Raster.zip."""
 import csv,io,json,re,sys,zipfile
 from pathlib import Path
 from collections import OrderedDict
@@ -45,11 +45,12 @@ for slug,nums in groups.items():
  tips=TIPS.get(fam,['Gerät bzw. Ausgangsposition passend einstellen.','Bewegung ruhig und kontrolliert in einem angenehmen Bewegungsumfang ausführen.'])
  if cardio:tips=['Dauer und Intensität passend wählen.','Kontrolliert beginnen und Belastung schrittweise anpassen.']
  entries.append(dict(id='vf-'+slug,name=name,family=fam,muscle=muscle,secondary=secondary,equipment=eq,variants=vs,kind='cardio' if cardio else 'strength',frames=nums,tips=tips,review='draft',source='csv' if n<550 else 'caption',aliases=[slug.replace('_',' ')]))
+entries.extend(json.loads((out/'extra-exercises.json').read_text()) if (out/'extra-exercises.json').exists() else [])
 (out/'catalog.js').write_text('window.VF_EXERCISE_CATALOG = '+json.dumps(entries,ensure_ascii=False,separators=(',',':'))+';\n')
 with (out/'mapping.csv').open('w',newline='') as f:
- w=csv.writer(f);w.writerow(['Nummer','Übungs-ID','Phase','Zuordnungsquelle'])
+ w=csv.writer(f,lineterminator="\n");w.writerow(['Nummer','Übungs-ID','Phase','Zuordnungsquelle'])
  for e in entries:
-  for i,n in enumerate(e['frames']):w.writerow([n,e['id'],i+1,'Original-CSV' if n<=549 else 'Bildbeschriftung (rekonstruiert)'])
+  for i,n in enumerate(e['frames']):w.writerow([n,e['id'],i+1,'Generiert' if isinstance(n,str) else 'Original-CSV' if n<=549 else 'Bildbeschriftung (rekonstruiert)'])
 for sheet in range(1,25):
  im=Image.open(z.open(f'VossFit-Raster-{sheet:02}.png')).convert('RGB');w,h=im.size
  def bounds(axis):

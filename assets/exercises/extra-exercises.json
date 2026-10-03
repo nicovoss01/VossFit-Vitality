@@ -1,0 +1,34 @@
+[
+  {
+    "id": "vf-shoulders_cable_face_pull_standing_rope",
+    "name": "Face Pulls",
+    "family": "Face Pulls",
+    "muscle": "Schultern",
+    "secondary": [
+      "Oberer Rücken"
+    ],
+    "equipment": "Kabelzug",
+    "variants": [
+      "stehend",
+      "Seilgriff"
+    ],
+    "kind": "strength",
+    "frames": [
+      "assets/exercises/face-pull-start.png",
+      "assets/exercises/face-pull-pull.png"
+    ],
+    "tips": [
+      "Seilgriff etwa auf Gesichtshöhe einstellen und den Rumpf stabil halten.",
+      "Seil kontrolliert zum Gesicht ziehen; Ellenbogen seitlich führen und die Hände neben die Schläfen bringen.",
+      "Langsam in die Ausgangsposition zurückführen, ohne mit dem Oberkörper Schwung zu holen."
+    ],
+    "review": "draft",
+    "source": "generated",
+    "aliases": [
+      "Face Pull",
+      "Facepulls",
+      "Seilzug zum Gesicht",
+      "hintere Schulter"
+    ]
+  }
+]

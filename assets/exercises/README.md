@@ -1,6 +1,6 @@
 # VossFit Gym exercise catalogue
 
-317 variants/activities; 596 motifs in 24 cropped WebP atlases (~4.3 MB).
+318 variants/activities; 598 motifs (two new Face Pull icons plus 596 source motifs) in 24 cropped WebP atlases (~4.3 MB).
 
 Source: user's VossFit-Galerie-24-Raster.zip, Drive file 1FTQnmJotHho2Lr1F5B0oUiECUQ3jFkeS.
 Source CSV ends at 549. Entries 550–596 are reconstructed from visible image captions,
@@ -22,6 +22,8 @@ Cardio records minutes and optional kilometres and does not receive weight progr
 Tiles: 250×230 in 5×5 atlases; CSS background-size 500% 500% selects one cropped motif.
 Atlases load on demand and are cached for offline reuse after being viewed. Update the
 service-worker cache version when replacing art at the same URL.
+
+Additional generated exercises are maintained in extra-exercises.json. Standalone PNG frames use contain sizing and share the same picker, planner and history paths. Face Pulls matches existing entries by its unique canonical name. Prompts: generated-prompts.json.
 
 Regenerate: python scripts/build-exercise-catalog.py /path/to/source.zip (Pillow required).
 Test: NODE_PATH=<node_modules> VF_TEST_BROWSER=<optional Chromium path> node tests/gym-library.test.cjs.

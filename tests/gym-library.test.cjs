@@ -2,7 +2,7 @@
 const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),http=require('node:http');
 const root=path.resolve(__dirname,'..');
 (async()=>{
-const server=http.createServer((req,res)=>{let filename=path.join(root,decodeURIComponent(req.url.split('?')[0]));if(req.url==='/'||req.url.startsWith('/?'))filename=path.join(root,'index.html');if(!filename.startsWith(root+path.sep)){res.writeHead(403).end();return;}fs.readFile(filename,(err,data)=>{if(err){res.writeHead(404).end();return;}res.setHeader('Content-Type',filename.endsWith('.js')?'application/javascript':filename.endsWith('.css')?'text/css':filename.endsWith('.webp')?'image/webp':'text/html');res.end(data);});});
+const server=http.createServer((req,res)=>{let filename=path.join(root,decodeURIComponent(req.url.split('?')[0]));if(req.url==='/'||req.url.startsWith('/?'))filename=path.join(root,'index.html');if(!filename.startsWith(root+path.sep)){res.writeHead(403).end();return;}fs.readFile(filename,(err,data)=>{if(err){res.writeHead(404).end();return;}res.setHeader('Content-Type',filename.endsWith('.js')?'application/javascript':filename.endsWith('.css')?'text/css':filename.endsWith('.webp')?'image/webp':filename.endsWith('.png')?'image/png':'text/html');res.end(data);});});
 await new Promise(r=>server.listen(0,'127.0.0.1',r));const origin='http://127.0.0.1:'+server.address().port;
 let browser;
 try{
@@ -17,7 +17,7 @@ try{
  const state=()=>page.evaluate(()=>JSON.parse(localStorage.getItem('vossfit_prototype_v6'))),exercises=async()=>(await state()).profiles.test.gymPlanner.plans[0].days[0].exercises;
  assert.equal((await exercises())[0].exerciseId,undefined);assert.equal((await exercises())[0].rows[0].weight,88);
  const id='vf-chest_bench_barbell_press_lying_medium_grip',swapId='vf-chest_bench_dumbbell_press_incline';
- await page.locator('[data-gx="library"]').click();assert.match(await page.locator('#gxCount').textContent(),/317/);
+ await page.locator('[data-gx="library"]').click();assert.match(await page.locator('#gxCount').textContent(),/318/);
  await page.locator('#gxSearch').fill('Bankdrücken Langhantel liegend mittlerer Griff');
  await page.locator(`[data-gx="favorite"][data-id="${id}"]`).click();await page.locator(`[data-gx="detail"][data-id="${id}"]`).first().click();
  await page.locator('[data-gx="phase"][data-phase="1"]').click();assert.equal(await page.locator('[data-gx="phase"][data-phase="1"]').getAttribute('aria-pressed'),'true');
@@ -38,8 +38,12 @@ try{
  const saved=(await state()).profiles.test;assert(saved.trainingDays[day].exercises[2].success);assert.equal(saved.trainingDays[day].exercises[2].durationMin,35);assert(saved.exerciseHistory['catalog:'+id]);assert.equal(saved.exerciseHistory.bankdrücken.lastWeight,88);assert(!saved.exerciseHistory['catalog:vf-cardio_sport_jogging']);
  await page.screenshot({path:'/tmp/gym-library-planner.png',fullPage:true});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));
  await page.locator('[data-gp="resume"]').click();await page.locator('[data-gp="addexercise"]').click();await page.locator('[data-gx="custom"]').click();await page.locator('#gpForm input[name="name"]').fill('Meine eigene Übung');await page.locator('#gpForm button[type="submit"]').click();assert.equal((await state()).profiles.test.trainingDays[day].exercises.at(-1).name,'Meine eigene Übung');
- const catalog=await page.evaluate(()=>window.VF_EXERCISE_CATALOG);assert.equal(new Set(catalog.map(e=>e.id)).size,317);assert.equal(new Set(catalog.flatMap(e=>e.frames)).size,596);
+ const catalog=await page.evaluate(()=>window.VF_EXERCISE_CATALOG);assert.equal(new Set(catalog.map(e=>e.id)).size,318);assert.equal(new Set(catalog.flatMap(e=>e.frames)).size,598);
+
+ const face=catalog.find(e=>e.name==='Face Pulls');assert(face);assert.equal(face.frames.length,2);for(const asset of face.frames){assert(fs.existsSync(path.join(root,asset)));assert.equal((await page.request.get(origin+'/'+asset)).status(),200);}
+ await page.locator('[data-gx="library"]').click();await page.locator('#gxSearch').fill('Face Pulls');await page.locator('[data-gx="detail"]').first().click();assert.match(await page.locator('#gxDetailArt .gx-art').getAttribute('style'),/face-pull-start/);await page.locator('[data-gx="phase"][data-phase="1"]').click();assert.match(await page.locator('#gxDetailArt .gx-art').getAttribute('style'),/face-pull-pull/);await page.evaluate(async()=>{await Promise.all(window.VF_EXERCISE_CATALOG.find(e=>e.name==='Face Pulls').frames.map(src=>new Promise((resolve,reject)=>{const im=new Image();im.onload=resolve;im.onerror=reject;im.src=src;})));});await page.screenshot({path:'/tmp/face-pull-detail.png'});
  for(let i=1;i<=24;i++)assert(fs.existsSync(path.join(root,'assets/exercises/atlas-'+String(i).padStart(2,'0')+'.webp')));
- assert.deepEqual(errors,[]);console.log('PASS: 317 variants/596 frames; filters, favorites/reload, phases, detail alternatives, safe mapping/swapping, cardio, history, custom exercises, mobile layout; no page errors.');
+ const migrated=await page.evaluate(()=>{const e={name:'Face Pulls',group:'Schulter · Kabelzug',rows:[{weight:15,reps:15,done:false}]},p={trainingDays:{test:{exercises:[e]}}};window.VossFitExercises.create({},window.VF_EXERCISE_CATALOG).ensure(p);return e;});assert.equal(migrated.exerciseId,'vf-shoulders_cable_face_pull_standing_rope');assert.equal(migrated.rows[0].weight,15);
+ assert.deepEqual(errors,[]);console.log('PASS: 318 variants/598 frames; filters, favorites/reload, phases, detail alternatives, safe mapping/swapping, cardio, history, custom exercises, mobile layout; no page errors.');
 }finally{if(browser)await browser.close();server.close();}
 })().catch(e=>{console.error(e);process.exit(1);});

@@ -595,3 +595,5 @@ Nummer,Übungs-ID,Phase,Zuordnungsquelle
 594,vf-triceps_smith_machine_press_decline_close_grip,2,Bildbeschriftung (rekonstruiert)
 595,vf-triceps_smith_machine_press_incline_close_grip,1,Bildbeschriftung (rekonstruiert)
 596,vf-triceps_smith_machine_press_incline_close_grip,2,Bildbeschriftung (rekonstruiert)
+assets/exercises/face-pull-start.png,vf-shoulders_cable_face_pull_standing_rope,1,Generiert
+assets/exercises/face-pull-pull.png,vf-shoulders_cable_face_pull_standing_rope,2,Generiert
