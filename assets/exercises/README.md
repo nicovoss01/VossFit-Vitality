@@ -29,3 +29,5 @@ Regenerate: python scripts/build-exercise-catalog.py /path/to/source.zip (Pillow
 Test: NODE_PATH=<node_modules> VF_TEST_BROWSER=<optional Chromium path> node tests/gym-library.test.cjs.
 Tests use synthetic profiles, block external calls and verify persistence, mapping,
 alternatives, source coverage, old-data preservation, cardio, history and mobile layout.
+
+Gallery: direct Gym toolbar shortcut and library menu; five columns, all matching variants without pagination. Custom exercises can keep their own name and training values while selecting artworkId from this gallery. Artwork IDs do not merge custom exercise history into catalogue history.

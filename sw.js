@@ -1,5 +1,5 @@
 // App shell: network first. Exercise atlases: cache first, downloaded on demand.
-const CACHE = 'vossfit-live-gym-library-v1';
+const CACHE = 'vossfit-live-gym-gallery-v2';
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', event => {event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));});
 self.addEventListener('fetch', event => {
