@@ -52,7 +52,13 @@ export default {
     let data = null;
 
     for (const model of models) {
-      const result = await generate(model, contents, systemText, toolDecls, apiKey);
+      let result = await generate(model, contents, systemText, toolDecls, apiKey);
+      // Retry the complete generation once; no tools from a partial answer
+      // have been sent to the client or executed at this point.
+      if (result.ok && readModelParts(result.data).finishReason === "MAX_TOKENS") {
+        const retry = await generate(model, contents, systemText, toolDecls, apiKey, 8192);
+        if (retry.ok) result = retry;
+      }
       if (result.ok) {
         data = result.data;
         break;
@@ -68,6 +74,14 @@ export default {
     }
 
     const parsed = readModelParts(data);
+    if (parsed.finishReason === "MAX_TOKENS") {
+      return json({
+        v: 2,
+        text: (parsed.text ? parsed.text + "\n\n" : "") + "Die Antwort wurde wegen des Ausgabelimits abgebrochen. Bitte grenze deine Frage ein oder bitte mich, fortzufahren.",
+        truncated: true,
+        finishReason: parsed.finishReason
+      }, 200, corsHeaders);
+    }
     if (parsed.calls.length) {
       return json({
         v: 2,
@@ -164,7 +178,7 @@ function normalizeSchema(schema) {
   return out;
 }
 
-async function generate(model, contents, systemText, toolDecls, apiKey) {
+async function generate(model, contents, systemText, toolDecls, apiKey, maxOutputTokens = 4096) {
   const modern = model.indexOf("gemini-3") === 0;
   const modes = modern ? ["low", "plain"] : ["budget", "plain"];
   let last = { ok: false, status: 0, error: "Unbekannter Fehler" };
@@ -176,11 +190,11 @@ async function generate(model, contents, systemText, toolDecls, apiKey) {
     };
     if (toolDecls) payload.tools = [{ functionDeclarations: toolDecls }];
     if (mode === "low") {
-      payload.generationConfig = { maxOutputTokens: 480, thinkingConfig: { thinkingLevel: "low" } };
+      payload.generationConfig = { maxOutputTokens: maxOutputTokens, thinkingConfig: { thinkingLevel: "low" } };
     } else if (mode === "budget") {
-      payload.generationConfig = { maxOutputTokens: 480, temperature: 0.6, thinkingConfig: { thinkingBudget: 0 } };
+      payload.generationConfig = { maxOutputTokens: maxOutputTokens, temperature: 0.6, thinkingConfig: { thinkingBudget: 0 } };
     } else {
-      payload.generationConfig = { maxOutputTokens: 480 };
+      payload.generationConfig = { maxOutputTokens: maxOutputTokens };
     }
 
     const url = "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + apiKey;
@@ -190,7 +204,7 @@ async function generate(model, contents, systemText, toolDecls, apiKey) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(8000)
+        signal: AbortSignal.timeout(15000)
       });
     } catch (e) {
       return { ok: false, status: 0, error: "Gemini nicht erreichbar" };
@@ -208,7 +222,7 @@ async function generate(model, contents, systemText, toolDecls, apiKey) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
-          signal: AbortSignal.timeout(8000)
+          signal: AbortSignal.timeout(15000)
         });
       } catch (e) {
         return { ok: false, status: 0, error: "Gemini nicht erreichbar" };
@@ -239,7 +253,8 @@ function readModelParts(data) {
       }
     }
   }
-  return { text: text.trim(), calls: calls };
+  const candidate = data && data.candidates && data.candidates[0];
+  return { text: text.trim(), calls: calls, finishReason: candidate && candidate.finishReason || null };
 }
 
 function json(obj, status, corsHeaders) {

@@ -13956,7 +13956,7 @@ document.addEventListener('DOMContentLoaded', hydrateAssets, {once: true});
         fbUser = user;
         updateAuthUI();
         renderChatOverviewCard();
-        if (user) setTopbar(state.view); // Login entsperrt Zurück/Tableiste sofort
+        if (user) setTopbar(state.view); // Navigation bleibt ohne Profil gesperrt
         if (user && justSignedIn) {
           justSignedIn = false;
           handleFreshLogin(user.uid);
@@ -14164,12 +14164,10 @@ document.addEventListener('DOMContentLoaded', hydrateAssets, {once: true});
     return state.profiles[state.activeProfileId];
   }
 
-  // Solange weder angemeldet noch ein Profil fertig angelegt ist, ist der
-  // VoßBot-Chat der einzige erreichbare Bildschirm (kein Zurück, keine
-  // Tableiste, keine Einstellungen) — erst Login oder abgeschlossene
-  // Profil-Erstellung im Chat schalten die restliche App wieder frei.
+  // Login allein genügt nicht: Erst ein vorhandenes Offline-/Online-Profil
+  // schaltet Navigation und die Bereiche mit Profildaten frei.
   function navLocked() {
-    return !state.onboarded && !fbUser;
+    return !activeProfile();
   }
   function calcEngine(p) {
     var genderFactor = p.gender === "frau" ? 22 : 24;
@@ -16243,53 +16241,25 @@ document.addEventListener('DOMContentLoaded', hydrateAssets, {once: true});
     requestAnimationFrame(alignOverviewPager);
   }
 
-  // Homepage-Vertrag: VoßBot und seine Übersicht bilden eine gemeinsame Seite.
-  // Erst nach bestätigtem Login anzeigen; danach unabhängig vom ausgewählten Chat.
-  function renderSignedInEmptyHomepage(card) {
-    if (!card) return;
-    if (card._pagerObserver) card._pagerObserver.disconnect();
-    card.hidden = false;
-    card.innerHTML = "";
-    [["cv-gymcook", "GymCook", "gc_emblem"], ["cv-gym", "Gym", "g_tile"], ["cv-cook", "Cook", "k_tile"]].forEach(function (item) {
-      var panel = document.createElement("div");
-      panel.className = "cov-page " + item[0];
-      var head = document.createElement("div");
-      head.className = "cv-head";
-      var img = document.createElement("img");
-      img.src = PI[item[2]];
-      img.alt = "";
-      img.style.cssText = "width:64px;height:64px;object-fit:contain;mix-blend-mode:screen";
-      var title = document.createElement("h2");
-      title.textContent = item[1];
-      head.appendChild(img);
-      head.appendChild(title);
-      panel.appendChild(head);
-      var hint = document.createElement("p");
-      hint.textContent = "Lege dein Profil im VoßBot-Chat an, um deine Daten hier zu sehen.";
-      panel.appendChild(hint);
-      card.appendChild(panel);
-    });
-  }
+  // Übersicht erst anzeigen, wenn ein nutzbares Profil vorhanden ist.
   function renderChatOverviewCard() {
     var card1 = document.getElementById("chatOverviewCard");
     var card2 = document.getElementById("chatOverviewCardHome");
-    // Firebase bestätigt den Login asynchron. Auch mit lokalen Profildaten
-    // bleibt die Übersicht bis dahin und nach dem Logout ausgeblendet.
-    if (!activeProfile() && !fbUser) {
-      if (card1) card1.hidden = true;
-      if (card2) card2.hidden = true;
+    var p = activeProfile();
+    if (!p) {
+      [card1, card2].forEach(function (card) {
+        if (!card) return;
+        if (card._pagerObserver) card._pagerObserver.disconnect();
+        card.hidden = true;
+        card.innerHTML = "";
+      });
       return;
     }
-    var p = activeProfile();
     var tab = document.getElementById("tab-chat");
     var showOverview = tab && !tab.hidden && !tab.classList.contains("chat-float-mode");
     if (card2) card2.hidden = true;
     if (!showOverview) {
       if (card1) card1.hidden = true;
-      return;
-    }
-    if (!p) {
-      renderSignedInEmptyHomepage(card1);
       return;
     }
     var cook = computeCookSummary(p);
@@ -17533,7 +17503,7 @@ document.addEventListener('DOMContentLoaded', hydrateAssets, {once: true});
     pendingBubble.className = "chat-bubble pending";
     pendingBubble.textContent = "…";
     function attempt(follow) {
-      return tryProxyChatOnce(systemInstruction, contextBlock, text, historyTurns, 20000, follow);
+      return tryProxyChatOnce(systemInstruction, contextBlock, text, historyTurns, 65000, follow);
     }
     attempt(null).catch(function (firstErr) {
       if (!(firstErr && firstErr.name === "AbortError")) throw firstErr;
