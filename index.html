@@ -13359,7 +13359,12 @@ document.addEventListener('DOMContentLoaded', hydrateAssets, {once: true});
     authApi = null;
   var cloudSaveTimer = null;
   var fsLoadError = null;
-  var fbReady = Promise.reject(new Error('Offline-Vorschau')).then(function (mods) {
+  var FB_BASE = "https://www.gstatic.com/firebasejs/10.14.1/";
+  var fbReady = Promise.all([
+    import(/* webpackIgnore: true */ FB_BASE + "firebase-app.js"),
+    import(/* webpackIgnore: true */ FB_BASE + "firebase-auth.js"),
+    import(/* webpackIgnore: true */ FB_BASE + "firebase-firestore.js")
+  ]).then(function (mods) {
     var appApi = mods[0];
     authApi = mods[1];
     fsApi = mods[2];
